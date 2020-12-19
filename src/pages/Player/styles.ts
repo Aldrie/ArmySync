@@ -9,11 +9,3 @@ export const Container = styled.div`
   background: ${({ theme }) => theme.palette.surface.main};
   padding: 44px 128px;
 `;
-
-export const Color = styled.div`
-  width: 8vw;
-  height: 8vw;
-  border-radius: 164px;
-  background: #222;
-  box-shadow: 0 0 16px #222;
-`;

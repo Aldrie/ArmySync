@@ -10,8 +10,11 @@ declare module 'styled-components' {
     palette: {
       primary: IPalette;
       surface: IPalette;
+      onSurface: IPalette;
       additional: {
         playerBackground: string;
+        divider: string;
+        red: string;
       }
     }
   }
