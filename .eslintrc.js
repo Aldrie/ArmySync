@@ -8,6 +8,7 @@ module.exports = {
     'import/prefer-default-export': 0,
     'react/jsx-props-no-spreading': 0,
     'import/no-extraneous-dependencies': 0,
-    'jsx-a11y/media-has-caption': 0
+    'jsx-a11y/media-has-caption': 0,
+    'no-nested-ternary': 0,
   }
 };

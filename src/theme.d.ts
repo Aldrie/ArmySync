@@ -11,10 +11,12 @@ declare module 'styled-components' {
       primary: IPalette;
       surface: IPalette;
       onSurface: IPalette;
+      surfaceOverlay: IPalette;
       additional: {
         playerBackground: string;
         divider: string;
         red: string;
+        scrollbar: string;
       }
     }
   }

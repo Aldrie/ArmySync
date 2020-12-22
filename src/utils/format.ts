@@ -1,6 +1,7 @@
-export const videoTime = (time: number) => {
-  const minutes = Math.floor(time / 60);
-  const seconds = Math.floor(time % 60);
+export const videoTime = (currentSeconds: number) => {
+  const hours = Math.floor(currentSeconds / (60 * 60));
+  const minutes = Math.floor(currentSeconds / 60);
+  const seconds = Math.floor(currentSeconds % 60);
 
-  return `${minutes}:${seconds.toString().length === 1 ? `${seconds}0` : seconds}`;
+  return `${hours ? `${hours}:` : ''}${minutes}:${seconds < 10 ? `0${seconds}` : seconds}`;
 };

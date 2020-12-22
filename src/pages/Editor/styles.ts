@@ -70,7 +70,15 @@ export const TimelineContainer = styled.div`
   background: ${({ theme }) => theme.palette.onSurface.main};
   grid-area: timeline;
   border-radius: 8px;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+`;
+
+export const TimelineWrapper = styled.div`
   padding: 12px 12px 0 12px;
+  width: 100%;
+  height: 100%;
   overflow: auto;
 `;
 
@@ -79,7 +87,19 @@ export const Timeline = styled.div`
   height: 100%;
   position: relative;
 
+  .info {
+    font-size: 28px;
+    user-select: none;
+    font-weight: bold;
+    position: absolute;
+    right: 0;
+    text-align: right;
+    position: fixed;
+    transform: translateY(-150%) translateX(-18%);
+  }
+
   .range {
+    z-index: 3;
     background: transparent;
     width: 100%;
     height: 100%;
@@ -130,7 +150,54 @@ export const Timeline = styled.div`
           background: ${({ theme }) => theme.palette.primary.contrastColor};
         }
       }
+
+      .first:after {
+        left: 0;
+      }
+
+      .center:after {
+        left: 0;
+        right: 0;
+        margin: 0 auto;
+      }
+
+      .last:after {
+        right: 0;
+      }
     }
+  }
+`;
+
+export const TimelineFooter = styled.div`
+  width: 100%;
+  height: 64px;
+  background: ${({ theme }) => theme.palette.surfaceOverlay.main};
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+`;
+
+export const Zoom = styled.input.attrs({
+  type: 'range', min: 0, max: 100, step: 0.1, defaultValue: 0,
+})`
+  cursor: pointer;
+  width: 10%;
+  height: 8px;
+  border-radius: 2px;
+  appearance: none;
+  background-color: ${({ theme }) => theme.palette.surface.contrastColor};
+  background-size: 0 100%;
+  background-repeat: no-repeat;
+  background-image:${({ theme }) => `-webkit-gradient(linear, 50% 0%, 50% 100%, color-stop(0%, ${theme.palette.primary.main}), color-stop(100%, ${theme.palette.primary.main}))`};
+
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 10px;
+    height: 26px;
+    border-radius: 8px;
+    background: ${({ theme }) => theme.palette.primary.main};
+    cursor: w-resize;
   }
 `;
 
@@ -138,6 +205,7 @@ export const Needle = styled.i`
   background: ${({ theme }) => theme.palette.additional.red};
   position: absolute;
   width: 2px;
+  z-index: 2;
   top: 0;
   left: 0;
   height: 100%;
@@ -146,13 +214,10 @@ export const Needle = styled.i`
     display: block;
     content: '';
     position: absolute;
-    top: 0;
-    left: -7px;
-    z-index: 2;
     background: ${({ theme }) => theme.palette.additional.red};
     width: 16px;
     height: 16px;
     border-radius: 14px 14px 0 14px;
-    transform: rotateZ(45deg);
+    transform: translateX(-7px) rotateZ(45deg);
   }
 `;
