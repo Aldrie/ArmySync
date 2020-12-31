@@ -24,12 +24,14 @@ import {
   TimelineFooter,
   Zoom,
 } from './styles';
+import { TIMELINE_DECREASE_FACTOR, TIMELINE_MIN_SPOTS, TIMELINE_MAX_SPOTS } from '../../constants';
 
 const EditorPage: React.FC = () => {
   const [spotsCount, setSpotsCount] = useState(5);
 
   const videoRef = useRef<HTMLVideoElement>();
   const timelineRef = useRef<HTMLDivElement>();
+  const timelineContainerRef = useRef<HTMLDivElement>();
   const needleRef = useRef<HTMLSpanElement>();
   const timeRef = useRef<HTMLInputElement>();
   const infoRef = useRef<HTMLSpanElement>();
@@ -63,7 +65,7 @@ const EditorPage: React.FC = () => {
   }, [videoRef.current]);
 
   const handleInputTimeChange = useCallback((value: string) => {
-    const videoTime = (videoRef.current.duration * Number(value)) / 100;
+    const videoTime = videoRef.current.duration * (Number(value) / 100);
     videoRef.current.currentTime = videoTime;
     needleRef.current.style.left = `${value}%`;
   }, [needleRef.current, videoRef.current]);
@@ -72,33 +74,19 @@ const EditorPage: React.FC = () => {
     const style = `${value}% 100%`;
     zoomRef.current.style.backgroundSize = style;
 
-    const timelinePercent = 100 + (100 * (Number(value) / 100));
+    const timelinePercentageDelta = (
+      (videoRef.current.duration / TIMELINE_DECREASE_FACTOR) * 100
+    ) - 100;
+
+    const newSpotsCount = Math.floor(
+      (Number(value) * TIMELINE_MAX_SPOTS) / 100,
+    ) + TIMELINE_MIN_SPOTS;
+
+    const timelinePercent = 100 + (timelinePercentageDelta * (Number(value) / 100));
     timelineRef.current.style.width = `${timelinePercent}%`;
 
-    const maxSpots = Math.floor(videoRef.current.duration / 4);
-
-    if (spotsCount < 8 && Number(value) > 50) {
-      setSpotsCount(8);
-    }
-
-    if (spotsCount < 12 && Number(value) > 75) {
-      setSpotsCount(12);
-    }
-
-    if (spotsCount < maxSpots && Number(value) > 90) {
-      setSpotsCount(maxSpots);
-    }
-
-    if (spotsCount >= maxSpots && Number(value) < 90) {
-      setSpotsCount(12);
-    }
-
-    if (spotsCount >= 12 && Number(value) < 75) {
-      setSpotsCount(8);
-    }
-
-    if (spotsCount >= 8 && Number(value) < 50) {
-      setSpotsCount(5);
+    if (spotsCount !== newSpotsCount) {
+      setSpotsCount(newSpotsCount);
     }
   }, [zoomRef.current, timelineRef.current, videoRef.current, spotsCount]);
 
@@ -114,6 +102,15 @@ const EditorPage: React.FC = () => {
 
     infoRef.current.innerText = format.videoTime(videoRef.current.currentTime);
   }, [videoRef.current, timeRef.current, needleRef.current, bombRef.current]);
+
+  const handleTimelineWheel = useCallback((event: React.WheelEvent) => {
+    const containerScrollPosition = timelineContainerRef.current.scrollLeft;
+
+    timelineContainerRef.current.scrollTo({
+      top: 0,
+      left: containerScrollPosition + event.deltaY,
+    });
+  }, [timelineContainerRef.current]);
 
   return (
     <Container>
@@ -135,14 +132,14 @@ const EditorPage: React.FC = () => {
       </BombContainer>
       <EffectContainer />
       <TimelineContainer>
-        <TimelineWrapper>
+        <TimelineWrapper ref={timelineContainerRef} onWheel={handleTimelineWheel}>
           <Timeline ref={timelineRef}>
             <span className="info">
               <span ref={infoRef}>{format.videoTime(videoRef.current?.currentTime)}</span>
               &nbsp;/&nbsp;
               <span>{format.videoTime(videoRef.current?.duration)}</span>
             </span>
-            <input type="range" className="range" min="0" max="100" step="0.1" ref={timeRef} onChange={(event) => handleInputTimeChange(event.target.value)} />
+            <input type="range" className="range" min="0" max="100" step="0.01" ref={timeRef} onChange={(event) => handleInputTimeChange(event.target.value)} />
             <div className="line">
               <Needle ref={needleRef} />
               <div className="spots">
