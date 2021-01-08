@@ -1,19 +1,22 @@
 import React, {
-  useCallback, useRef, useMemo, useState, useEffect,
+  useCallback, useRef, useMemo, useState,
 } from 'react';
 import { FaPlay } from 'react-icons/fa';
 import { ImStop2 } from 'react-icons/im';
 import { GiPauseButton } from 'react-icons/gi';
 import { BsDiamondHalf } from 'react-icons/bs';
 import path from 'path';
-import Bomb, { IBombRef } from '../../components/Bomb';
 
 import * as format from '../../utils/format';
 import { useForceRender } from '../../utils/hooks';
+import { percentageOf } from '../../utils/math';
 
 import * as file from '../../services/file';
 import { sync } from '../../services/player';
 import { IEffect } from '../../services/effect';
+
+import Bomb, { IBombRef } from '../../components/Bomb';
+import Effect from '../../components/Effect';
 
 import {
   Container,
@@ -23,6 +26,7 @@ import {
   TimelineContainer,
   TimelineWrapper,
   Timeline,
+  TimelineEffects,
   Needle,
   TimelineFooter,
   Zoom,
@@ -120,7 +124,6 @@ const EditorPage: React.FC = () => {
   const loadfile = useCallback(async () => {
     const filePath = path.resolve('dist', 'test', 'test.dev.async');
     const fileString = await file.read(filePath);
-    console.log('fileString', fileString);
     const fileEffects = file.parseString(fileString);
     setEffects(fileEffects);
   }, [setEffects]);
@@ -160,6 +163,16 @@ const EditorPage: React.FC = () => {
               </div>
               <div className="wrapper" />
             </div>
+            <TimelineEffects>
+              {effects && effects.map((effect) => {
+                const width = percentageOf(videoRef.current.duration, effect.to - effect.from);
+                const left = percentageOf(videoRef.current.duration, effect.from);
+
+                return (
+                  <Effect type={effect.type} colors={effect.colors} width={width} left={left} />
+                );
+              })}
+            </TimelineEffects>
           </Timeline>
         </TimelineWrapper>
         <TimelineFooter>

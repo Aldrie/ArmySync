@@ -168,6 +168,16 @@ export const Timeline = styled.div`
   }
 `;
 
+export const TimelineEffects = styled.div`
+  width: 100%;
+  height: 50%;
+  position: absolute;
+  top: 10%;
+  bottom: 0;
+  margin: auto 0;
+  display: flex;
+`;
+
 export const TimelineFooter = styled.div`
   width: 100%;
   height: 64px;
