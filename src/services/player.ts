@@ -1,14 +1,8 @@
-export interface IEffect {
-  from?: number;
-  to?: number;
-  exec?: (ms?: number) => string;
-}
-
-export type IScheme = IEffect[];
+import { IEffect } from './effect';
 
 export const changeEffect = (color: string) => () => color;
 
-export const TestScheme: IScheme = [
+export const TestScheme = [
   {
     from: 0,
     to: 7500,
@@ -106,16 +100,15 @@ export const TestScheme: IScheme = [
   },
 ];
 
-export const sync = (time: number, onChange: (color: string) => any) => {
-  const ms = Math.floor(time * 1000);
-  const effect = TestScheme.find((current) => {
-    if (ms >= current.from && ms <= current.to) {
+export const sync = (effects: IEffect[], time: number, onChange: (color: string) => any) => {
+  const effect = effects.find((current) => {
+    if (time >= current.from && time <= current.to) {
       return true;
     }
     return false;
   });
 
   if (effect) {
-    onChange(effect.exec(ms));
+    onChange(effect.colors[0]);
   }
 };

@@ -1,16 +1,19 @@
 import React, {
-  useCallback, useRef, useMemo, useState,
+  useCallback, useRef, useMemo, useState, useEffect,
 } from 'react';
 import { FaPlay } from 'react-icons/fa';
 import { ImStop2 } from 'react-icons/im';
 import { GiPauseButton } from 'react-icons/gi';
 import { BsDiamondHalf } from 'react-icons/bs';
+import path from 'path';
 import Bomb, { IBombRef } from '../../components/Bomb';
 
 import * as format from '../../utils/format';
 import { useForceRender } from '../../utils/hooks';
 
+import * as file from '../../services/file';
 import { sync } from '../../services/player';
+import { IEffect } from '../../services/effect';
 
 import {
   Container,
@@ -28,6 +31,8 @@ import { TIMELINE_DECREASE_FACTOR, TIMELINE_MIN_SPOTS, TIMELINE_MAX_SPOTS } from
 
 const EditorPage: React.FC = () => {
   const [spotsCount, setSpotsCount] = useState(5);
+
+  const [effects, setEffects] = useState<IEffect[]>([]);
 
   const videoRef = useRef<HTMLVideoElement>();
   const timelineRef = useRef<HTMLDivElement>();
@@ -91,7 +96,7 @@ const EditorPage: React.FC = () => {
   }, [zoomRef.current, timelineRef.current, videoRef.current, spotsCount]);
 
   const handleVideoTimeChange = useCallback(() => {
-    sync(videoRef.current.currentTime, (color) => bombRef.current.setColor(color));
+    sync(effects, videoRef.current.currentTime, (color) => bombRef.current.setColor(color));
 
     const videoPercent = (
       (videoRef.current.currentTime * 100) / videoRef.current.duration
@@ -101,7 +106,7 @@ const EditorPage: React.FC = () => {
     needleRef.current.style.left = `${videoPercent}%`;
 
     infoRef.current.innerText = format.videoTime(videoRef.current.currentTime);
-  }, [videoRef.current, timeRef.current, needleRef.current, bombRef.current]);
+  }, [videoRef.current, timeRef.current, needleRef.current, bombRef.current, effects]);
 
   const handleTimelineWheel = useCallback((event: React.WheelEvent) => {
     const containerScrollPosition = timelineContainerRef.current.scrollLeft;
@@ -112,13 +117,21 @@ const EditorPage: React.FC = () => {
     });
   }, [timelineContainerRef.current]);
 
+  const loadfile = useCallback(async () => {
+    const filePath = path.resolve('dist', 'test', 'test.dev.async');
+    const fileString = await file.read(filePath);
+    console.log('fileString', fileString);
+    const fileEffects = file.parseString(fileString);
+    setEffects(fileEffects);
+  }, [setEffects]);
+
   return (
     <Container>
       <VideoContainer>
         <video
           ref={videoRef}
           src="file:///D:/Downloads/BTS%20MIC%20Drop%20(Steve%20Aoki%20Remix).mp4"
-          onLoadedData={() => forceRender()}
+          onLoadedData={() => { forceRender(); loadfile(); }}
           onTimeUpdate={handleVideoTimeChange}
         />
         <div className="controls">
