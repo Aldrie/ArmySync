@@ -1,23 +1,13 @@
 import 'styled-components';
+import theme from './styles/themes/dark.theme';
 
 interface IPalette {
   main: string;
   contrastColor: string;
 }
 
+export type Theme = typeof theme;
+
 declare module 'styled-components' {
-  export interface DefaultTheme {
-    palette: {
-      primary: IPalette;
-      surface: IPalette;
-      onSurface: IPalette;
-      surfaceOverlay: IPalette;
-      additional: {
-        playerBackground: string;
-        divider: string;
-        red: string;
-        scrollbar: string;
-      }
-    }
-  }
+  export interface DefaultTheme extends Theme {}
 }

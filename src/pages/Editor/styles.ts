@@ -145,24 +145,23 @@ export const Timeline = styled.div`
           content: '';
           position: absolute;
           top: 14px;
+          left: 0;
+          right: 0;
+          margin: 0 auto;
           width: 3px;
           height: 16px;
           background: ${({ theme }) => theme.palette.primary.contrastColor};
         }
       }
 
-      .first:after {
+      .spot:first-child:after {
         left: 0;
+        right: unset;
       }
 
-      .center:after {
-        left: 0;
+      .spot:last-child:after {
         right: 0;
-        margin: 0 auto;
-      }
-
-      .last:after {
-        right: 0;
+        left: unset;
       }
     }
   }

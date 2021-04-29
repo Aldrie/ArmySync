@@ -35,12 +35,13 @@ const Player: React.FC<IPlayerProps> = ({ src }) => {
     () => setHideMouse(true), 2000,
   ), []);
 
-  const videoDurationFormated = useMemo(() => () => {
+  const videoDurationFormated = useCallback(() => {
     const minutes = Math.floor(videoRef.current.duration / 60);
     const seconds = Math.floor(videoRef.current.duration % 60);
+    console.log(minutes, seconds, videoRef.current.duration);
 
     return `${minutes}:${seconds}`;
-  }, [videoRef.current]);
+  }, []);
 
   const handlePlayClick = useCallback(() => {
     if (playing) {
@@ -111,19 +112,28 @@ const Player: React.FC<IPlayerProps> = ({ src }) => {
     const currentSeconds = Math.floor(videoRef.current.currentTime % 60);
 
     timeRef.current.innerText = `${currentMinutes}:${currentSeconds < 10 ? `0${currentSeconds}` : currentSeconds} / ${videoDurationFormated()}`;
-  }, []);
+  }, [videoDurationFormated]);
 
   const videoContainerMouseListener = useCallback(async () => {
     setHideMouse(false);
     await deboucedMouseMove();
     setHideMouse(true);
-  }, []);
+  }, [deboucedMouseMove]);
+
+  const handleVideoLoad = useCallback(() => {
+    videoRef.current.addEventListener('timeupdate', videoListener);
+  }, [videoListener]);
 
   useEffect(() => {
-    videoRef.current.addEventListener('timeupdate', videoListener);
+    const video = videoRef.current;
 
-    return () => videoRef.current.removeEventListener('timeupdate', videoListener);
-  }, []);
+    videoRef.current.addEventListener('loadeddata', handleVideoLoad);
+
+    return () => {
+      video.removeEventListener('loadeddata', handleVideoLoad);
+      video.removeEventListener('timeupdate', videoListener);
+    };
+  }, [handleVideoLoad, videoListener]);
 
   return (
     <Container
@@ -136,11 +146,12 @@ const Player: React.FC<IPlayerProps> = ({ src }) => {
         ref={videoRef}
         onDoubleClick={handleExpandClick}
         onClick={handlePlayClick}
+        onLoadedData={handleVideoLoad}
         onEnded={handlePlayClick}
       />
       <Controls>
         <button className="play" type="button" onClick={handlePlayClick}>
-          {playing ? <GiPauseButton size="22px" className="play" /> : <FaPlay size="22px" className="play" />}
+          {playing ? <GiPauseButton size={22} className="play" /> : <FaPlay size={22} className="play" />}
         </button>
         <Seekbar>
           <input type="range" min="0" max="100" step="0.01" defaultValue="0" ref={seekBarRef} onChange={handleSeekbarChange} />
@@ -148,11 +159,11 @@ const Player: React.FC<IPlayerProps> = ({ src }) => {
         <span className="time" ref={timeRef}>0:00 / 0:00</span>
         <Sound>
           <button className="volume" type="button" onClick={handleVolumeClick}>
-            {mute ? <HiVolumeOff size="24px" className="volume" /> : <HiVolumeUp size="24px" className="volume" />}
+            {mute ? <HiVolumeOff size={24} className="volume" /> : <HiVolumeUp size={24} className="volume" />}
           </button>
           <input type="range" min="0" max="100" step="0.01" defaultValue="100" ref={volumeRef} onChange={handleVolumeChange} />
         </Sound>
-        <FaExpand size="28px" className="expand" onClick={handleExpandClick} />
+        <FaExpand size={28} className="expand" onClick={handleExpandClick} />
       </Controls>
     </Container>
   );

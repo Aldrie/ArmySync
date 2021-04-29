@@ -15,7 +15,7 @@
     "build:react": "webpack --config webpack/react.webpack.js",
     "package": "npm-run-all build package:dist",
     "package:dist": "electron-builder --dir",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx --fix"
   },
   "keywords": [],
   "author": "Aldriê Mizobuti <aldriemizobuti@outlook.com>",
@@ -36,7 +36,7 @@
     "@types/react": "^16.9.34",
     "@types/react-dom": "^16.9.6",
     "@types/styled-components": "^5.1.0",
-    "@typescript-eslint/eslint-plugin": "4.4.1",
+    "@typescript-eslint/eslint-plugin": "^4.17.0",
     "@typescript-eslint/parser": "^3.4.0",
     "babel-loader": "^8.1.0",
     "cross-env": "^7.0.2",

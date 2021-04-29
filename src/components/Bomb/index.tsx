@@ -9,7 +9,7 @@ export interface IBombRef {
   setColor: (color: string) => void;
 }
 
-const Bomb: React.ForwardRefRenderFunction<IBombRef> = (props, ref) => {
+const Bomb: React.ForwardRefRenderFunction<IBombRef> = (_, ref) => {
   const lampRef = useRef<HTMLDivElement>();
   const coreRef = useRef<HTMLDivElement>();
 

@@ -33,7 +33,7 @@ const styleTypes = {
   [EffectTypes.FLASH]: flashEffect,
 };
 
-export const Container = styled.div<IEffectProps>`
+const Effect = styled.div<IEffectProps>`
   width: ${({ width }) => width || '0'}%;
   height: 100%;
   border-radius: 8px;
@@ -42,3 +42,5 @@ export const Container = styled.div<IEffectProps>`
 
   ${({ type, colors }) => styleTypes[type](colors) || null};
 `;
+
+export default Effect;

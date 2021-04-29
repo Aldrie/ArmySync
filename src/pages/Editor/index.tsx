@@ -1,11 +1,13 @@
 import React, {
   useCallback, useRef, useMemo, useState,
 } from 'react';
+
+import path from 'path';
+
 import { FaPlay } from 'react-icons/fa';
 import { ImStop2 } from 'react-icons/im';
 import { GiPauseButton } from 'react-icons/gi';
 import { BsDiamondHalf } from 'react-icons/bs';
-import path from 'path';
 
 import * as format from '../../utils/format';
 import { useForceRender } from '../../utils/hooks';
@@ -31,7 +33,10 @@ import {
   TimelineFooter,
   Zoom,
 } from './styles';
-import { TIMELINE_DECREASE_FACTOR, TIMELINE_MIN_SPOTS, TIMELINE_MAX_SPOTS } from '../../constants';
+
+import {
+  TIMELINE_DECREASE_FACTOR, TIMELINE_MIN_SPOTS, TIMELINE_MAX_SPOTS, VIDEO_PATH,
+} from '../../constants';
 
 const EditorPage: React.FC = () => {
   const [spotsCount, setSpotsCount] = useState(5);
@@ -52,32 +57,30 @@ const EditorPage: React.FC = () => {
   const timelineSpots = useMemo(() => {
     const percent = videoRef.current?.duration / (spotsCount - 1);
     return new Array(spotsCount).fill(null)
-      .map((item, index) => {
+      .map((_, index) => {
         const value = format.videoTime(percent * index);
-        const typeClass = index === 0 ? 'first' : index === spotsCount - 1 ? 'last' : 'center';
-
-        return <span className={`spot ${typeClass}`}>{value}</span>;
+        return <span className="spot">{value}</span>;
       });
-  }, [videoRef.current, spotsCount]);
+  }, [spotsCount]);
 
   const playVideo = useCallback(() => {
     videoRef.current.play();
-  }, [videoRef.current]);
+  }, []);
 
   const pauseVideo = useCallback(() => {
     videoRef.current.pause();
-  }, [videoRef.current]);
+  }, []);
 
   const stopVideo = useCallback(() => {
     videoRef.current.pause();
     videoRef.current.currentTime = 0;
-  }, [videoRef.current]);
+  }, []);
 
   const handleInputTimeChange = useCallback((value: string) => {
     const videoTime = videoRef.current.duration * (Number(value) / 100);
     videoRef.current.currentTime = videoTime;
     needleRef.current.style.left = `${value}%`;
-  }, [needleRef.current, videoRef.current]);
+  }, []);
 
   const handleZoomInputChange = useCallback((value: string) => {
     const style = `${value}% 100%`;
@@ -97,7 +100,7 @@ const EditorPage: React.FC = () => {
     if (spotsCount !== newSpotsCount) {
       setSpotsCount(newSpotsCount);
     }
-  }, [zoomRef.current, timelineRef.current, videoRef.current, spotsCount]);
+  }, [spotsCount]);
 
   const handleVideoTimeChange = useCallback(() => {
     sync(effects, videoRef.current.currentTime, (color) => bombRef.current.setColor(color));
@@ -110,7 +113,7 @@ const EditorPage: React.FC = () => {
     needleRef.current.style.left = `${videoPercent}%`;
 
     infoRef.current.innerText = format.videoTime(videoRef.current.currentTime);
-  }, [videoRef.current, timeRef.current, needleRef.current, bombRef.current, effects]);
+  }, [effects]);
 
   const handleTimelineWheel = useCallback((event: React.WheelEvent) => {
     const containerScrollPosition = timelineContainerRef.current.scrollLeft;
@@ -119,22 +122,27 @@ const EditorPage: React.FC = () => {
       top: 0,
       left: containerScrollPosition + event.deltaY,
     });
-  }, [timelineContainerRef.current]);
+  }, []);
 
-  const loadfile = useCallback(async () => {
+  const loadColorsFile = useCallback(async () => {
     const filePath = path.resolve('dist', 'test', 'test.dev.async');
     const fileString = await file.read(filePath);
     const fileEffects = file.parseString(fileString);
     setEffects(fileEffects);
   }, [setEffects]);
 
+  const handleVideoLoad = useCallback(() => {
+    loadColorsFile();
+    forceRender();
+  }, [forceRender, loadColorsFile]);
+
   return (
     <Container>
       <VideoContainer>
         <video
           ref={videoRef}
-          src="file:///D:/Downloads/BTS%20MIC%20Drop%20(Steve%20Aoki%20Remix).mp4"
-          onLoadedData={() => { forceRender(); loadfile(); }}
+          src={VIDEO_PATH}
+          onLoadedData={handleVideoLoad}
           onTimeUpdate={handleVideoTimeChange}
         />
         <div className="controls">

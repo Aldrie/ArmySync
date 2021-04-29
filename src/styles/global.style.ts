@@ -7,6 +7,7 @@ export const GlobalStyle = createGlobalStyle`
     font-family: 'Roboto';
     src: url(${Roboto}) format('ttf');
   }
+  
   * {
     margin: 0;
     padding: 0;
