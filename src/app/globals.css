@@ -1,0 +1,140 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --color-primary: #8b5cf6;
+  --color-primary-hover: #7c3aed;
+
+  --color-surface: #0f0f13;
+  --color-surface-raised: #1c1c21;
+  --color-surface-overlay: #09090b;
+
+  --color-danger: #dc2626;
+  --color-scrollbar: rgba(255, 255, 255, 0.12);
+  --color-player-bg: rgba(0, 0, 0, 0.5);
+  --color-divider: #27272a;
+}
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  outline: none;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-surface);
+  color: #fafafa;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar);
+  border-radius: 6px;
+}
+
+/* Range input base reset */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: #3f3f46;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  margin-top: -4px;
+  cursor: pointer;
+}
+
+/* Seekbar / zoom with fill progress */
+input[type="range"].range-fill {
+  background-size: 0% 100%;
+  background-repeat: no-repeat;
+  background-image: linear-gradient(var(--color-primary), var(--color-primary));
+}
+
+input[type="range"].range-fill::-webkit-slider-runnable-track {
+  background: transparent;
+  height: 6px;
+  border-radius: 3px;
+}
+
+/* Zoom range input - visible track against dark footer */
+input[type="range"].range-zoom {
+  background-color: #52525b; /* zinc-600 */
+  background-size: 0% 100%;
+  background-repeat: no-repeat;
+  background-image: linear-gradient(var(--color-primary), var(--color-primary));
+  border-radius: 4px;
+}
+
+input[type="range"].range-zoom::-webkit-slider-runnable-track {
+  background: transparent;
+  height: 8px;
+  border-radius: 4px;
+}
+
+input[type="range"].range-zoom::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--color-primary);
+  cursor: w-resize;
+  margin-top: -7px;
+}
+
+/* Timeline scrub input - invisible thumb */
+input[type="range"].range-timeline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+  background: transparent;
+}
+
+input[type="range"].range-timeline::-webkit-slider-runnable-track {
+  background: transparent;
+}
+
+input[type="range"].range-timeline::-webkit-slider-thumb {
+  width: 2px;
+  height: 2px;
+  visibility: hidden;
+}

@@ -1,47 +1,40 @@
-## Electron + TypeScript + React
-Boilerplate for a project using Electron, React and Typescript
+# ArmySync
 
-## Installation
+Desktop app to sync BTS Army Bomb lightstick effects with video playback.
 
-Use a package manager of your choice (npm, yarn, etc.) in order to install all dependencies
+## Features
 
-```bash
-npm install
-```
+- **Editor** — Timeline-based effect editor to create lightstick color animations synced to video
+- **Player** — Watch videos with real-time lightstick effect preview
+- **Lightstick Preview** — Simulated Army Bomb that reflects effects in real-time
 
-```bash
-yarn install
-```
+## Tech Stack
 
-## Usage
-In order to run this project 2 scripts will need to be executed `dev:react` and `dev:electron`, run each one in a different terminal and always run `dev:react` before `dev:electron`, or `dev` to run them in order automatically
+- [Tauri](https://tauri.app) — Desktop runtime
+- [React 19](https://react.dev) — UI framework
+- [Tailwind CSS v4](https://tailwindcss.com) — Styling
+- [Vite](https://vitejs.dev) — Bundler
+- [TypeScript](https://www.typescriptlang.org) — Type safety
 
-```bash
-npm run dev:react
-```
-```bash
-npm run dev:electron
-```
-
-or
+## Getting Started
 
 ```bash
-npm run dev
+pnpm install
+pnpm tauri dev
 ```
 
-## Packaging
-To generate a project package run `package`
+## Scripts
 
-```bash
-npm run package
-```
-
-
-
-## Contributing
-
-Pull requests are always welcome 😃.
+| Command | Description |
+|---------|-------------|
+| `pnpm dev` | Start Vite dev server |
+| `pnpm tauri dev` | Start Tauri app in dev mode |
+| `pnpm build` | Build for production |
+| `pnpm lint` | Run ESLint |
+| `pnpm lint:fix` | Run ESLint with auto-fix + Prettier |
+| `pnpm type-check` | TypeScript type checking |
+| `pnpm check` | Run all checks |
 
 ## License
 
-[MIT](https://choosealicense.com/licenses/mit/)
+MIT
