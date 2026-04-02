@@ -4,7 +4,6 @@ import {
   useRef,
   useMemo,
   useState,
-  useEffect,
   forwardRef,
   useImperativeHandle,
 } from 'react';
@@ -13,6 +12,7 @@ import WaveformTrack from './waveform-track';
 import Slider from '../../../components/slider';
 import { EffectStrip } from '../../../domains/effects';
 import type { IEffect } from '../../../domains/effects';
+import { cn } from '../../../lib/cn';
 import * as format from '../../../lib/format';
 import { percentageOf } from '../../../lib/math';
 
@@ -62,11 +62,20 @@ const TimelinePanel = forwardRef<TimelinePanelRef, TimelinePanelProps>(
 
       return Array.from({ length: spotsCount }, (_, index) => {
         const value = format.videoTime(percent * index);
+        const isFirst = index === 0;
+        const isLast = index === spotsCount - 1;
 
         return (
           <span
             key={index}
-            className={`relative h-2 text-[10px] font-semibold text-on-surface-variant after:content-[''] after:block after:absolute after:top-3.5 after:left-0 after:right-0 after:mx-auto after:w-px after:h-screen after:border after:border-outline-variant after:border-dashed after:-z-1 first:after:left-0 first:after:right-auto last:after:right-0 last:after:left-auto ${index === 0 ? 'after:ml-2.5' : index === spotsCount - 1 ? 'after:mr-2.5' : ''}`}
+            className={cn(
+              'relative h-2 text-[10px] font-semibold text-on-surface-variant',
+              "after:content-[''] after:block after:absolute after:top-3.5",
+              'after:left-0 after:right-0 after:mx-auto',
+              'after:w-px after:h-screen after:border after:border-outline-variant after:border-dashed after:-z-1',
+              isFirst && 'after:left-0 after:right-auto after:ml-2.5',
+              isLast && 'after:right-0 after:left-auto after:mr-2.5',
+            )}
           >
             {value}
           </span>
@@ -111,12 +120,6 @@ const TimelinePanel = forwardRef<TimelinePanelRef, TimelinePanelProps>(
         left: timelineContainerRef.current.scrollLeft + event.deltaY,
       });
     }, []);
-
-    useEffect(() => {
-      if (!needleRef.current || !videoDuration) return;
-      const percent = ((currentTime * 100) / videoDuration).toFixed(2);
-      needleRef.current.style.left = `${percent}%`;
-    }, [currentTime, videoDuration]);
 
     return (
       <div className="w-full h-full bg-surface-low select-none flex flex-col z-20 relative">
@@ -197,7 +200,7 @@ const TimelinePanel = forwardRef<TimelinePanelRef, TimelinePanelProps>(
 
         {/* Timeline footer */}
         <div className="w-full h-12 bg-surface-container flex justify-between items-center px-4">
-          <Diamond size={16} className="text-on-surface-variant" />
+          <Diamond className="size-4 text-on-surface-variant" />
           <Slider
             min={0}
             max={100}

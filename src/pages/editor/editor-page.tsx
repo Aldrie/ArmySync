@@ -8,7 +8,7 @@ import LightstickPanel from './components/lightstick-panel';
 import TimelinePanel from './components/timeline-panel';
 import type { TimelinePanelRef } from './components/timeline-panel';
 import VideoArea from './components/video-area';
-import ResizePanel from '../../components/resize-handle';
+import ResizePanel from '../../components/resize-panel';
 import type { IEffect } from '../../domains/effects';
 import { sync, effectFile } from '../../domains/effects';
 import type { LightstickRef } from '../../domains/lightstick';

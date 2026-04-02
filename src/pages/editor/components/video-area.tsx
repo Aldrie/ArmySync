@@ -31,13 +31,16 @@ export default function VideoArea({
             onTimeUpdate={onTimeUpdate}
           />
 
-          <div className="absolute bottom-0 left-0 right-0 px-5 pb-4 pt-10 bg-gradient-to-t from-black/70 to-transparent flex items-end justify-between">
+          <div className="absolute bottom-0 left-0 right-0 px-5 pb-4 pt-10 bg-linear-to-t from-black/70 to-transparent flex items-end justify-between">
             <div>
               <span className="block font-display text-[10px] tracking-widest uppercase text-primary mb-1">
                 Now Playing
               </span>
               <span className="block font-display font-bold text-lg text-on-surface">
-                Dynamite (MV Edit)
+                {videoSrc
+                  .split('/')
+                  .pop()
+                  ?.replace(/\.[^.]+$/, '') || 'Untitled'}
               </span>
             </div>
             <span className="font-display font-bold text-on-surface tabular-nums">

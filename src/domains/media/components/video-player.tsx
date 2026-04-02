@@ -130,7 +130,7 @@ export default function VideoPlayer({ src }: VideoPlayerProps) {
           className="flex items-center justify-center bg-transparent border-none text-white cursor-pointer"
           onClick={handlePlayClick}
         >
-          {playing ? <Pause size={20} /> : <Play size={20} />}
+          {playing ? <Pause className="size-5" /> : <Play className="size-5" />}
         </button>
 
         <div className="flex-1">
@@ -159,7 +159,11 @@ export default function VideoPlayer({ src }: VideoPlayerProps) {
             className="flex items-center justify-center bg-transparent border-none text-white cursor-pointer"
             onClick={handleVolumeClick}
           >
-            {mute ? <VolumeX size={20} /> : <Volume2 size={20} />}
+            {mute ? (
+              <VolumeX className="size-5" />
+            ) : (
+              <Volume2 className="size-5" />
+            )}
           </button>
           <input
             type="range"
@@ -179,7 +183,7 @@ export default function VideoPlayer({ src }: VideoPlayerProps) {
           className="flex items-center justify-center bg-transparent border-none text-white cursor-pointer ml-2"
           onClick={handleExpandClick}
         >
-          <Maximize size={22} />
+          <Maximize className="size-5" />
         </button>
       </div>
     </div>

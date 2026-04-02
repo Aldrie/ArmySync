@@ -1,3 +1,5 @@
+import { cn } from '../../../lib/cn';
+
 interface EffectPresetCardProps {
   title: string;
   subtitle: string;
@@ -14,11 +16,12 @@ export default function EffectPresetCard({
   return (
     <button
       type="button"
-      className={`w-full text-left p-3 rounded-md cursor-pointer transition-colors ${
+      className={cn(
+        'w-full text-left p-3 rounded-md cursor-pointer transition-colors',
         active
           ? 'bg-surface-highest'
-          : 'bg-surface-high hover:bg-surface-highest'
-      }`}
+          : 'bg-surface-high hover:bg-surface-highest',
+      )}
       onClick={onClick}
     >
       <span className="block font-display font-bold text-sm text-on-surface">

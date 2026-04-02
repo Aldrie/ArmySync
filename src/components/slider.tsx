@@ -1,5 +1,7 @@
 import { forwardRef, useCallback, useRef, useImperativeHandle } from 'react';
 
+import { cn } from '../lib/cn';
+
 export interface SliderRef {
   setValue: (value: number) => void;
 }
@@ -61,7 +63,10 @@ const Slider = forwardRef<SliderRef, SliderProps>(function Slider(
     <input
       ref={inputRef}
       type="range"
-      className={`${variant === 'zoom' ? 'range-zoom' : 'range-fill'} ${className}`}
+      className={cn(
+        variant === 'zoom' ? 'range-zoom' : 'range-fill',
+        className,
+      )}
       min={min}
       max={max}
       step={step}

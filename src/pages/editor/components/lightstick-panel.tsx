@@ -4,6 +4,8 @@ import type { RefObject } from 'react';
 import { Lightstick } from '../../../domains/lightstick';
 import type { LightstickRef } from '../../../domains/lightstick';
 
+const FRAME_RATE = 24;
+
 interface LightstickPanelProps {
   lightstickRef: RefObject<LightstickRef | null>;
   currentTime: number;
@@ -15,7 +17,7 @@ export default function LightstickPanel({
   currentTime,
   onLoadEffectFile,
 }: LightstickPanelProps) {
-  const currentFrame = Math.floor(currentTime * 24);
+  const currentFrame = Math.floor(currentTime * FRAME_RATE);
 
   return (
     <div className="h-full bg-surface-low flex flex-col py-6 px-4">
@@ -52,7 +54,7 @@ export default function LightstickPanel({
           className="flex items-center justify-center gap-1.5 text-xs text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer py-1.5"
           onClick={onLoadEffectFile}
         >
-          <Upload size={12} />
+          <Upload className="size-3" />
           Load from file
         </button>
       </div>
