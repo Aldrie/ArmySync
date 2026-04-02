@@ -110,7 +110,7 @@ export default function EditorPage() {
 
   return (
     <div className="flex flex-col w-full h-full bg-surface overflow-hidden">
-      {/* Top area: sidebar + center + lightstick */}
+      {/* Top area: effects + video/controls + lightstick */}
       <div className="flex flex-1 min-h-0">
         {/* Left sidebar — resizable width */}
         <Resizable
@@ -128,10 +128,10 @@ export default function EditorPage() {
           }}
           handleClasses={{ right: 'hover:bg-primary/30 transition-colors' }}
         >
-          <EffectsSidebar onLoadEffectFile={() => void loadColorsFile()} />
+          <EffectsSidebar />
         </Resizable>
 
-        {/* Center: video + controls */}
+        {/* Center: video + controls (controls don't bleed into sidebars) */}
         <div className="flex flex-col flex-1 min-w-0">
           <div className="flex-1 min-h-0 p-3">
             <VideoArea
@@ -153,9 +153,9 @@ export default function EditorPage() {
 
         {/* Right lightstick panel — resizable width */}
         <Resizable
-          defaultSize={{ width: 240, height: '100%' }}
-          minWidth={180}
-          maxWidth={360}
+          defaultSize={{ width: 200, height: '100%' }}
+          minWidth={160}
+          maxWidth={300}
           enable={{ left: true }}
           handleStyles={{
             left: {
@@ -170,6 +170,7 @@ export default function EditorPage() {
           <LightstickPanel
             lightstickRef={lightstickRef}
             currentTime={currentTime}
+            onLoadEffectFile={() => void loadColorsFile()}
           />
         </Resizable>
       </div>
