@@ -1,11 +1,12 @@
 import type { RefObject } from 'react';
+import { useRef } from 'react';
 
 import * as format from '../../../lib/format';
+import { useTransientTime } from '../../../stores/use-transient-time';
 
 interface VideoAreaProps {
   videoRef: RefObject<HTMLVideoElement | null>;
   videoSrc: string;
-  currentTime: number;
   onOpenVideo: () => void;
   onLoadedData: () => void;
   onTimeUpdate: () => void;
@@ -14,11 +15,18 @@ interface VideoAreaProps {
 export default function VideoArea({
   videoRef,
   videoSrc,
-  currentTime,
   onOpenVideo,
   onLoadedData,
   onTimeUpdate,
 }: VideoAreaProps) {
+  const timeDisplayRef = useRef<HTMLSpanElement>(null);
+
+  useTransientTime((time) => {
+    if (timeDisplayRef.current) {
+      timeDisplayRef.current.textContent = format.videoTime(time);
+    }
+  });
+
   return (
     <div className="w-full h-full rounded-md overflow-hidden bg-black relative flex items-center justify-center">
       {videoSrc ? (
@@ -43,8 +51,11 @@ export default function VideoArea({
                   ?.replace(/\.[^.]+$/, '') || 'Untitled'}
               </span>
             </div>
-            <span className="font-display font-bold text-on-surface tabular-nums">
-              {format.videoTime(currentTime)}
+            <span
+              ref={timeDisplayRef}
+              className="font-display font-bold text-on-surface tabular-nums"
+            >
+              {format.videoTime(0)}
             </span>
           </div>
         </>

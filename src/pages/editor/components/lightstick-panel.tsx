@@ -1,23 +1,29 @@
 import { Upload } from 'lucide-react';
 import type { RefObject } from 'react';
+import { useRef } from 'react';
 
 import { Lightstick } from '../../../domains/lightstick';
 import type { LightstickRef } from '../../../domains/lightstick';
+import { useTransientTime } from '../../../stores/use-transient-time';
 
 const FRAME_RATE = 24;
 
 interface LightstickPanelProps {
   lightstickRef: RefObject<LightstickRef | null>;
-  currentTime: number;
   onLoadEffectFile: () => void;
 }
 
 export default function LightstickPanel({
   lightstickRef,
-  currentTime,
   onLoadEffectFile,
 }: LightstickPanelProps) {
-  const currentFrame = Math.floor(currentTime * FRAME_RATE);
+  const frameRef = useRef<HTMLSpanElement>(null);
+
+  useTransientTime((time) => {
+    if (frameRef.current) {
+      frameRef.current.textContent = `Syncing with Frame ${Math.floor(time * FRAME_RATE)}`;
+    }
+  });
 
   return (
     <div className="h-full bg-surface-low flex flex-col py-6 px-4">
@@ -30,8 +36,8 @@ export default function LightstickPanel({
           <span className="font-display font-bold text-[10px] tracking-widest uppercase text-on-surface-variant">
             Live Feed
           </span>
-          <span className="text-[10px] text-on-surface-variant">
-            Syncing with Frame {currentFrame}
+          <span ref={frameRef} className="text-[10px] text-on-surface-variant">
+            Syncing with Frame 0
           </span>
         </div>
       </div>
