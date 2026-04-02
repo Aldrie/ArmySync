@@ -70,9 +70,19 @@ fn parse_effect_file(path: String) -> Result<Vec<Effect>, String> {
 }
 
 #[tauri::command]
-fn extract_waveform(path: String, bar_count: Option<u32>) -> Result<Vec<f32>, String> {
+async fn extract_waveform(path: String, bar_count: Option<u32>) -> Result<Vec<f32>, String> {
   waveform::extract(&path, bar_count.unwrap_or(512))
     .map_err(|e| format!("Waveform extraction failed: {}", e))
+}
+
+#[tauri::command]
+fn resolve_path(relative: String) -> Result<String, String> {
+  let cwd = std::env::current_dir().map_err(|e| format!("Failed to get cwd: {}", e))?;
+  let resolved = cwd.join(&relative);
+  resolved
+    .canonicalize()
+    .map(|p| p.to_string_lossy().into_owned())
+    .map_err(|e| format!("Failed to resolve '{}': {}", resolved.display(), e))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -83,7 +93,8 @@ pub fn run() {
     .plugin(tauri_plugin_fs::init())
     .invoke_handler(tauri::generate_handler![
       parse_effect_file,
-      extract_waveform
+      extract_waveform,
+      resolve_path,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { resolveResource } from '@tauri-apps/api/path';
+import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 
 import { editorRefs } from './editor-refs';
@@ -30,6 +30,7 @@ interface EditorState {
   isPlaying: boolean;
   effects: IEffect[];
   waveform: Float32Array | null;
+  waveformLoading: boolean;
   volume: number;
   muted: boolean;
   zoomLevel: number;
@@ -62,6 +63,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isPlaying: false,
   effects: [],
   waveform: null,
+  waveformLoading: false,
   volume: DEFAULT_VOLUME,
   muted: false,
   zoomLevel: 0,
@@ -147,17 +149,23 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     if (!filePath && import.meta.env.DEV) {
       try {
-        filePath = await resolveResource('../public/example.mp4');
-      } catch {
-        console.error('Could not resolve dev video path');
+        filePath = await invoke<string>('resolve_path', {
+          relative: '../public/example.mp4',
+        });
+      } catch (err) {
+        console.error('Could not resolve dev video path:', err);
         return;
       }
     }
 
     if (filePath) {
+      set({ waveformLoading: true });
       extractWaveform(filePath)
-        .then((w) => set({ waveform: w }))
-        .catch(console.error);
+        .then((w) => set({ waveform: w, waveformLoading: false }))
+        .catch((err) => {
+          console.error(err);
+          set({ waveformLoading: false });
+        });
     }
   },
 

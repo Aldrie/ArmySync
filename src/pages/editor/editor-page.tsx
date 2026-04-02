@@ -28,6 +28,7 @@ export default function EditorPage() {
   const videoDuration = useEditorStore((s) => s.videoDuration);
   const effects = useEditorStore((s) => s.effects);
   const waveform = useEditorStore((s) => s.waveform);
+  const waveformLoading = useEditorStore((s) => s.waveformLoading);
 
   const togglePlayPause = useEditorStore((s) => s.togglePlayPause);
   const seekStep = useEditorStore((s) => s.seekStep);
@@ -101,6 +102,7 @@ export default function EditorPage() {
           effects={effects}
           videoDuration={videoDuration}
           waveform={waveform}
+          waveformLoading={waveformLoading}
           onSeek={seekPercent}
         />
       </ResizePanel>
