@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { resolveResource } from '@tauri-apps/api/path';
 import { open } from '@tauri-apps/plugin-dialog';
 
 import { editorRefs } from './editor-refs';
@@ -24,6 +25,7 @@ function shiftMultiplier(step: number): number {
 
 interface EditorState {
   videoSrc: string;
+  videoFilePath: string | null;
   videoDuration: number;
   isPlaying: boolean;
   effects: IEffect[];
@@ -48,13 +50,14 @@ interface EditorState {
   toggleMute: () => void;
   setZoomLevel: (value: number) => void;
 
-  handleVideoLoad: () => void;
+  handleVideoLoad: () => Promise<void>;
   openVideoFile: () => Promise<void>;
   loadEffectFile: () => Promise<void>;
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
   videoSrc: import.meta.env.DEV ? DEV_VIDEO_PATH : '',
+  videoFilePath: null,
   videoDuration: 0,
   isPlaying: false,
   effects: [],
@@ -133,17 +136,29 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({ zoomLevel: value });
   },
 
-  handleVideoLoad: () => {
+  handleVideoLoad: async () => {
     const el = editorRefs.video;
     if (!el) return;
 
     el.volume = get().volume;
     set({ videoDuration: el.duration });
 
-    const src = el.currentSrc || el.src;
-    extractWaveform(src)
-      .then((w) => set({ waveform: w }))
-      .catch(console.error);
+    let filePath = get().videoFilePath;
+
+    if (!filePath && import.meta.env.DEV) {
+      try {
+        filePath = await resolveResource('../public/example.mp4');
+      } catch {
+        console.error('Could not resolve dev video path');
+        return;
+      }
+    }
+
+    if (filePath) {
+      extractWaveform(filePath)
+        .then((w) => set({ waveform: w }))
+        .catch(console.error);
+    }
   },
 
   openVideoFile: async () => {
@@ -156,7 +171,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       });
 
       if (selected) {
-        set({ videoSrc: `asset://localhost/${selected}` });
+        set({
+          videoSrc: `asset://localhost/${selected}`,
+          videoFilePath: selected,
+        });
       }
     } catch (err) {
       console.error('Failed to open video:', err);
@@ -172,8 +190,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
       if (!selected) return;
 
-      const fileString = await effectFile.read(selected);
-      const effects = effectFile.parseString(fileString);
+      const effects = await effectFile.parse(selected);
       set({ effects });
     } catch (err) {
       console.error('Failed to load effect file:', err);

@@ -69,7 +69,7 @@ export default function EditorPage() {
               videoRef={videoRef}
               videoSrc={videoSrc}
               onOpenVideo={() => void openVideoFile()}
-              onLoadedData={handleVideoLoad}
+              onLoadedData={() => void handleVideoLoad()}
               onTimeUpdate={() => {
                 if (videoRef.current) tick(videoRef.current.currentTime);
               }}
