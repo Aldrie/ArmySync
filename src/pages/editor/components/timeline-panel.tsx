@@ -9,7 +9,7 @@ import {
   useImperativeHandle,
 } from 'react';
 
-import WaveformTrack from './WaveformTrack';
+import WaveformTrack from './waveform-track';
 import { EffectStrip } from '../../../domains/effects';
 import type { IEffect } from '../../../domains/effects';
 import * as format from '../../../lib/format';

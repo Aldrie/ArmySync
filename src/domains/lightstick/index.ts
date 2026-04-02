@@ -1,2 +1,2 @@
-export { default as Lightstick } from './components/Lightstick';
-export type { LightstickRef } from './components/Lightstick';
+export { default as Lightstick } from './components/lightstick';
+export type { LightstickRef } from './components/lightstick';

@@ -3,12 +3,12 @@ import { useCallback, useRef, useState } from 'react';
 
 import { open } from '@tauri-apps/plugin-dialog';
 
-import ControlsBar from './components/ControlsBar';
-import EffectsSidebar from './components/EffectsSidebar';
-import LightstickPanel from './components/LightstickPanel';
-import TimelinePanel from './components/TimelinePanel';
-import type { TimelinePanelRef } from './components/TimelinePanel';
-import VideoArea from './components/VideoArea';
+import ControlsBar from './components/controls-bar';
+import EffectsSidebar from './components/effects-sidebar';
+import LightstickPanel from './components/lightstick-panel';
+import TimelinePanel from './components/timeline-panel';
+import type { TimelinePanelRef } from './components/timeline-panel';
+import VideoArea from './components/video-area';
 import type { IEffect } from '../../domains/effects';
 import { sync, effectFile } from '../../domains/effects';
 import type { LightstickRef } from '../../domains/lightstick';

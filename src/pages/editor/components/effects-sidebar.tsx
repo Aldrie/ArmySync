@@ -1,6 +1,6 @@
 import { Upload } from 'lucide-react';
 
-import EffectPresetCard from './EffectPresetCard';
+import EffectPresetCard from './effect-preset-card';
 
 const PRESETS = [
   {
