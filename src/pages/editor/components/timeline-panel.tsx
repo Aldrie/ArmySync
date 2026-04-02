@@ -69,8 +69,8 @@ export default function TimelinePanel({
             "after:content-[''] after:block after:absolute after:top-3.5",
             'after:left-0 after:right-0 after:mx-auto',
             'after:w-px after:h-screen after:border after:border-outline-variant after:border-dashed after:-z-1',
-            isFirst && 'after:left-0 after:right-auto after:ml-2.5',
-            isLast && 'after:right-0 after:left-auto after:mr-2.5',
+            isFirst && 'after:left-0 after:right-auto',
+            isLast && 'after:right-0 after:left-auto',
           )}
         >
           {value}
@@ -89,9 +89,22 @@ export default function TimelinePanel({
     [onSeek],
   );
 
+  const setZoomLevel = useEditorStore((s) => s.setZoomLevel);
+
   const handleZoomInputChange = useCallback(
     (value: number) => {
-      if (!timelineRef.current) return;
+      const timeline = timelineRef.current;
+      const container = timelineContainerRef.current;
+      if (!timeline || !container) return;
+
+      setZoomLevel(value);
+
+      const oldWidth = timeline.scrollWidth;
+      const needleRatio = needleRef.current
+        ? parseFloat(needleRef.current.style.left || '0') / 100
+        : 0;
+      const needleOldX = needleRatio * oldWidth;
+      const viewportOffset = needleOldX - container.scrollLeft;
 
       const timelinePercentageDelta =
         (videoDuration / TIMELINE_DECREASE_FACTOR) * 100 - 100;
@@ -100,13 +113,17 @@ export default function TimelinePanel({
         Math.floor((value * TIMELINE_MAX_SPOTS) / 100) + TIMELINE_MIN_SPOTS;
 
       const timelinePercent = 100 + timelinePercentageDelta * (value / 100);
-      timelineRef.current.style.width = `${timelinePercent}%`;
+      timeline.style.width = `${timelinePercent}%`;
+
+      const newWidth = timeline.scrollWidth;
+      const needleNewX = needleRatio * newWidth;
+      container.scrollLeft = needleNewX - viewportOffset;
 
       if (spotsCount !== newSpotsCount) {
         setSpotsCount(newSpotsCount);
       }
     },
-    [spotsCount, videoDuration],
+    [setZoomLevel, spotsCount, videoDuration],
   );
 
   const handleTimelineWheel = useCallback((event: React.WheelEvent) => {

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 import ControlsBar from './components/controls-bar';
 import EffectsSidebar from './components/effects-sidebar';
@@ -7,6 +7,7 @@ import TimelinePanel from './components/timeline-panel';
 import VideoArea from './components/video-area';
 import ResizePanel from '../../components/resize-panel';
 import type { LightstickRef } from '../../domains/lightstick';
+import { useKeybind } from '../../lib/use-keybind';
 import { editorRefs } from '../../stores/editor-refs';
 import { useEditorStore } from '../../stores/editor-store';
 
@@ -24,19 +25,31 @@ export default function EditorPage() {
   });
 
   const videoSrc = useEditorStore((s) => s.videoSrc);
-  const isPlaying = useEditorStore((s) => s.isPlaying);
   const videoDuration = useEditorStore((s) => s.videoDuration);
   const effects = useEditorStore((s) => s.effects);
   const waveform = useEditorStore((s) => s.waveform);
 
-  const play = useEditorStore((s) => s.play);
-  const pause = useEditorStore((s) => s.pause);
-  const seekDelta = useEditorStore((s) => s.seekDelta);
+  const togglePlayPause = useEditorStore((s) => s.togglePlayPause);
+  const seekStep = useEditorStore((s) => s.seekStep);
   const seekPercent = useEditorStore((s) => s.seekPercent);
+  const adjustVolume = useEditorStore((s) => s.adjustVolume);
   const tick = useEditorStore((s) => s.tick);
   const handleVideoLoad = useEditorStore((s) => s.handleVideoLoad);
   const openVideoFile = useEditorStore((s) => s.openVideoFile);
   const loadEffectFile = useEditorStore((s) => s.loadEffectFile);
+
+  useKeybind(
+    useMemo(
+      () => ({
+        Space: () => togglePlayPause(),
+        ArrowLeft: (e) => seekStep(-1, e.shiftKey),
+        ArrowRight: (e) => seekStep(1, e.shiftKey),
+        ArrowUp: () => adjustVolume(0.05),
+        ArrowDown: () => adjustVolume(-0.05),
+      }),
+      [togglePlayPause, seekStep, adjustVolume],
+    ),
+  );
 
   return (
     <div className="flex flex-col w-full h-full bg-surface overflow-hidden">
@@ -62,13 +75,7 @@ export default function EditorPage() {
               }}
             />
           </div>
-          <ControlsBar
-            videoRef={videoRef}
-            isPlaying={isPlaying}
-            onPlay={play}
-            onPause={pause}
-            onSeekDelta={seekDelta}
-          />
+          <ControlsBar />
         </div>
 
         <ResizePanel

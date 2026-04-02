@@ -7,20 +7,12 @@ import {
   Volume1,
   VolumeOff,
 } from 'lucide-react';
-import type { RefObject } from 'react';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { tv } from 'tailwind-variants';
 
 import Slider from '../../../components/slider';
 import type { SliderRef } from '../../../components/slider';
-
-interface ControlsBarProps {
-  videoRef: RefObject<HTMLVideoElement | null>;
-  isPlaying: boolean;
-  onPlay: () => void;
-  onPause: () => void;
-  onSeekDelta: (delta: number) => void;
-}
+import { useEditorStore } from '../../../stores/editor-store';
 
 const controlButton = tv({
   base: 'text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer',
@@ -35,16 +27,21 @@ const controlButton = tv({
   },
 });
 
-export default function ControlsBar({
-  videoRef,
-  isPlaying,
-  onPlay,
-  onPause,
-  onSeekDelta,
-}: ControlsBarProps) {
-  const [volume, setVolume] = useState(1);
-  const [muted, setMuted] = useState(false);
+export default function ControlsBar() {
+  const isPlaying = useEditorStore((s) => s.isPlaying);
+  const volume = useEditorStore((s) => s.volume);
+  const muted = useEditorStore((s) => s.muted);
+
+  const togglePlayPause = useEditorStore((s) => s.togglePlayPause);
+  const seekStep = useEditorStore((s) => s.seekStep);
+  const setVolume = useEditorStore((s) => s.setVolume);
+  const toggleMute = useEditorStore((s) => s.toggleMute);
+
   const sliderRef = useRef<SliderRef>(null);
+
+  useEffect(() => {
+    sliderRef.current?.setValue(muted ? 0 : volume * 100);
+  }, [volume, muted]);
 
   const effectiveVolume = muted ? 0 : volume;
 
@@ -56,26 +53,16 @@ export default function ControlsBar({
         : Volume2;
 
   const handleVolumeChange = useCallback(
-    (value: number) => {
-      const normalized = value / 100;
-      setVolume(normalized);
-      setMuted(normalized === 0);
-      if (videoRef.current) {
-        videoRef.current.volume = normalized;
-        videoRef.current.muted = normalized === 0;
-      }
-    },
-    [videoRef],
+    (value: number) => setVolume(value / 100),
+    [setVolume],
   );
 
-  const toggleMute = useCallback(() => {
-    const next = !muted;
-    setMuted(next);
-    if (videoRef.current) {
-      videoRef.current.muted = next;
-    }
-    sliderRef.current?.setValue(next ? 0 : volume * 100);
-  }, [muted, volume, videoRef]);
+  const handleToggleMute = useCallback(() => {
+    const wasMuted = useEditorStore.getState().muted;
+    toggleMute();
+    const vol = useEditorStore.getState().volume;
+    sliderRef.current?.setValue(wasMuted ? vol * 100 : 0);
+  }, [toggleMute]);
 
   return (
     <div className="bg-surface-container flex items-center px-4 py-2.5">
@@ -85,14 +72,14 @@ export default function ControlsBar({
         <button
           type="button"
           className={controlButton()}
-          onClick={() => onSeekDelta(-5)}
+          onClick={(e) => seekStep(-1, e.shiftKey)}
         >
           <Rewind />
         </button>
         <button
           type="button"
           className={controlButton({ size: 'large' })}
-          onClick={isPlaying ? onPause : onPlay}
+          onClick={togglePlayPause}
         >
           {isPlaying ? (
             <Pause fill="currentColor" />
@@ -103,14 +90,18 @@ export default function ControlsBar({
         <button
           type="button"
           className={controlButton()}
-          onClick={() => onSeekDelta(5)}
+          onClick={(e) => seekStep(1, e.shiftKey)}
         >
           <FastForward />
         </button>
       </div>
 
       <div className="flex-1 flex items-center justify-end gap-2">
-        <button type="button" className={controlButton()} onClick={toggleMute}>
+        <button
+          type="button"
+          className={controlButton()}
+          onClick={handleToggleMute}
+        >
           <VolumeIcon />
         </button>
         <Slider
@@ -118,7 +109,7 @@ export default function ControlsBar({
           min={0}
           max={100}
           step={1}
-          defaultValue={100}
+          defaultValue={25}
           trackColor="var(--color-surface-high)"
           className="w-20 h-1.5 rounded-sm"
           onChange={handleVolumeChange}
