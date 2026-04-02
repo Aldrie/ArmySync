@@ -19,12 +19,12 @@ export default function LightstickPanel({
 
   return (
     <div className="h-full bg-surface-low flex flex-col py-6 px-4">
-      <div className="flex-1 flex flex-col items-center justify-center gap-4">
-        <div className="scale-60 origin-center">
+      <div className="flex-1 flex flex-col items-center justify-center gap-4 min-h-0 overflow-hidden">
+        <div className="shrink min-h-0 origin-center scale-60">
           <Lightstick ref={lightstickRef} />
         </div>
 
-        <div className="flex flex-col items-center gap-1">
+        <div className="flex flex-col items-center gap-1 my-4">
           <span className="font-display font-bold text-[10px] tracking-widest uppercase text-on-surface-variant">
             Live Feed
           </span>

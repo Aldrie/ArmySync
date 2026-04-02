@@ -93,9 +93,11 @@ input[type="range"]::-webkit-slider-thumb {
 
 /* Seekbar / zoom with fill progress */
 input[type="range"].range-fill {
+  background-color: var(--slider-track, var(--color-surface-high));
   background-size: 0% 100%;
   background-repeat: no-repeat;
   background-image: linear-gradient(var(--color-primary), var(--color-primary));
+  border-radius: 3px;
 }
 
 input[type="range"].range-fill::-webkit-slider-runnable-track {

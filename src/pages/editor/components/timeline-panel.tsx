@@ -10,6 +10,7 @@ import {
 } from 'react';
 
 import WaveformTrack from './waveform-track';
+import Slider from '../../../components/slider';
 import { EffectStrip } from '../../../domains/effects';
 import type { IEffect } from '../../../domains/effects';
 import * as format from '../../../lib/format';
@@ -42,7 +43,6 @@ const TimelinePanel = forwardRef<TimelinePanelRef, TimelinePanelProps>(
     const timelineContainerRef = useRef<HTMLDivElement>(null);
     const needleRef = useRef<HTMLSpanElement>(null);
     const timeRef = useRef<HTMLInputElement>(null);
-    const zoomRef = useRef<HTMLInputElement>(null);
 
     useImperativeHandle(ref, () => ({
       updatePosition: (percent: number) => {
@@ -66,7 +66,7 @@ const TimelinePanel = forwardRef<TimelinePanelRef, TimelinePanelProps>(
         return (
           <span
             key={index}
-            className={`relative h-2 text-[10px] font-semibold text-on-surface-variant after:content-[''] after:block after:absolute after:top-3.5 after:left-0 after:right-0 after:mx-auto after:w-px after:h-[50dvh] after:border after:border-outline-variant after:border-dashed after:-z-1 first:after:left-0 first:after:right-auto last:after:right-0 last:after:left-auto ${index === 0 ? 'after:ml-2.5' : index === spotsCount - 1 ? 'after:mr-2.5' : ''}`}
+            className={`relative h-2 text-[10px] font-semibold text-on-surface-variant after:content-[''] after:block after:absolute after:top-3.5 after:left-0 after:right-0 after:mx-auto after:w-px after:h-screen after:border after:border-outline-variant after:border-dashed after:-z-1 first:after:left-0 first:after:right-auto last:after:right-0 last:after:left-auto ${index === 0 ? 'after:ml-2.5' : index === spotsCount - 1 ? 'after:mr-2.5' : ''}`}
           >
             {value}
           </span>
@@ -85,19 +85,16 @@ const TimelinePanel = forwardRef<TimelinePanelRef, TimelinePanelProps>(
     );
 
     const handleZoomInputChange = useCallback(
-      (value: string) => {
-        if (!zoomRef.current || !timelineRef.current) return;
-        zoomRef.current.style.backgroundSize = `${value}% 100%`;
+      (value: number) => {
+        if (!timelineRef.current) return;
 
         const timelinePercentageDelta =
           (videoDuration / TIMELINE_DECREASE_FACTOR) * 100 - 100;
 
         const newSpotsCount =
-          Math.floor((Number(value) * TIMELINE_MAX_SPOTS) / 100) +
-          TIMELINE_MIN_SPOTS;
+          Math.floor((value * TIMELINE_MAX_SPOTS) / 100) + TIMELINE_MIN_SPOTS;
 
-        const timelinePercent =
-          100 + timelinePercentageDelta * (Number(value) / 100);
+        const timelinePercent = 100 + timelinePercentageDelta * (value / 100);
         timelineRef.current.style.width = `${timelinePercent}%`;
 
         if (spotsCount !== newSpotsCount) {
@@ -136,7 +133,7 @@ const TimelinePanel = forwardRef<TimelinePanelRef, TimelinePanelProps>(
 
         <div
           ref={timelineContainerRef}
-          className="px-4 w-full flex-1 overflow-auto"
+          className="px-4 w-full flex-1 overflow-x-auto overflow-y-hidden"
           onWheel={handleTimelineWheel}
         >
           <div
@@ -201,15 +198,14 @@ const TimelinePanel = forwardRef<TimelinePanelRef, TimelinePanelProps>(
         {/* Timeline footer */}
         <div className="w-full h-12 bg-surface-container flex justify-between items-center px-4">
           <Diamond size={16} className="text-on-surface-variant" />
-          <input
-            type="range"
-            className="range-zoom w-24 h-2 rounded-sm"
-            min="0"
-            max="100"
-            step="0.1"
-            defaultValue="0"
-            ref={zoomRef}
-            onChange={(e) => handleZoomInputChange(e.target.value)}
+          <Slider
+            min={0}
+            max={100}
+            step={0.1}
+            defaultValue={0}
+            variant="zoom"
+            className="w-24 h-2 rounded-sm"
+            onChange={handleZoomInputChange}
           />
         </div>
       </div>

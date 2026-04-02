@@ -1,4 +1,3 @@
-import { Resizable } from 're-resizable';
 import { useCallback, useRef, useState } from 'react';
 
 import { open } from '@tauri-apps/plugin-dialog';
@@ -9,6 +8,7 @@ import LightstickPanel from './components/lightstick-panel';
 import TimelinePanel from './components/timeline-panel';
 import type { TimelinePanelRef } from './components/timeline-panel';
 import VideoArea from './components/video-area';
+import ResizePanel from '../../components/resize-handle';
 import type { IEffect } from '../../domains/effects';
 import { sync, effectFile } from '../../domains/effects';
 import type { LightstickRef } from '../../domains/lightstick';
@@ -113,23 +113,14 @@ export default function EditorPage() {
       {/* Top area: effects + video/controls + lightstick */}
       <div className="flex flex-1 min-h-0">
         {/* Left sidebar — resizable width */}
-        <Resizable
-          defaultSize={{ width: 240, height: '100%' }}
-          minWidth={180}
-          maxWidth={360}
-          enable={{ right: true }}
-          handleStyles={{
-            right: {
-              width: 4,
-              right: -2,
-              cursor: 'col-resize',
-              zIndex: 10,
-            },
-          }}
-          handleClasses={{ right: 'hover:bg-primary/30 transition-colors' }}
+        <ResizePanel
+          direction="right"
+          defaultSize={{ width: 360, height: '100%' }}
+          minWidth={280}
+          maxWidth={420}
         >
           <EffectsSidebar />
-        </Resizable>
+        </ResizePanel>
 
         {/* Center: video + controls (controls don't bleed into sidebars) */}
         <div className="flex flex-col flex-1 min-w-0">
@@ -144,6 +135,7 @@ export default function EditorPage() {
             />
           </div>
           <ControlsBar
+            videoRef={videoRef}
             isPlaying={isPlaying}
             onPlay={playVideo}
             onPause={pauseVideo}
@@ -152,44 +144,26 @@ export default function EditorPage() {
         </div>
 
         {/* Right lightstick panel — resizable width */}
-        <Resizable
-          defaultSize={{ width: 200, height: '100%' }}
-          minWidth={160}
+        <ResizePanel
+          direction="left"
+          defaultSize={{ width: 300, height: '100%' }}
+          minWidth={240}
           maxWidth={300}
-          enable={{ left: true }}
-          handleStyles={{
-            left: {
-              width: 4,
-              left: -2,
-              cursor: 'col-resize',
-              zIndex: 10,
-            },
-          }}
-          handleClasses={{ left: 'hover:bg-primary/30 transition-colors' }}
         >
           <LightstickPanel
             lightstickRef={lightstickRef}
             currentTime={currentTime}
             onLoadEffectFile={() => void loadColorsFile()}
           />
-        </Resizable>
+        </ResizePanel>
       </div>
 
       {/* Bottom timeline — resizable height */}
-      <Resizable
-        defaultSize={{ width: '100%', height: 240 }}
-        minHeight={150}
-        maxHeight={500}
-        enable={{ top: true }}
-        handleStyles={{
-          top: {
-            height: 4,
-            top: -2,
-            cursor: 'row-resize',
-            zIndex: 10,
-          },
-        }}
-        handleClasses={{ top: 'hover:bg-primary/30 transition-colors' }}
+      <ResizePanel
+        direction="top"
+        defaultSize={{ width: '100%', height: 380 }}
+        minHeight={200}
+        maxHeight={420}
       >
         <TimelinePanel
           ref={timelineRef}
@@ -199,7 +173,7 @@ export default function EditorPage() {
           waveform={waveform}
           onSeek={handleSeek}
         />
-      </Resizable>
+      </ResizePanel>
     </div>
   );
 }
