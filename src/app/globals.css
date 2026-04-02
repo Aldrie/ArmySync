@@ -132,6 +132,47 @@ input[type="range"].range-zoom::-webkit-slider-thumb {
   margin-top: -7px;
 }
 
+/* Shimmer skeleton */
+@keyframes shimmer-x {
+  from { background-position: 200% 0; }
+  to { background-position: -100% 0; }
+}
+
+@keyframes shimmer-y {
+  from { background-position: 0 -100%; }
+  to { background-position: 0 100%; }
+}
+
+@utility bg-shimmer {
+  background: linear-gradient(90deg, var(--color-surface-high) 12%, var(--color-surface-bright) 50%, var(--color-surface-high) 88%);
+  background-size: 150%;
+  background-position: 100% 0;
+}
+
+@utility bg-shimmer-vertical {
+  background: linear-gradient(180deg, var(--color-surface-high) 12%, var(--color-surface-bright) 50%, var(--color-surface-high) 88%);
+  background-size: 100% 200%;
+  background-position: 0 100%;
+}
+
+@utility animate-shimmer {
+  animation: shimmer-x 1s linear infinite forwards;
+}
+
+@utility animate-shimmer-y {
+  animation: shimmer-y 1s linear infinite forwards;
+}
+
+@layer components {
+  .skeleton {
+    @apply bg-shimmer animate-shimmer rounded-md;
+  }
+
+  .skeleton-vertical {
+    @apply bg-shimmer-vertical animate-shimmer-y;
+  }
+}
+
 /* Timeline scrub input - invisible thumb */
 input[type="range"].range-timeline {
   position: absolute;

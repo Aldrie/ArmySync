@@ -1,6 +1,7 @@
 import { Diamond } from 'lucide-react';
 import { useCallback, useRef, useMemo, useState } from 'react';
 
+import WaveformSkeleton from './waveform-skeleton';
 import WaveformTrack from './waveform-track';
 import Slider from '../../../components/slider';
 import { EffectStrip } from '../../../domains/effects';
@@ -19,6 +20,7 @@ interface TimelinePanelProps {
   effects: IEffect[];
   videoDuration: number;
   waveform: Float32Array | null;
+  waveformLoading: boolean;
   onSeek: (timePercent: number) => void;
 }
 
@@ -26,6 +28,7 @@ export default function TimelinePanel({
   effects,
   videoDuration,
   waveform,
+  waveformLoading,
   onSeek,
 }: TimelinePanelProps) {
   const [spotsCount, setSpotsCount] = useState(5);
@@ -193,7 +196,11 @@ export default function TimelinePanel({
             </div>
 
             <div className="w-full mt-auto">
-              <WaveformTrack waveform={waveform} />
+              {!waveformLoading ? (
+                <WaveformSkeleton />
+              ) : (
+                <WaveformTrack waveform={waveform} />
+              )}
             </div>
           </div>
         </div>
