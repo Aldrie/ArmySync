@@ -8,24 +8,11 @@ import {
   VolumeOff,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef } from 'react';
-import { tv } from 'tailwind-variants';
 
+import IconButton from '../../../components/icon-button';
 import Slider from '../../../components/slider';
 import type { SliderRef } from '../../../components/slider';
 import { useEditorStore } from '../../../stores/editor-store';
-
-const controlButton = tv({
-  base: 'text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer',
-  variants: {
-    size: {
-      large: 'p-2 [&_svg]:size-5',
-      small: 'p-1.5 [&_svg]:size-4',
-    },
-  },
-  defaultVariants: {
-    size: 'small',
-  },
-});
 
 export default function ControlsBar() {
   const isPlaying = useEditorStore((s) => s.isPlaying);
@@ -69,41 +56,25 @@ export default function ControlsBar() {
       <div className="flex-1" />
 
       <div className="flex items-center gap-1">
-        <button
-          type="button"
-          className={controlButton()}
-          onClick={(e) => seekStep(-1, e.shiftKey)}
-        >
+        <IconButton onClick={(e) => seekStep(-1, e.shiftKey)}>
           <Rewind />
-        </button>
-        <button
-          type="button"
-          className={controlButton({ size: 'large' })}
-          onClick={togglePlayPause}
-        >
+        </IconButton>
+        <IconButton size="md" onClick={togglePlayPause}>
           {isPlaying ? (
             <Pause fill="currentColor" />
           ) : (
             <Play fill="currentColor" />
           )}
-        </button>
-        <button
-          type="button"
-          className={controlButton()}
-          onClick={(e) => seekStep(1, e.shiftKey)}
-        >
+        </IconButton>
+        <IconButton onClick={(e) => seekStep(1, e.shiftKey)}>
           <FastForward />
-        </button>
+        </IconButton>
       </div>
 
       <div className="flex-1 flex items-center justify-end gap-2">
-        <button
-          type="button"
-          className={controlButton()}
-          onClick={handleToggleMute}
-        >
+        <IconButton onClick={handleToggleMute}>
           <VolumeIcon />
-        </button>
+        </IconButton>
         <Slider
           ref={sliderRef}
           min={0}
