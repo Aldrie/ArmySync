@@ -38,6 +38,9 @@ export default function EditorPage() {
   const handleVideoLoad = useEditorStore((s) => s.handleVideoLoad);
   const openVideoFile = useEditorStore((s) => s.openVideoFile);
   const loadEffectFile = useEditorStore((s) => s.loadEffectFile);
+  const copyEffect = useEditorStore((s) => s.copyEffect);
+  const pasteEffect = useEditorStore((s) => s.pasteEffect);
+  const deleteSelectedEffect = useEditorStore((s) => s.deleteSelectedEffect);
 
   useKeybind(
     useMemo(
@@ -47,8 +50,23 @@ export default function EditorPage() {
         ArrowRight: (e) => seekStep(1, e.shiftKey),
         ArrowUp: () => adjustVolume(0.05),
         ArrowDown: () => adjustVolume(-0.05),
+        Delete: () => deleteSelectedEffect(),
+        Backspace: () => deleteSelectedEffect(),
+        KeyC: (e) => {
+          if (e.metaKey || e.ctrlKey) copyEffect();
+        },
+        KeyV: (e) => {
+          if (e.metaKey || e.ctrlKey) pasteEffect();
+        },
       }),
-      [togglePlayPause, seekStep, adjustVolume],
+      [
+        togglePlayPause,
+        seekStep,
+        adjustVolume,
+        deleteSelectedEffect,
+        copyEffect,
+        pasteEffect,
+      ],
     ),
   );
 

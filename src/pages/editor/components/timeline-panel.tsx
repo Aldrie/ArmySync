@@ -1,23 +1,22 @@
 import { Diamond } from 'lucide-react';
 import { useCallback, useRef, useMemo, useState } from 'react';
 
+import TimelineEffectBlock from './timeline-effect-block';
 import WaveformSkeleton from './waveform-skeleton';
 import WaveformTrack from './waveform-track';
 import Slider from '../../../components/slider';
-import { EffectStrip } from '../../../domains/effects';
-import type { IEffect } from '../../../domains/effects';
+import type { EffectInstance } from '../../../domains/effects';
+import { getEffectDefinition } from '../../../domains/effects';
 import { cn } from '../../../lib/cn';
 import * as format from '../../../lib/format';
-import { percentageOf } from '../../../lib/math';
-import { useEditorStore } from '../../../stores/editor-store';
+import { useEditorStore, generateEffectId } from '../../../stores/editor-store';
 import { useTransientTime } from '../../../stores/use-transient-time';
 
 const TIMELINE_DECREASE_FACTOR = 15;
 const TIMELINE_MIN_SPOTS = 5;
 const TIMELINE_MAX_SPOTS = 120;
-
 interface TimelinePanelProps {
-  effects: IEffect[];
+  effects: EffectInstance[];
   videoDuration: number;
   waveform: Float32Array | null;
   waveformLoading: boolean;
@@ -32,12 +31,17 @@ export default function TimelinePanel({
   onSeek,
 }: TimelinePanelProps) {
   const [spotsCount, setSpotsCount] = useState(5);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const timelineRef = useRef<HTMLDivElement>(null);
   const timelineContainerRef = useRef<HTMLDivElement>(null);
   const needleRef = useRef<HTMLSpanElement>(null);
   const timeRef = useRef<HTMLInputElement>(null);
   const timeDisplayRef = useRef<HTMLSpanElement>(null);
+  const effectTrackRef = useRef<HTMLDivElement>(null);
+
+  const addEffect = useEditorStore((s) => s.addEffect);
+  const selectEffect = useEditorStore((s) => s.selectEffect);
 
   useTransientTime((time) => {
     const duration = useEditorStore.getState().videoDuration || 1;
@@ -137,6 +141,70 @@ export default function TimelinePanel({
     });
   }, []);
 
+  // Drag-and-drop from palette
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes('application/effect-type')) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      setIsDragOver(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      setIsDragOver(false);
+      const effectType = e.dataTransfer.getData('application/effect-type');
+      if (!effectType || !videoDuration) return;
+
+      const definition = getEffectDefinition(effectType);
+      if (!definition) return;
+
+      // Calculate drop time from mouse position
+      const track = effectTrackRef.current;
+      if (!track) return;
+
+      const rect = track.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const dropTime = Math.max(0, (x / rect.width) * videoDuration);
+
+      const duration = definition.defaultDuration;
+      const from = dropTime;
+      const to = Math.min(from + duration, videoDuration);
+
+      // Build default params from uiConfig
+      const params: Record<string, unknown> = {};
+      for (const field of definition.uiConfig) {
+        params[field.key] = field.default;
+      }
+
+      const newEffect: EffectInstance = {
+        id: generateEffectId(),
+        type: effectType,
+        from,
+        to,
+        params,
+      };
+
+      addEffect(newEffect);
+      selectEffect(newEffect.id);
+    },
+    [videoDuration, addEffect, selectEffect],
+  );
+
+  // Deselect when clicking empty area
+  const handleTrackClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.target === effectTrackRef.current) {
+        selectEffect(null);
+      }
+    },
+    [selectEffect],
+  );
+
   return (
     <div className="w-full h-full bg-surface-low select-none flex flex-col z-20 relative">
       <div className="flex justify-between items-center px-4 pt-3 pb-1 ml-auto">
@@ -175,28 +243,29 @@ export default function TimelinePanel({
               {timelineSpots}
             </div>
 
-            <div className="w-full relative">
-              <div className="w-full h-8 bg-surface-dim rounded-md relative overflow-hidden">
-                {effects.map((effect, i) => {
-                  const duration = videoDuration || 1;
-                  const width = percentageOf(duration, effect.to - effect.from);
-                  const left = percentageOf(duration, effect.from);
-
-                  return (
-                    <EffectStrip
-                      key={i}
-                      type={effect.type}
-                      colors={effect.colors}
-                      width={width}
-                      left={left}
-                    />
-                  );
-                })}
-              </div>
+            <div
+              ref={effectTrackRef}
+              className={cn(
+                'w-full h-8 bg-surface-dim rounded-md relative overflow-visible transition-colors',
+                isDragOver && 'bg-surface-high ring-1 ring-primary/40',
+              )}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={handleTrackClick}
+            >
+              {effects.map((effect) => (
+                <TimelineEffectBlock
+                  key={effect.id}
+                  effect={effect}
+                  videoDuration={videoDuration}
+                  containerRef={effectTrackRef}
+                />
+              ))}
             </div>
 
             <div className="w-full mt-auto">
-              {!waveformLoading ? (
+              {waveformLoading ? (
                 <WaveformSkeleton />
               ) : (
                 <WaveformTrack waveform={waveform} />
