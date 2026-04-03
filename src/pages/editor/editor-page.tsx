@@ -48,6 +48,8 @@ export default function EditorPage() {
   const pasteSelection = useEditorStore((s) => s.pasteSelection);
   const deleteSelection = useEditorStore((s) => s.deleteSelection);
   const duplicateSelection = useEditorStore((s) => s.duplicateSelection);
+  const undo = useEditorStore((s) => s.undo);
+  const redo = useEditorStore((s) => s.redo);
 
   const pointerPosRef = useRef({ x: 0, y: 0 });
 
@@ -175,6 +177,12 @@ export default function EditorPage() {
         KeyD: (e) => {
           if (e.metaKey || e.ctrlKey) duplicateSelection();
         },
+        KeyZ: (e) => {
+          if (e.metaKey || e.ctrlKey) {
+            if (e.shiftKey) redo();
+            else undo();
+          }
+        },
       }),
       [
         togglePlayPause,
@@ -184,6 +192,8 @@ export default function EditorPage() {
         copySelection,
         pasteSelection,
         duplicateSelection,
+        undo,
+        redo,
       ],
     ),
   );

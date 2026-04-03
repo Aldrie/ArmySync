@@ -5,7 +5,7 @@ import { tv, type VariantProps } from 'tailwind-variants';
 import { spring } from '../lib/animations';
 
 const iconButton = tv({
-  base: 'text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer',
+  base: 'text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer disabled:opacity-30 disabled:pointer-events-none',
   variants: {
     size: {
       sm: 'p-1.5 [&_svg]:size-4',
