@@ -59,6 +59,8 @@ export default function EditorPage() {
       };
       canceled: boolean;
     }) => {
+      editorRefs.effectTrackGhost?.classList.add('hidden');
+
       if (event.canceled) return;
 
       const { source, target } = event.operation;
@@ -103,11 +105,55 @@ export default function EditorPage() {
 
   const handleDragMove = useCallback(
     (event: {
-      operation: { position: { current: { x: number; y: number } } };
+      operation: {
+        position: { current: { x: number; y: number } };
+        source?: { data?: Record<string, unknown> } | null;
+      };
     }) => {
-      pointerPosRef.current = event.operation.position.current;
+      const pos = event.operation.position.current;
+      pointerPosRef.current = pos;
+
+      const ghost = editorRefs.effectTrackGhost;
+      const track = editorRefs.effectTrack;
+      if (!ghost || !track) return;
+
+      const effectType = event.operation.source?.data?.effectType as
+        | string
+        | undefined;
+      if (!effectType || !videoDuration) {
+        ghost.classList.add('hidden');
+        return;
+      }
+
+      const rect = track.getBoundingClientRect();
+      const isOver =
+        pos.x >= rect.left &&
+        pos.x <= rect.right &&
+        pos.y >= rect.top &&
+        pos.y <= rect.bottom;
+
+      if (!isOver) {
+        ghost.classList.add('hidden');
+        return;
+      }
+
+      const def = getEffectDefinition(effectType);
+      if (!def) return;
+
+      const x = pos.x - rect.left;
+      const dropTime = Math.max(0, (x / rect.width) * videoDuration);
+      const endTime = Math.min(dropTime + def.defaultDuration, videoDuration);
+
+      ghost.style.left = `${(dropTime / videoDuration) * 100}%`;
+      ghost.style.width = `${((endTime - dropTime) / videoDuration) * 100}%`;
+
+      const params: Record<string, unknown> = {};
+      for (const field of def.uiConfig) params[field.key] = field.default;
+      ghost.style.background = def.buildStripBackground(params);
+
+      ghost.classList.remove('hidden');
     },
-    [],
+    [videoDuration],
   );
 
   useKeybind(
@@ -198,7 +244,7 @@ export default function EditorPage() {
           />
         </ResizePanel>
 
-        <DragOverlay>
+        <DragOverlay dropAnimation={null}>
           {(source) => {
             if (!source) return null;
             const effectType = source.data?.effectType as string | undefined;
@@ -210,11 +256,20 @@ export default function EditorPage() {
             const Icon = icons[def.icon as keyof typeof icons];
 
             return (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-high border border-primary/40 shadow-lg">
-                {Icon && <Icon className="size-3.5 text-primary" />}
-                <span className="font-display font-bold text-xs text-on-surface">
-                  {def.label}
-                </span>
+              <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-surface-high border border-primary/40 shadow-lg">
+                {Icon && (
+                  <div className="w-7 h-7 rounded-md bg-surface-bright flex items-center justify-center shrink-0">
+                    <Icon className="size-3.5 text-primary" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <span className="block font-display font-bold text-xs text-on-surface">
+                    {def.label}
+                  </span>
+                  <span className="block text-[10px] text-on-surface-variant truncate">
+                    {def.description}
+                  </span>
+                </div>
               </div>
             );
           }}

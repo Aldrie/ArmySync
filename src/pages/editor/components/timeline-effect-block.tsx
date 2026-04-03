@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import { getEffectDefinition } from '../../../domains/effects';
 import type { EffectInstance } from '../../../domains/effects';
@@ -30,6 +30,7 @@ export default function TimelineEffectBlock({
   const effects = useEditorStore((s) => s.effects);
 
   const isSelected = selectedEffectIds.includes(effect.id);
+  const [isDragging, setIsDragging] = useState(false);
 
   const dragRef = useRef<{
     mode: DragMode;
@@ -65,6 +66,7 @@ export default function TimelineEffectBlock({
           : 'replace';
       selectEffect(effect.id, selectMode);
 
+      setIsDragging(true);
       dragRef.current = {
         mode,
         startX: e.clientX,
@@ -158,6 +160,7 @@ export default function TimelineEffectBlock({
         }
       }
 
+      setIsDragging(false);
       dragRef.current = null;
     },
     [effect, effects, videoDuration, moveEffect],
@@ -176,7 +179,8 @@ export default function TimelineEffectBlock({
       className={cn(
         'group/block absolute h-full rounded-md cursor-grab active:cursor-grabbing transition-shadow hover:opacity-90',
         isSelected &&
-          'ring-2 ring-primary ring-offset-1 ring-offset-surface-dim',
+          'z-2 ring-2 ring-primary ring-offset-1 ring-offset-surface-dim',
+        isDragging && 'z-3 ring-2 ring-primary/60 ring-dashed opacity-80',
       )}
       style={{
         width: `${width}%`,

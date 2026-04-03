@@ -1,10 +1,9 @@
 import { useDraggable } from '@dnd-kit/react';
 import { icons } from 'lucide-react';
-import { motion } from 'motion/react';
 
 import type { EffectDefinition } from '../../../domains/effects';
 import { getAllEffectDefinitions } from '../../../domains/effects';
-import { spring } from '../../../lib/animations';
+import { cn } from '../../../lib/cn';
 
 function PaletteItem({ def }: { def: EffectDefinition }) {
   const Icon = icons[def.icon as keyof typeof icons];
@@ -16,13 +15,16 @@ function PaletteItem({ def }: { def: EffectDefinition }) {
   });
 
   return (
-    <motion.div
+    <div
       ref={ref}
-      className="flex items-center gap-2.5 p-2.5 rounded-lg bg-surface-high hover:bg-surface-highest transition-colors cursor-grab active:cursor-grabbing"
-      style={{ opacity: isDragSource ? 0.5 : 1 }}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.97 }}
-      transition={spring}
+      className={cn(
+        `flex items-center gap-2.5 p-2.5 rounded-lg bg-surface-high
+        hover:bg-surface-highest hover:scale-[1.015]
+        active:ring-1 active:ring-primary/30
+        transition-transform duration-150 ease-out
+        cursor-grab active:cursor-grabbing`,
+        isDragSource && 'opacity-50',
+      )}
     >
       {Icon && (
         <div className="w-7 h-7 rounded-md bg-surface-bright flex items-center justify-center shrink-0">
@@ -37,7 +39,7 @@ function PaletteItem({ def }: { def: EffectDefinition }) {
           {def.description}
         </span>
       </div>
-    </motion.div>
+    </div>
   );
 }
 

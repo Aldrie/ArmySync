@@ -212,7 +212,7 @@ export default function TimelinePanel({
             <div
               ref={trackRefCallback}
               className={cn(
-                'w-full h-16 bg-surface-container rounded-md relative z-4 overflow-visible transition-colors',
+                'w-full h-16 bg-surface/80 rounded-md relative z-4 overflow-visible transition-colors',
                 isDropTarget && 'bg-surface-high ring-1 ring-primary/40',
               )}
               onClick={handleTrackClick}
@@ -225,6 +225,14 @@ export default function TimelinePanel({
                   containerRef={effectTrackRef}
                 />
               ))}
+
+              <div
+                ref={(el) => {
+                  editorRefs.effectTrackGhost = el;
+                }}
+                className="absolute h-full rounded-md border-2 border-dashed border-primary/60 pointer-events-none hidden"
+                style={{ opacity: 0.4 }}
+              />
             </div>
 
             <div className="w-full mt-auto">
