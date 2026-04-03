@@ -63,6 +63,8 @@ export default function TimelineEffectBlock({
       e.preventDefault();
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
 
+      useEditorStore.getState().pushHistory();
+
       const hasModifier = e.shiftKey || e.ctrlKey || e.metaKey;
       let deferredSelect = false;
 

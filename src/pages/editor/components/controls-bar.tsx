@@ -3,6 +3,8 @@ import {
   Pause,
   FastForward,
   Rewind,
+  Undo2,
+  Redo2,
   Volume2,
   Volume1,
   VolumeOff,
@@ -19,10 +21,15 @@ export default function ControlsBar() {
   const volume = useEditorStore((s) => s.volume);
   const muted = useEditorStore((s) => s.muted);
 
+  const canUndo = useEditorStore((s) => s.canUndo);
+  const canRedo = useEditorStore((s) => s.canRedo);
+
   const togglePlayPause = useEditorStore((s) => s.togglePlayPause);
   const seekStep = useEditorStore((s) => s.seekStep);
   const setVolume = useEditorStore((s) => s.setVolume);
   const toggleMute = useEditorStore((s) => s.toggleMute);
+  const undo = useEditorStore((s) => s.undo);
+  const redo = useEditorStore((s) => s.redo);
 
   const sliderRef = useRef<SliderRef>(null);
 
@@ -53,7 +60,14 @@ export default function ControlsBar() {
 
   return (
     <div className="bg-surface-container flex items-center px-4 py-2.5">
-      <div className="flex-1" />
+      <div className="flex-1 flex items-center gap-1">
+        <IconButton onClick={undo} disabled={!canUndo}>
+          <Undo2 />
+        </IconButton>
+        <IconButton onClick={redo} disabled={!canRedo}>
+          <Redo2 />
+        </IconButton>
+      </div>
 
       <div className="flex items-center gap-1">
         <IconButton onClick={(e) => seekStep(-1, e.shiftKey)}>

@@ -11,6 +11,7 @@ import { extractWaveform } from '../lib/audio';
 const DEV_VIDEO_PATH = '/example.mp4';
 const DEFAULT_VOLUME = 0.25;
 const FRAME_DURATION = 1 / 24;
+const MAX_HISTORY = 11;
 
 function seekStepFromZoom(zoom: number): number {
   if (zoom >= 90) return FRAME_DURATION;
@@ -79,6 +80,15 @@ interface EditorState {
   deleteSelection: () => void;
   duplicateSelection: () => void;
 
+  // History (undo/redo)
+  _history: EffectInstance[][];
+  _historyCursor: number;
+  canUndo: boolean;
+  canRedo: boolean;
+  pushHistory: () => void;
+  undo: () => void;
+  redo: () => void;
+
   handleVideoLoad: () => Promise<void>;
   openVideoFile: () => Promise<void>;
   loadEffectFile: () => Promise<void>;
@@ -105,6 +115,60 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   selectedEffectIds: [],
   clipboard: [],
+
+  _history: [[]],
+  _historyCursor: 0,
+  canUndo: false,
+  canRedo: false,
+
+  pushHistory: () => {
+    const { effects, _history, _historyCursor } = get();
+    const snapshot = effects.map((e) => ({ ...e, params: { ...e.params } }));
+    const trimmed = _history.slice(0, _historyCursor + 1);
+    trimmed.push(snapshot);
+    if (trimmed.length > MAX_HISTORY) trimmed.shift();
+    const cursor = trimmed.length - 1;
+    set({
+      _history: trimmed,
+      _historyCursor: cursor,
+      canUndo: cursor > 0,
+      canRedo: false,
+    });
+  },
+
+  undo: () => {
+    const { _history, _historyCursor } = get();
+    if (_historyCursor <= 0) return;
+    const cursor = _historyCursor - 1;
+    const snapshot = _history[cursor].map((e) => ({
+      ...e,
+      params: { ...e.params },
+    }));
+    set({
+      effects: snapshot,
+      _historyCursor: cursor,
+      canUndo: cursor > 0,
+      canRedo: true,
+      selectedEffectIds: [],
+    });
+  },
+
+  redo: () => {
+    const { _history, _historyCursor } = get();
+    if (_historyCursor >= _history.length - 1) return;
+    const cursor = _historyCursor + 1;
+    const snapshot = _history[cursor].map((e) => ({
+      ...e,
+      params: { ...e.params },
+    }));
+    set({
+      effects: snapshot,
+      _historyCursor: cursor,
+      canUndo: true,
+      canRedo: cursor < _history.length - 1,
+      selectedEffectIds: [],
+    });
+  },
 
   play: () => {
     editorRefs.video?.play();
@@ -203,10 +267,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   addEffect: (effect) => {
+    get().pushHistory();
     set((s) => ({ effects: [...s.effects, effect] }));
   },
 
   removeEffect: (id) => {
+    get().pushHistory();
     set((s) => ({
       effects: s.effects.filter((e) => e.id !== id),
       selectedEffectIds: s.selectedEffectIds.filter((sid) => sid !== id),
@@ -214,12 +280,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   updateEffect: (id, patch) => {
+    get().pushHistory();
     set((s) => ({
       effects: s.effects.map((e) => (e.id === id ? { ...e, ...patch } : e)),
     }));
   },
 
   updateEffectParams: (id, params) => {
+    get().pushHistory();
     set((s) => ({
       effects: s.effects.map((e) =>
         e.id === id ? { ...e, params: { ...e.params, ...params } } : e,
@@ -266,29 +334,33 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const { clipboard, currentTime } = get();
     if (clipboard.length === 0) return;
 
+    get().pushHistory();
+
     const insertAt = atTime ?? currentTime;
     const sorted = [...clipboard].sort((a, b) => a.from - b.from);
     const baseTime = sorted[0].from;
 
-    const newIds: string[] = [];
+    const newEffects: EffectInstance[] = [];
     for (const effect of sorted) {
       const offset = effect.from - baseTime;
       const duration = effect.to - effect.from;
-      const newEffect: EffectInstance = {
+      newEffects.push({
         ...effect,
         id: generateEffectId(),
         from: insertAt + offset,
         to: insertAt + offset + duration,
-      };
-      get().addEffect(newEffect);
-      newIds.push(newEffect.id);
+      });
     }
-    set({ selectedEffectIds: newIds });
+    set((s) => ({
+      effects: [...s.effects, ...newEffects],
+      selectedEffectIds: newEffects.map((e) => e.id),
+    }));
   },
 
   deleteSelection: () => {
     const { selectedEffectIds } = get();
     if (selectedEffectIds.length === 0) return;
+    get().pushHistory();
     set((s) => ({
       effects: s.effects.filter((e) => !selectedEffectIds.includes(e.id)),
       selectedEffectIds: [],
@@ -299,6 +371,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const { selectedEffectIds, effects } = get();
     if (selectedEffectIds.length === 0) return;
 
+    get().pushHistory();
+
     const selected = effects
       .filter((e) => selectedEffectIds.includes(e.id))
       .sort((a, b) => a.from - b.from);
@@ -306,20 +380,21 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const firstStart = selected[0].from;
     const lastEnd = Math.max(...selected.map((e) => e.to));
 
-    const newIds: string[] = [];
+    const newEffects: EffectInstance[] = [];
     for (const effect of selected) {
       const offset = effect.from - firstStart;
       const duration = effect.to - effect.from;
-      const newEffect: EffectInstance = {
+      newEffects.push({
         ...effect,
         id: generateEffectId(),
         from: lastEnd + offset,
         to: lastEnd + offset + duration,
-      };
-      get().addEffect(newEffect);
-      newIds.push(newEffect.id);
+      });
     }
-    set({ selectedEffectIds: newIds });
+    set((s) => ({
+      effects: [...s.effects, ...newEffects],
+      selectedEffectIds: newEffects.map((e) => e.id),
+    }));
   },
 
   handleVideoLoad: async () => {
