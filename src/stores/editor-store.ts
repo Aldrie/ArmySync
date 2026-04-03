@@ -5,7 +5,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 
 import { editorRefs } from './editor-refs';
 import { sync, effectFile } from '../domains/effects';
-import type { IEffect } from '../domains/effects';
+import type { EffectInstance } from '../domains/effects';
 import { extractWaveform } from '../lib/audio';
 
 const DEV_VIDEO_PATH = '/example.mp4';
@@ -28,12 +28,18 @@ interface EditorState {
   videoFilePath: string | null;
   videoDuration: number;
   isPlaying: boolean;
-  effects: IEffect[];
+  effects: EffectInstance[];
   waveform: Float32Array | null;
   waveformLoading: boolean;
   volume: number;
   muted: boolean;
   zoomLevel: number;
+
+  // Selection
+  selectedEffectId: string | null;
+
+  // Clipboard
+  clipboard?: EffectInstance;
 
   /** Transient — consume via useTransientTime, never as a selector */
   currentTime: number;
@@ -51,9 +57,32 @@ interface EditorState {
   toggleMute: () => void;
   setZoomLevel: (value: number) => void;
 
+  // Effect CRUD
+  selectEffect: (id: string | null) => void;
+  addEffect: (effect: EffectInstance) => void;
+  removeEffect: (id: string) => void;
+  updateEffect: (id: string, patch: Partial<EffectInstance>) => void;
+  updateEffectParams: (
+    id: string,
+    params: Partial<Record<string, unknown>>,
+  ) => void;
+  moveEffect: (id: string, from: number, to: number) => void;
+  resizeEffect: (id: string, edge: 'start' | 'end', newTime: number) => void;
+
+  // Clipboard
+  copyEffect: () => void;
+  pasteEffect: (atTime?: number) => void;
+  deleteSelectedEffect: () => void;
+
   handleVideoLoad: () => Promise<void>;
   openVideoFile: () => Promise<void>;
   loadEffectFile: () => Promise<void>;
+}
+
+let nextEffectId = 1;
+
+export function generateEffectId(): string {
+  return `effect-${Date.now()}-${nextEffectId++}`;
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
@@ -68,6 +97,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   muted: false,
   zoomLevel: 0,
   currentTime: 0,
+
+  selectedEffectId: null,
+  clipboard: undefined,
 
   play: () => {
     editorRefs.video?.play();
@@ -137,6 +169,95 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setZoomLevel: (value) => {
     set({ zoomLevel: value });
   },
+
+  // -----------------------------------------------------------------------
+  // Effect CRUD
+  // -----------------------------------------------------------------------
+
+  selectEffect: (id) => {
+    set({ selectedEffectId: id });
+  },
+
+  addEffect: (effect) => {
+    set((s) => ({ effects: [...s.effects, effect] }));
+  },
+
+  removeEffect: (id) => {
+    set((s) => ({
+      effects: s.effects.filter((e) => e.id !== id),
+      selectedEffectId: s.selectedEffectId === id ? null : s.selectedEffectId,
+    }));
+  },
+
+  updateEffect: (id, patch) => {
+    set((s) => ({
+      effects: s.effects.map((e) => (e.id === id ? { ...e, ...patch } : e)),
+    }));
+  },
+
+  updateEffectParams: (id, params) => {
+    set((s) => ({
+      effects: s.effects.map((e) =>
+        e.id === id ? { ...e, params: { ...e.params, ...params } } : e,
+      ),
+    }));
+  },
+
+  moveEffect: (id, from, to) => {
+    set((s) => ({
+      effects: s.effects.map((e) => (e.id === id ? { ...e, from, to } : e)),
+    }));
+  },
+
+  resizeEffect: (id, edge, newTime) => {
+    set((s) => ({
+      effects: s.effects.map((e) => {
+        if (e.id !== id) return e;
+        if (edge === 'start') {
+          return { ...e, from: Math.min(newTime, e.to - 0.1) };
+        }
+        return { ...e, to: Math.max(newTime, e.from + 0.1) };
+      }),
+    }));
+  },
+
+  // -----------------------------------------------------------------------
+  // Clipboard
+  // -----------------------------------------------------------------------
+
+  copyEffect: () => {
+    const { selectedEffectId, effects } = get();
+    if (!selectedEffectId) return;
+    const effect = effects.find((e) => e.id === selectedEffectId);
+    if (effect) set({ clipboard: { ...effect } });
+  },
+
+  pasteEffect: (atTime) => {
+    const { clipboard, currentTime } = get();
+    if (!clipboard) return;
+
+    const insertAt = atTime ?? currentTime;
+    const duration = clipboard.to - clipboard.from;
+
+    const newEffect: EffectInstance = {
+      ...clipboard,
+      id: generateEffectId(),
+      from: insertAt,
+      to: insertAt + duration,
+    };
+
+    get().addEffect(newEffect);
+    set({ selectedEffectId: newEffect.id });
+  },
+
+  deleteSelectedEffect: () => {
+    const { selectedEffectId } = get();
+    if (selectedEffectId) get().removeEffect(selectedEffectId);
+  },
+
+  // -----------------------------------------------------------------------
+  // File I/O
+  // -----------------------------------------------------------------------
 
   handleVideoLoad: async () => {
     const el = editorRefs.video;
