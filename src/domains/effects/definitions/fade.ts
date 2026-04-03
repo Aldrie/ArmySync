@@ -7,7 +7,7 @@ export const fadeDefinition: EffectDefinition = {
   label: 'Color Fade',
   description: 'Smooth transition between two colors',
   icon: 'Blend',
-  defaultDuration: 3,
+  defaultDuration: 10,
 
   handler: ({ params, duration, current }) => {
     const startColor = hexToRgb((params.startColor as string) ?? '#ffffff');

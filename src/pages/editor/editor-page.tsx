@@ -82,6 +82,7 @@ export default function EditorPage() {
       const to = Math.min(from + duration, videoDuration);
 
       const params: Record<string, unknown> = {};
+
       for (const field of definition.uiConfig) {
         params[field.key] = field.default;
       }

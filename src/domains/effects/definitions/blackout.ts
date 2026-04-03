@@ -5,7 +5,7 @@ export const blackoutDefinition: EffectDefinition = {
   label: 'Blackout',
   description: 'Turn off the lightstick completely',
   icon: 'EyeOff',
-  defaultDuration: 1,
+  defaultDuration: 5,
 
   handler: () => '#000000',
 

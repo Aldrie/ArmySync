@@ -5,7 +5,7 @@ export const colorDefinition: EffectDefinition = {
   label: 'Static Color',
   description: 'A single solid color for the entire duration',
   icon: 'Palette',
-  defaultDuration: 2,
+  defaultDuration: 5,
 
   handler: ({ params }) => {
     return (params.color as string) ?? '#ffffff';
