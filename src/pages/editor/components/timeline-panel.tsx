@@ -1,6 +1,7 @@
 import { Diamond } from 'lucide-react';
 import { useCallback, useRef, useMemo, useState } from 'react';
 
+import { draggingEffectType } from './effect-palette';
 import TimelineEffectBlock from './timeline-effect-block';
 import WaveformSkeleton from './waveform-skeleton';
 import WaveformTrack from './waveform-track';
@@ -15,6 +16,7 @@ import { useTransientTime } from '../../../stores/use-transient-time';
 const TIMELINE_DECREASE_FACTOR = 15;
 const TIMELINE_MIN_SPOTS = 5;
 const TIMELINE_MAX_SPOTS = 120;
+
 interface TimelinePanelProps {
   effects: EffectInstance[];
   videoDuration: number;
@@ -31,7 +33,11 @@ export default function TimelinePanel({
   onSeek,
 }: TimelinePanelProps) {
   const [spotsCount, setSpotsCount] = useState(5);
-  const [isDragOver, setIsDragOver] = useState(false);
+  const [dragPreview, setDragPreview] = useState<{
+    left: number;
+    width: number;
+    background: string;
+  } | null>(null);
 
   const timelineRef = useRef<HTMLDivElement>(null);
   const timelineContainerRef = useRef<HTMLDivElement>(null);
@@ -39,6 +45,7 @@ export default function TimelinePanel({
   const timeRef = useRef<HTMLInputElement>(null);
   const timeDisplayRef = useRef<HTMLSpanElement>(null);
   const effectTrackRef = useRef<HTMLDivElement>(null);
+  const dragCounterRef = useRef(0);
 
   const addEffect = useEditorStore((s) => s.addEffect);
   const selectEffect = useEditorStore((s) => s.selectEffect);
@@ -141,29 +148,82 @@ export default function TimelinePanel({
     });
   }, []);
 
+  // -------------------------------------------------------------------------
   // Drag-and-drop from palette
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    if (e.dataTransfer.types.includes('application/effect-type')) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'copy';
-      setIsDragOver(true);
-    }
+  // -------------------------------------------------------------------------
+
+  const calcPreview = useCallback(
+    (e: React.DragEvent, effectType: string) => {
+      const track = effectTrackRef.current;
+      if (!track || !videoDuration) return null;
+
+      const definition = getEffectDefinition(effectType);
+      if (!definition) return null;
+
+      const rect = track.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const dropTime = Math.max(0, (x / rect.width) * videoDuration);
+      const duration = definition.defaultDuration;
+      const endTime = Math.min(dropTime + duration, videoDuration);
+
+      const leftPct = (dropTime / videoDuration) * 100;
+      const widthPct = ((endTime - dropTime) / videoDuration) * 100;
+
+      const params: Record<string, unknown> = {};
+      for (const field of definition.uiConfig) {
+        params[field.key] = field.default;
+      }
+
+      return {
+        left: leftPct,
+        width: widthPct,
+        background: definition.buildStripBackground(params),
+      };
+    },
+    [videoDuration],
+  );
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    if (!draggingEffectType) return;
+    e.preventDefault();
+    dragCounterRef.current++;
+    if (timeRef.current) timeRef.current.style.pointerEvents = 'none';
   }, []);
 
+  const handleDragOver = useCallback(
+    (e: React.DragEvent) => {
+      if (!draggingEffectType) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+
+      const preview = calcPreview(e, draggingEffectType);
+      if (preview) setDragPreview(preview);
+    },
+    [calcPreview],
+  );
+
   const handleDragLeave = useCallback(() => {
-    setIsDragOver(false);
+    dragCounterRef.current--;
+    if (dragCounterRef.current <= 0) {
+      dragCounterRef.current = 0;
+      setDragPreview(null);
+      if (timeRef.current) timeRef.current.style.pointerEvents = '';
+    }
   }, []);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
-      setIsDragOver(false);
+      e.preventDefault();
+      dragCounterRef.current = 0;
+      setDragPreview(null);
+      if (timeRef.current) timeRef.current.style.pointerEvents = '';
+
       const effectType = e.dataTransfer.getData('application/effect-type');
       if (!effectType || !videoDuration) return;
 
       const definition = getEffectDefinition(effectType);
       if (!definition) return;
 
-      // Calculate drop time from mouse position
       const track = effectTrackRef.current;
       if (!track) return;
 
@@ -175,7 +235,6 @@ export default function TimelinePanel({
       const from = dropTime;
       const to = Math.min(from + duration, videoDuration);
 
-      // Build default params from uiConfig
       const params: Record<string, unknown> = {};
       for (const field of definition.uiConfig) {
         params[field.key] = field.default;
@@ -206,7 +265,13 @@ export default function TimelinePanel({
   );
 
   return (
-    <div className="w-full h-full bg-surface-low select-none flex flex-col z-20 relative">
+    <div
+      className="w-full h-full bg-surface-low select-none flex flex-col z-20 relative"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       <div className="flex justify-between items-center px-4 pt-3 pb-1 ml-auto">
         <span className="font-bold text-on-surface tabular-nums">
           <span ref={timeDisplayRef}>{format.videoTime(0)}</span>
@@ -247,11 +312,8 @@ export default function TimelinePanel({
               ref={effectTrackRef}
               className={cn(
                 'w-full h-8 bg-surface-dim rounded-md relative overflow-visible transition-colors',
-                isDragOver && 'bg-surface-high ring-1 ring-primary/40',
+                dragPreview && 'bg-surface-high ring-1 ring-primary/40',
               )}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
               onClick={handleTrackClick}
             >
               {effects.map((effect) => (
@@ -262,6 +324,19 @@ export default function TimelinePanel({
                   containerRef={effectTrackRef}
                 />
               ))}
+
+              {/* Ghost preview while dragging from palette */}
+              {dragPreview && (
+                <div
+                  className="absolute h-full rounded-md border-2 border-dashed border-primary/60 pointer-events-none"
+                  style={{
+                    left: `${dragPreview.left}%`,
+                    width: `${dragPreview.width}%`,
+                    background: dragPreview.background,
+                    opacity: 0.4,
+                  }}
+                />
+              )}
             </div>
 
             <div className="w-full mt-auto">
