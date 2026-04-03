@@ -24,6 +24,7 @@ export function findSnapTarget(
   containerWidth: number,
   duration: number,
   excludeId?: string,
+  excludeIds?: Set<string>,
 ): number {
   const thresholdTime = (SNAP_THRESHOLD_PX / containerWidth) * duration;
   let best = time;
@@ -31,6 +32,7 @@ export function findSnapTarget(
 
   for (const effect of effects) {
     if (effect.id === excludeId) continue;
+    if (excludeIds?.has(effect.id)) continue;
 
     const distFrom = Math.abs(time - effect.from);
     if (distFrom < bestDist) {
@@ -56,8 +58,11 @@ export function resolveOverlap(
   effect: EffectInstance,
   allEffects: EffectInstance[],
   videoDuration: number,
+  excludeIds?: Set<string>,
 ): { from: number; to: number } | null {
-  const others = allEffects.filter((e) => e.id !== effect.id);
+  const others = allEffects.filter(
+    (e) => e.id !== effect.id && !excludeIds?.has(e.id),
+  );
   const duration = effect.to - effect.from;
 
   const overlaps = others.some((o) => effect.from < o.to && effect.to > o.from);

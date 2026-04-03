@@ -172,7 +172,10 @@ export default function TimelinePanel({
   );
 
   return (
-    <div className="w-full h-full bg-surface-low select-none flex flex-col z-20 relative">
+    <div
+      className="w-full h-full bg-surface-low select-none flex flex-col z-20 relative"
+      onClick={() => selectEffect(null)}
+    >
       <div className="flex justify-between items-center px-4 pt-3 pb-1 ml-auto">
         <span className="font-bold text-on-surface tabular-nums">
           <span ref={timeDisplayRef}>{format.videoTime(0)}</span>

@@ -70,6 +70,7 @@ interface EditorState {
     params: Partial<Record<string, unknown>>,
   ) => void;
   moveEffect: (id: string, from: number, to: number) => void;
+  moveEffects: (moves: Array<{ id: string; from: number; to: number }>) => void;
   resizeEffect: (id: string, edge: 'start' | 'end', newTime: number) => void;
 
   // Clipboard
@@ -229,6 +230,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   moveEffect: (id, from, to) => {
     set((s) => ({
       effects: s.effects.map((e) => (e.id === id ? { ...e, from, to } : e)),
+    }));
+  },
+
+  moveEffects: (moves) => {
+    const lookup = new Map(moves.map((m) => [m.id, m]));
+    set((s) => ({
+      effects: s.effects.map((e) => {
+        const m = lookup.get(e.id);
+        return m ? { ...e, from: m.from, to: m.to } : e;
+      }),
     }));
   },
 
