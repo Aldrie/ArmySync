@@ -27,7 +27,7 @@ export default function PropertiesPanel({ effect }: PropertiesPanelProps) {
   if (!definition) return null;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 pb-6">
       <div className="flex items-center justify-between">
         <div>
           <span className="block font-display font-bold text-sm text-on-surface">

@@ -155,14 +155,20 @@ export default function TimelinePanel({
     });
   }, []);
 
-  // Deselect when clicking empty area
   const handleTrackClick = useCallback(
     (e: React.MouseEvent) => {
-      if (e.target === effectTrackRef.current) {
-        selectEffect(null);
-      }
+      if (e.target !== effectTrackRef.current) return;
+
+      selectEffect(null);
+
+      const track = effectTrackRef.current;
+      if (!track || !videoDuration) return;
+      const rect = track.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const percent = (x / rect.width) * 100;
+      onSeek(Math.max(0, Math.min(100, percent)));
     },
-    [selectEffect],
+    [selectEffect, videoDuration, onSeek],
   );
 
   return (
@@ -196,7 +202,7 @@ export default function TimelinePanel({
           <div className="w-full py-1.5 flex flex-wrap flex-1">
             <span
               ref={needleRef}
-              className="absolute w-0.5 z-2 top-0 left-0 h-full bg-primary before:content-[''] before:block before:absolute before:bg-primary before:w-3 before:h-3 before:rounded-full before:-translate-x-[5px]"
+              className="absolute w-0.5 z-5 top-0 left-0 h-full bg-primary pointer-events-none before:content-[''] before:block before:absolute before:bg-primary before:w-3 before:h-3 before:rounded-full before:-translate-x-[5px]"
             />
 
             <div className="flex justify-between w-full mb-2">
@@ -206,7 +212,7 @@ export default function TimelinePanel({
             <div
               ref={trackRefCallback}
               className={cn(
-                'w-full h-8 bg-surface-dim rounded-md relative overflow-visible transition-colors',
+                'w-full h-16 bg-surface-container rounded-md relative z-4 overflow-visible transition-colors',
                 isDropTarget && 'bg-surface-high ring-1 ring-primary/40',
               )}
               onClick={handleTrackClick}

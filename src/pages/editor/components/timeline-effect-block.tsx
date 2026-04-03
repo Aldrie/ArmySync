@@ -155,7 +155,7 @@ export default function TimelineEffectBlock({
   return (
     <div
       className={cn(
-        'absolute h-full rounded-md cursor-grab active:cursor-grabbing transition-shadow',
+        'group/block absolute h-full rounded-md cursor-grab active:cursor-grabbing transition-shadow hover:opacity-90',
         isSelected &&
           'ring-2 ring-primary ring-offset-1 ring-offset-surface-dim',
       )}
@@ -168,18 +168,19 @@ export default function TimelineEffectBlock({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
     >
-      {/* Left resize handle */}
       <div
-        className="absolute left-0 top-0 w-1.5 h-full cursor-w-resize rounded-l-md hover:bg-white/20 transition-colors"
+        className="absolute -left-1 top-0 w-2.5 h-full cursor-w-resize rounded-l-md transition-colors group/handle"
         onPointerDown={(e) => handlePointerDown(e, 'resize-start')}
-      />
-      {/* Right resize handle */}
+      >
+        <div className="absolute left-1 top-1/2 -translate-y-1/2 w-1 h-5 rounded-full bg-primary/0 group-hover/block:bg-primary/30 group-hover/handle:bg-primary transition-colors" />
+      </div>
       <div
-        className="absolute right-0 top-0 w-1.5 h-full cursor-e-resize rounded-r-md hover:bg-white/20 transition-colors"
+        className="absolute -right-1 top-0 w-2.5 h-full cursor-e-resize rounded-r-md transition-colors group/handle"
         onPointerDown={(e) => handlePointerDown(e, 'resize-end')}
-      />
+      >
+        <div className="absolute right-1 top-1/2 -translate-y-1/2 w-1 h-5 rounded-full bg-primary/0 group-hover/block:bg-primary/30 group-hover/handle:bg-primary transition-colors" />
+      </div>
 
-      {/* Effect label (only show if wide enough) */}
       {width > 3 && (
         <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-white/70 pointer-events-none truncate px-2 drop-shadow-sm">
           {definition?.label}

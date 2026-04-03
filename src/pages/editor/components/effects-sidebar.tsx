@@ -12,7 +12,7 @@ export default function EffectsSidebar() {
 
   return (
     <div className="h-full bg-surface-low flex flex-col py-5 px-4 gap-4 overflow-y-auto">
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 px-3">
         <span className="font-display font-bold text-xs tracking-widest uppercase text-on-surface-variant">
           Effects
         </span>
@@ -20,7 +20,7 @@ export default function EffectsSidebar() {
       </div>
 
       {selectedEffect && (
-        <div className="flex flex-col gap-3 pt-4 border-t border-outline-variant">
+        <div className="flex flex-col gap-3 pt-6 mt-3 border-t border-outline-variant px-3">
           <span className="font-display font-bold text-xs tracking-widest uppercase text-on-surface-variant">
             Properties
           </span>
