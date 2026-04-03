@@ -1,17 +1,8 @@
-import { colorEffect, fadeEffect, flashEffect } from './effect';
-import { EffectTypes } from '../types';
-import type { IEffect, EffectParams } from '../types';
-
-type EffectFn = (params: EffectParams) => string;
-
-const typeEffects: Record<EffectTypes, EffectFn> = {
-  [EffectTypes.COLOR]: colorEffect,
-  [EffectTypes.FADE]: fadeEffect,
-  [EffectTypes.FLASH]: flashEffect,
-};
+import { getEffectDefinition } from '../registry';
+import type { EffectInstance } from '../types';
 
 export const sync = (
-  effects: IEffect[],
+  effects: EffectInstance[],
   time: number,
   onChange: (color: string) => void,
 ) => {
@@ -20,17 +11,16 @@ export const sync = (
   );
 
   if (effect) {
-    const func = typeEffects[effect.type];
-    const duration = effect.to - effect.from;
+    const definition = getEffectDefinition(effect.type);
+    if (!definition) return;
 
-    if (func) {
-      onChange(
-        func({
-          colors: effect.colors,
-          duration,
-          current: time - effect.from,
-        }),
-      );
-    }
+    const duration = effect.to - effect.from;
+    const color = definition.handler({
+      params: effect.params,
+      duration,
+      current: time - effect.from,
+    });
+
+    onChange(color);
   }
 };

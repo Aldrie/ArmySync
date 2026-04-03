@@ -1,14 +1,15 @@
+import { useDroppable } from '@dnd-kit/react';
 import { Diamond } from 'lucide-react';
 import { useCallback, useRef, useMemo, useState } from 'react';
 
+import TimelineEffectBlock from './timeline-effect-block';
 import WaveformSkeleton from './waveform-skeleton';
 import WaveformTrack from './waveform-track';
 import Slider from '../../../components/slider';
-import { EffectStrip } from '../../../domains/effects';
-import type { IEffect } from '../../../domains/effects';
+import type { EffectInstance } from '../../../domains/effects';
 import { cn } from '../../../lib/cn';
 import * as format from '../../../lib/format';
-import { percentageOf } from '../../../lib/math';
+import { editorRefs } from '../../../stores/editor-refs';
 import { useEditorStore } from '../../../stores/editor-store';
 import { useTransientTime } from '../../../stores/use-transient-time';
 
@@ -17,7 +18,7 @@ const TIMELINE_MIN_SPOTS = 5;
 const TIMELINE_MAX_SPOTS = 120;
 
 interface TimelinePanelProps {
-  effects: IEffect[];
+  effects: EffectInstance[];
   videoDuration: number;
   waveform: Float32Array | null;
   waveformLoading: boolean;
@@ -38,6 +39,23 @@ export default function TimelinePanel({
   const needleRef = useRef<HTMLSpanElement>(null);
   const timeRef = useRef<HTMLInputElement>(null);
   const timeDisplayRef = useRef<HTMLSpanElement>(null);
+  const effectTrackRef = useRef<HTMLDivElement>(null);
+
+  const selectEffect = useEditorStore((s) => s.selectEffect);
+
+  const { ref: droppableRef, isDropTarget } = useDroppable({
+    id: 'effect-track',
+    accept: 'effect',
+  });
+
+  const trackRefCallback = useCallback(
+    (el: HTMLDivElement | null) => {
+      effectTrackRef.current = el;
+      editorRefs.effectTrack = el;
+      droppableRef(el);
+    },
+    [droppableRef],
+  );
 
   useTransientTime((time) => {
     const duration = useEditorStore.getState().videoDuration || 1;
@@ -137,8 +155,27 @@ export default function TimelinePanel({
     });
   }, []);
 
+  const handleTrackClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.target !== effectTrackRef.current) return;
+
+      selectEffect(null);
+
+      const track = effectTrackRef.current;
+      if (!track || !videoDuration) return;
+      const rect = track.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const percent = (x / rect.width) * 100;
+      onSeek(Math.max(0, Math.min(100, percent)));
+    },
+    [selectEffect, videoDuration, onSeek],
+  );
+
   return (
-    <div className="w-full h-full bg-surface-low select-none flex flex-col z-20 relative">
+    <div
+      className="w-full h-full bg-surface-low select-none flex flex-col z-20 relative"
+      onClick={() => selectEffect(null)}
+    >
       <div className="flex justify-between items-center px-4 pt-3 pb-1 ml-auto">
         <span className="font-bold text-on-surface tabular-nums">
           <span ref={timeDisplayRef}>{format.videoTime(0)}</span>
@@ -168,35 +205,41 @@ export default function TimelinePanel({
           <div className="w-full py-1.5 flex flex-wrap flex-1">
             <span
               ref={needleRef}
-              className="absolute w-0.5 z-2 top-0 left-0 h-full bg-primary before:content-[''] before:block before:absolute before:bg-primary before:w-3 before:h-3 before:rounded-full before:-translate-x-[5px]"
+              className="absolute w-0.5 z-5 top-0 left-0 h-full bg-primary pointer-events-none before:content-[''] before:block before:absolute before:bg-primary before:w-3 before:h-3 before:rounded-full before:-translate-x-[5px]"
             />
 
             <div className="flex justify-between w-full mb-2">
               {timelineSpots}
             </div>
 
-            <div className="w-full relative">
-              <div className="w-full h-8 bg-surface-dim rounded-md relative overflow-hidden">
-                {effects.map((effect, i) => {
-                  const duration = videoDuration || 1;
-                  const width = percentageOf(duration, effect.to - effect.from);
-                  const left = percentageOf(duration, effect.from);
+            <div
+              ref={trackRefCallback}
+              className={cn(
+                'w-full h-16 bg-surface/80 rounded-md relative z-4 overflow-visible transition-colors',
+                isDropTarget && 'bg-surface-high ring-1 ring-primary/40',
+              )}
+              onClick={handleTrackClick}
+            >
+              {effects.map((effect) => (
+                <TimelineEffectBlock
+                  key={effect.id}
+                  effect={effect}
+                  videoDuration={videoDuration}
+                  containerRef={effectTrackRef}
+                />
+              ))}
 
-                  return (
-                    <EffectStrip
-                      key={i}
-                      type={effect.type}
-                      colors={effect.colors}
-                      width={width}
-                      left={left}
-                    />
-                  );
-                })}
-              </div>
+              <div
+                ref={(el) => {
+                  editorRefs.effectTrackGhost = el;
+                }}
+                className="absolute h-full rounded-md border-2 border-dashed border-primary/60 pointer-events-none hidden"
+                style={{ opacity: 0.4 }}
+              />
             </div>
 
             <div className="w-full mt-auto">
-              {!waveformLoading ? (
+              {waveformLoading ? (
                 <WaveformSkeleton />
               ) : (
                 <WaveformTrack waveform={waveform} />

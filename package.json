@@ -17,6 +17,8 @@
     "check": "pnpm type-check && pnpm lint && pnpm rust:fmt:check"
   },
   "dependencies": {
+    "@dnd-kit/dom": "^0.3.2",
+    "@dnd-kit/react": "^0.3.2",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.6.0",
     "@tauri-apps/plugin-fs": "^2.4.5",

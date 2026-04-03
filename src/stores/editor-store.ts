@@ -5,7 +5,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 
 import { editorRefs } from './editor-refs';
 import { sync, effectFile } from '../domains/effects';
-import type { IEffect } from '../domains/effects';
+import type { EffectInstance } from '../domains/effects';
 import { extractWaveform } from '../lib/audio';
 
 const DEV_VIDEO_PATH = '/example.mp4';
@@ -28,12 +28,18 @@ interface EditorState {
   videoFilePath: string | null;
   videoDuration: number;
   isPlaying: boolean;
-  effects: IEffect[];
+  effects: EffectInstance[];
   waveform: Float32Array | null;
   waveformLoading: boolean;
   volume: number;
   muted: boolean;
   zoomLevel: number;
+
+  // Selection (multi-select)
+  selectedEffectIds: string[];
+
+  // Clipboard
+  clipboard: EffectInstance[];
 
   /** Transient — consume via useTransientTime, never as a selector */
   currentTime: number;
@@ -51,9 +57,37 @@ interface EditorState {
   toggleMute: () => void;
   setZoomLevel: (value: number) => void;
 
+  // Effect CRUD
+  selectEffect: (
+    id: string | null,
+    mode?: 'replace' | 'toggle' | 'range',
+  ) => void;
+  addEffect: (effect: EffectInstance) => void;
+  removeEffect: (id: string) => void;
+  updateEffect: (id: string, patch: Partial<EffectInstance>) => void;
+  updateEffectParams: (
+    id: string,
+    params: Partial<Record<string, unknown>>,
+  ) => void;
+  moveEffect: (id: string, from: number, to: number) => void;
+  moveEffects: (moves: Array<{ id: string; from: number; to: number }>) => void;
+  resizeEffect: (id: string, edge: 'start' | 'end', newTime: number) => void;
+
+  // Clipboard
+  copySelection: () => void;
+  pasteSelection: (atTime?: number) => void;
+  deleteSelection: () => void;
+  duplicateSelection: () => void;
+
   handleVideoLoad: () => Promise<void>;
   openVideoFile: () => Promise<void>;
   loadEffectFile: () => Promise<void>;
+}
+
+let nextEffectId = 1;
+
+export function generateEffectId(): string {
+  return `effect-${Date.now()}-${nextEffectId++}`;
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
@@ -68,6 +102,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   muted: false,
   zoomLevel: 0,
   currentTime: 0,
+
+  selectedEffectIds: [],
+  clipboard: [],
 
   play: () => {
     editorRefs.video?.play();
@@ -136,6 +173,153 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   setZoomLevel: (value) => {
     set({ zoomLevel: value });
+  },
+
+  selectEffect: (id, mode = 'replace') => {
+    if (id === null) {
+      set({ selectedEffectIds: [] });
+      return;
+    }
+
+    const { selectedEffectIds, effects } = get();
+
+    if (mode === 'toggle') {
+      set({
+        selectedEffectIds: selectedEffectIds.includes(id)
+          ? selectedEffectIds.filter((sid) => sid !== id)
+          : [...selectedEffectIds, id],
+      });
+    } else if (mode === 'range' && selectedEffectIds.length > 0) {
+      const sorted = [...effects].sort((a, b) => a.from - b.from);
+      const anchor = selectedEffectIds[selectedEffectIds.length - 1];
+      const anchorIdx = sorted.findIndex((e) => e.id === anchor);
+      const clickIdx = sorted.findIndex((e) => e.id === id);
+      const lo = Math.min(anchorIdx, clickIdx);
+      const hi = Math.max(anchorIdx, clickIdx);
+      set({ selectedEffectIds: sorted.slice(lo, hi + 1).map((e) => e.id) });
+    } else {
+      set({ selectedEffectIds: [id] });
+    }
+  },
+
+  addEffect: (effect) => {
+    set((s) => ({ effects: [...s.effects, effect] }));
+  },
+
+  removeEffect: (id) => {
+    set((s) => ({
+      effects: s.effects.filter((e) => e.id !== id),
+      selectedEffectIds: s.selectedEffectIds.filter((sid) => sid !== id),
+    }));
+  },
+
+  updateEffect: (id, patch) => {
+    set((s) => ({
+      effects: s.effects.map((e) => (e.id === id ? { ...e, ...patch } : e)),
+    }));
+  },
+
+  updateEffectParams: (id, params) => {
+    set((s) => ({
+      effects: s.effects.map((e) =>
+        e.id === id ? { ...e, params: { ...e.params, ...params } } : e,
+      ),
+    }));
+  },
+
+  moveEffect: (id, from, to) => {
+    set((s) => ({
+      effects: s.effects.map((e) => (e.id === id ? { ...e, from, to } : e)),
+    }));
+  },
+
+  moveEffects: (moves) => {
+    const lookup = new Map(moves.map((m) => [m.id, m]));
+    set((s) => ({
+      effects: s.effects.map((e) => {
+        const m = lookup.get(e.id);
+        return m ? { ...e, from: m.from, to: m.to } : e;
+      }),
+    }));
+  },
+
+  resizeEffect: (id, edge, newTime) => {
+    set((s) => ({
+      effects: s.effects.map((e) => {
+        if (e.id !== id) return e;
+        if (edge === 'start') {
+          return { ...e, from: Math.min(newTime, e.to - 0.1) };
+        }
+        return { ...e, to: Math.max(newTime, e.from + 0.1) };
+      }),
+    }));
+  },
+
+  copySelection: () => {
+    const { selectedEffectIds, effects } = get();
+    if (selectedEffectIds.length === 0) return;
+    const selected = effects.filter((e) => selectedEffectIds.includes(e.id));
+    set({ clipboard: selected.map((e) => ({ ...e })) });
+  },
+
+  pasteSelection: (atTime) => {
+    const { clipboard, currentTime } = get();
+    if (clipboard.length === 0) return;
+
+    const insertAt = atTime ?? currentTime;
+    const sorted = [...clipboard].sort((a, b) => a.from - b.from);
+    const baseTime = sorted[0].from;
+
+    const newIds: string[] = [];
+    for (const effect of sorted) {
+      const offset = effect.from - baseTime;
+      const duration = effect.to - effect.from;
+      const newEffect: EffectInstance = {
+        ...effect,
+        id: generateEffectId(),
+        from: insertAt + offset,
+        to: insertAt + offset + duration,
+      };
+      get().addEffect(newEffect);
+      newIds.push(newEffect.id);
+    }
+    set({ selectedEffectIds: newIds });
+  },
+
+  deleteSelection: () => {
+    const { selectedEffectIds } = get();
+    if (selectedEffectIds.length === 0) return;
+    set((s) => ({
+      effects: s.effects.filter((e) => !selectedEffectIds.includes(e.id)),
+      selectedEffectIds: [],
+    }));
+  },
+
+  duplicateSelection: () => {
+    const { selectedEffectIds, effects } = get();
+    if (selectedEffectIds.length === 0) return;
+
+    const selected = effects
+      .filter((e) => selectedEffectIds.includes(e.id))
+      .sort((a, b) => a.from - b.from);
+
+    const firstStart = selected[0].from;
+    const lastEnd = Math.max(...selected.map((e) => e.to));
+
+    const newIds: string[] = [];
+    for (const effect of selected) {
+      const offset = effect.from - firstStart;
+      const duration = effect.to - effect.from;
+      const newEffect: EffectInstance = {
+        ...effect,
+        id: generateEffectId(),
+        from: lastEnd + offset,
+        to: lastEnd + offset + duration,
+      };
+      get().addEffect(newEffect);
+      newIds.push(newEffect.id);
+    }
+    set({ selectedEffectIds: newIds });
   },
 
   handleVideoLoad: async () => {
