@@ -47,3 +47,68 @@ export function findSnapTarget(
 
   return best;
 }
+
+/**
+ * Resolve overlap after a move/resize by finding the nearest non-overlapping
+ * position. Returns adjusted `{ from, to }` or `null` if already valid.
+ */
+export function resolveOverlap(
+  effect: EffectInstance,
+  allEffects: EffectInstance[],
+  videoDuration: number,
+): { from: number; to: number } | null {
+  const others = allEffects.filter((e) => e.id !== effect.id);
+  const duration = effect.to - effect.from;
+
+  const overlaps = others.some((o) => effect.from < o.to && effect.to > o.from);
+  if (!overlaps) return null;
+
+  const candidates: { from: number; to: number; dist: number }[] = [];
+  const center = (effect.from + effect.to) / 2;
+
+  for (const o of others) {
+    const afterFrom = o.to;
+    const afterTo = afterFrom + duration;
+    if (afterTo <= videoDuration) {
+      const afterCenter = (afterFrom + afterTo) / 2;
+      candidates.push({
+        from: afterFrom,
+        to: afterTo,
+        dist: Math.abs(afterCenter - center),
+      });
+    }
+
+    const beforeTo = o.from;
+    const beforeFrom = beforeTo - duration;
+    if (beforeFrom >= 0) {
+      const beforeCenter = (beforeFrom + beforeTo) / 2;
+      candidates.push({
+        from: beforeFrom,
+        to: beforeTo,
+        dist: Math.abs(beforeCenter - center),
+      });
+    }
+  }
+
+  candidates.push({
+    from: 0,
+    to: duration,
+    dist: Math.abs(duration / 2 - center),
+  });
+  if (videoDuration - duration >= 0) {
+    candidates.push({
+      from: videoDuration - duration,
+      to: videoDuration,
+      dist: Math.abs(videoDuration - duration / 2 - center),
+    });
+  }
+
+  const valid = candidates.filter(
+    (c) => !others.some((o) => c.from < o.to && c.to > o.from),
+  );
+
+  if (valid.length === 0) return null;
+
+  valid.sort((a, b) => a.dist - b.dist);
+  return { from: valid[0].from, to: valid[0].to };
+}

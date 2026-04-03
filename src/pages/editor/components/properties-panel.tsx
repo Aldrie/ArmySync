@@ -15,7 +15,7 @@ interface PropertiesPanelProps {
 export default function PropertiesPanel({ effect }: PropertiesPanelProps) {
   const definition = getEffectDefinition(effect.type);
   const updateEffectParams = useEditorStore((s) => s.updateEffectParams);
-  const deleteSelectedEffect = useEditorStore((s) => s.deleteSelectedEffect);
+  const deleteSelection = useEditorStore((s) => s.deleteSelection);
 
   const handleFieldChange = useCallback(
     (key: string, value: unknown) => {
@@ -37,7 +37,7 @@ export default function PropertiesPanel({ effect }: PropertiesPanelProps) {
             {definition.description}
           </span>
         </div>
-        <IconButton onClick={() => deleteSelectedEffect()}>
+        <IconButton onClick={() => deleteSelection()}>
           <Trash2 />
         </IconButton>
       </div>

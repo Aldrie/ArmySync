@@ -44,9 +44,10 @@ export default function EditorPage() {
   const loadEffectFile = useEditorStore((s) => s.loadEffectFile);
   const addEffect = useEditorStore((s) => s.addEffect);
   const selectEffect = useEditorStore((s) => s.selectEffect);
-  const copyEffect = useEditorStore((s) => s.copyEffect);
-  const pasteEffect = useEditorStore((s) => s.pasteEffect);
-  const deleteSelectedEffect = useEditorStore((s) => s.deleteSelectedEffect);
+  const copySelection = useEditorStore((s) => s.copySelection);
+  const pasteSelection = useEditorStore((s) => s.pasteSelection);
+  const deleteSelection = useEditorStore((s) => s.deleteSelection);
+  const duplicateSelection = useEditorStore((s) => s.duplicateSelection);
 
   const pointerPosRef = useRef({ x: 0, y: 0 });
 
@@ -94,7 +95,7 @@ export default function EditorPage() {
       };
 
       addEffect(newEffect);
-      selectEffect(newEffect.id);
+      selectEffect(newEffect.id, 'replace');
     },
     [videoDuration, addEffect, selectEffect],
   );
@@ -116,22 +117,26 @@ export default function EditorPage() {
         ArrowRight: (e) => seekStep(1, e.shiftKey),
         ArrowUp: () => adjustVolume(0.05),
         ArrowDown: () => adjustVolume(-0.05),
-        Delete: () => deleteSelectedEffect(),
-        Backspace: () => deleteSelectedEffect(),
+        Delete: () => deleteSelection(),
+        Backspace: () => deleteSelection(),
         KeyC: (e) => {
-          if (e.metaKey || e.ctrlKey) copyEffect();
+          if (e.metaKey || e.ctrlKey) copySelection();
         },
         KeyV: (e) => {
-          if (e.metaKey || e.ctrlKey) pasteEffect();
+          if (e.metaKey || e.ctrlKey) pasteSelection();
+        },
+        KeyD: (e) => {
+          if (e.metaKey || e.ctrlKey) duplicateSelection();
         },
       }),
       [
         togglePlayPause,
         seekStep,
         adjustVolume,
-        deleteSelectedEffect,
-        copyEffect,
-        pasteEffect,
+        deleteSelection,
+        copySelection,
+        pasteSelection,
+        duplicateSelection,
       ],
     ),
   );
@@ -196,8 +201,10 @@ export default function EditorPage() {
           {(source) => {
             if (!source) return null;
             const effectType = source.data?.effectType as string | undefined;
+
             if (!effectType) return null;
             const def = getEffectDefinition(effectType);
+
             if (!def) return null;
             const Icon = icons[def.icon as keyof typeof icons];
 

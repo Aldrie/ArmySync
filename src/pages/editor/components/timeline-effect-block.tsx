@@ -2,7 +2,10 @@ import { useCallback, useRef } from 'react';
 
 import { getEffectDefinition } from '../../../domains/effects';
 import type { EffectInstance } from '../../../domains/effects';
-import { findSnapTarget } from '../../../domains/effects/services/timeline';
+import {
+  findSnapTarget,
+  resolveOverlap,
+} from '../../../domains/effects/services/timeline';
 import { cn } from '../../../lib/cn';
 import { percentageOf } from '../../../lib/math';
 import { useEditorStore } from '../../../stores/editor-store';
@@ -20,13 +23,13 @@ export default function TimelineEffectBlock({
   videoDuration,
   containerRef,
 }: TimelineEffectBlockProps) {
-  const selectedEffectId = useEditorStore((s) => s.selectedEffectId);
+  const selectedEffectIds = useEditorStore((s) => s.selectedEffectIds);
   const selectEffect = useEditorStore((s) => s.selectEffect);
   const moveEffect = useEditorStore((s) => s.moveEffect);
   const resizeEffect = useEditorStore((s) => s.resizeEffect);
   const effects = useEditorStore((s) => s.effects);
 
-  const isSelected = selectedEffectId === effect.id;
+  const isSelected = selectedEffectIds.includes(effect.id);
 
   const dragRef = useRef<{
     mode: DragMode;
@@ -55,7 +58,12 @@ export default function TimelineEffectBlock({
       e.preventDefault();
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
 
-      selectEffect(effect.id);
+      const selectMode = e.shiftKey
+        ? 'range'
+        : e.ctrlKey || e.metaKey
+          ? 'toggle'
+          : 'replace';
+      selectEffect(effect.id, selectMode);
 
       dragRef.current = {
         mode,
@@ -139,10 +147,21 @@ export default function TimelineEffectBlock({
     ],
   );
 
-  const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-    dragRef.current = null;
-  }, []);
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+
+      if (dragRef.current) {
+        const resolved = resolveOverlap(effect, effects, videoDuration);
+        if (resolved) {
+          moveEffect(effect.id, resolved.from, resolved.to);
+        }
+      }
+
+      dragRef.current = null;
+    },
+    [effect, effects, videoDuration, moveEffect],
+  );
 
   const definition = getEffectDefinition(effect.type);
   const background = definition

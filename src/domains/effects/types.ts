@@ -1,7 +1,3 @@
-// ---------------------------------------------------------------------------
-// Field descriptors — drive the properties panel dynamically per effect type
-// ---------------------------------------------------------------------------
-
 export interface ColorFieldDescriptor {
   key: string;
   label: string;
@@ -52,10 +48,6 @@ export type FieldDescriptor =
   | DurationFieldDescriptor
   | ColorListFieldDescriptor;
 
-// ---------------------------------------------------------------------------
-// Effect definition — one per registered effect type (strategy pattern entry)
-// ---------------------------------------------------------------------------
-
 export interface EffectHandlerParams {
   params: Record<string, unknown>;
   duration: number;
@@ -78,10 +70,6 @@ export interface EffectDefinition {
   ) => void;
   buildStripBackground: (params: Record<string, unknown>) => string;
 }
-
-// ---------------------------------------------------------------------------
-// Effect instance — a concrete effect placed on the timeline
-// ---------------------------------------------------------------------------
 
 export interface EffectInstance {
   id: string;

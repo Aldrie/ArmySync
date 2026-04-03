@@ -35,11 +35,11 @@ interface EditorState {
   muted: boolean;
   zoomLevel: number;
 
-  // Selection
-  selectedEffectId: string | null;
+  // Selection (multi-select)
+  selectedEffectIds: string[];
 
   // Clipboard
-  clipboard?: EffectInstance;
+  clipboard: EffectInstance[];
 
   /** Transient — consume via useTransientTime, never as a selector */
   currentTime: number;
@@ -58,7 +58,10 @@ interface EditorState {
   setZoomLevel: (value: number) => void;
 
   // Effect CRUD
-  selectEffect: (id: string | null) => void;
+  selectEffect: (
+    id: string | null,
+    mode?: 'replace' | 'toggle' | 'range',
+  ) => void;
   addEffect: (effect: EffectInstance) => void;
   removeEffect: (id: string) => void;
   updateEffect: (id: string, patch: Partial<EffectInstance>) => void;
@@ -70,9 +73,10 @@ interface EditorState {
   resizeEffect: (id: string, edge: 'start' | 'end', newTime: number) => void;
 
   // Clipboard
-  copyEffect: () => void;
-  pasteEffect: (atTime?: number) => void;
-  deleteSelectedEffect: () => void;
+  copySelection: () => void;
+  pasteSelection: (atTime?: number) => void;
+  deleteSelection: () => void;
+  duplicateSelection: () => void;
 
   handleVideoLoad: () => Promise<void>;
   openVideoFile: () => Promise<void>;
@@ -98,8 +102,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   zoomLevel: 0,
   currentTime: 0,
 
-  selectedEffectId: null,
-  clipboard: undefined,
+  selectedEffectIds: [],
+  clipboard: [],
 
   play: () => {
     editorRefs.video?.play();
@@ -170,12 +174,31 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({ zoomLevel: value });
   },
 
-  // -----------------------------------------------------------------------
-  // Effect CRUD
-  // -----------------------------------------------------------------------
+  selectEffect: (id, mode = 'replace') => {
+    if (id === null) {
+      set({ selectedEffectIds: [] });
+      return;
+    }
 
-  selectEffect: (id) => {
-    set({ selectedEffectId: id });
+    const { selectedEffectIds, effects } = get();
+
+    if (mode === 'toggle') {
+      set({
+        selectedEffectIds: selectedEffectIds.includes(id)
+          ? selectedEffectIds.filter((sid) => sid !== id)
+          : [...selectedEffectIds, id],
+      });
+    } else if (mode === 'range' && selectedEffectIds.length > 0) {
+      const sorted = [...effects].sort((a, b) => a.from - b.from);
+      const anchor = selectedEffectIds[selectedEffectIds.length - 1];
+      const anchorIdx = sorted.findIndex((e) => e.id === anchor);
+      const clickIdx = sorted.findIndex((e) => e.id === id);
+      const lo = Math.min(anchorIdx, clickIdx);
+      const hi = Math.max(anchorIdx, clickIdx);
+      set({ selectedEffectIds: sorted.slice(lo, hi + 1).map((e) => e.id) });
+    } else {
+      set({ selectedEffectIds: [id] });
+    }
   },
 
   addEffect: (effect) => {
@@ -185,7 +208,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   removeEffect: (id) => {
     set((s) => ({
       effects: s.effects.filter((e) => e.id !== id),
-      selectedEffectId: s.selectedEffectId === id ? null : s.selectedEffectId,
+      selectedEffectIds: s.selectedEffectIds.filter((sid) => sid !== id),
     }));
   },
 
@@ -221,43 +244,72 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }));
   },
 
-  // -----------------------------------------------------------------------
-  // Clipboard
-  // -----------------------------------------------------------------------
-
-  copyEffect: () => {
-    const { selectedEffectId, effects } = get();
-    if (!selectedEffectId) return;
-    const effect = effects.find((e) => e.id === selectedEffectId);
-    if (effect) set({ clipboard: { ...effect } });
+  copySelection: () => {
+    const { selectedEffectIds, effects } = get();
+    if (selectedEffectIds.length === 0) return;
+    const selected = effects.filter((e) => selectedEffectIds.includes(e.id));
+    set({ clipboard: selected.map((e) => ({ ...e })) });
   },
 
-  pasteEffect: (atTime) => {
+  pasteSelection: (atTime) => {
     const { clipboard, currentTime } = get();
-    if (!clipboard) return;
+    if (clipboard.length === 0) return;
 
     const insertAt = atTime ?? currentTime;
-    const duration = clipboard.to - clipboard.from;
+    const sorted = [...clipboard].sort((a, b) => a.from - b.from);
+    const baseTime = sorted[0].from;
 
-    const newEffect: EffectInstance = {
-      ...clipboard,
-      id: generateEffectId(),
-      from: insertAt,
-      to: insertAt + duration,
-    };
-
-    get().addEffect(newEffect);
-    set({ selectedEffectId: newEffect.id });
+    const newIds: string[] = [];
+    for (const effect of sorted) {
+      const offset = effect.from - baseTime;
+      const duration = effect.to - effect.from;
+      const newEffect: EffectInstance = {
+        ...effect,
+        id: generateEffectId(),
+        from: insertAt + offset,
+        to: insertAt + offset + duration,
+      };
+      get().addEffect(newEffect);
+      newIds.push(newEffect.id);
+    }
+    set({ selectedEffectIds: newIds });
   },
 
-  deleteSelectedEffect: () => {
-    const { selectedEffectId } = get();
-    if (selectedEffectId) get().removeEffect(selectedEffectId);
+  deleteSelection: () => {
+    const { selectedEffectIds } = get();
+    if (selectedEffectIds.length === 0) return;
+    set((s) => ({
+      effects: s.effects.filter((e) => !selectedEffectIds.includes(e.id)),
+      selectedEffectIds: [],
+    }));
   },
 
-  // -----------------------------------------------------------------------
-  // File I/O
-  // -----------------------------------------------------------------------
+  duplicateSelection: () => {
+    const { selectedEffectIds, effects } = get();
+    if (selectedEffectIds.length === 0) return;
+
+    const selected = effects
+      .filter((e) => selectedEffectIds.includes(e.id))
+      .sort((a, b) => a.from - b.from);
+
+    const firstStart = selected[0].from;
+    const lastEnd = Math.max(...selected.map((e) => e.to));
+
+    const newIds: string[] = [];
+    for (const effect of selected) {
+      const offset = effect.from - firstStart;
+      const duration = effect.to - effect.from;
+      const newEffect: EffectInstance = {
+        ...effect,
+        id: generateEffectId(),
+        from: lastEnd + offset,
+        to: lastEnd + offset + duration,
+      };
+      get().addEffect(newEffect);
+      newIds.push(newEffect.id);
+    }
+    set({ selectedEffectIds: newIds });
+  },
 
   handleVideoLoad: async () => {
     const el = editorRefs.video;
