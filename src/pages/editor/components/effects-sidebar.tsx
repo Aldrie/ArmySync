@@ -1,31 +1,38 @@
-import EffectPresetCard from './effect-preset-card';
+import { useCallback } from 'react';
 
-const PRESETS = [
-  {
-    id: 'dynamite-disco',
-    title: 'Dynamite Disco',
-    subtitle: 'Retro Retro Pops',
-  },
-  { id: 'purple-ocean', title: 'Purple Ocean', subtitle: 'Slow Wave Fade' },
-  { id: 'spring-day', title: 'Spring Day', subtitle: 'Soft Pastel Glow' },
-];
+import EffectPalette from './effect-palette';
+import PropertiesPanel from './properties-panel';
+import { useEditorStore } from '../../../stores/editor-store';
 
 export default function EffectsSidebar() {
-  return (
-    <div className="h-full bg-surface-low flex flex-col py-5 px-4 gap-3">
-      <span className="font-display font-bold text-xs tracking-widest uppercase text-on-surface-variant">
-        Effects
-      </span>
+  const selectedEffectId = useEditorStore((s) => s.selectedEffectId);
+  const effects = useEditorStore((s) => s.effects);
 
-      <div className="flex flex-col gap-2 flex-1">
-        {PRESETS.map((preset) => (
-          <EffectPresetCard
-            key={preset.id}
-            title={preset.title}
-            subtitle={preset.subtitle}
-          />
-        ))}
+  const selectedEffect = selectedEffectId
+    ? (effects.find((e) => e.id === selectedEffectId) ?? null)
+    : null;
+
+  const handleDragStart = useCallback(() => {
+    // Could track drag state if needed
+  }, []);
+
+  return (
+    <div className="h-full bg-surface-low flex flex-col py-5 px-4 gap-4 overflow-y-auto">
+      <div className="flex flex-col gap-3">
+        <span className="font-display font-bold text-xs tracking-widest uppercase text-on-surface-variant">
+          Effects
+        </span>
+        <EffectPalette onDragStart={handleDragStart} />
       </div>
+
+      {selectedEffect && (
+        <div className="flex flex-col gap-3 pt-4 border-t border-outline-variant">
+          <span className="font-display font-bold text-xs tracking-widest uppercase text-on-surface-variant">
+            Properties
+          </span>
+          <PropertiesPanel effect={selectedEffect} />
+        </div>
+      )}
     </div>
   );
 }
