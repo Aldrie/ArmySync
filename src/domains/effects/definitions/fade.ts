@@ -6,6 +6,7 @@ export const fadeDefinition: EffectDefinition = {
   type: 'fade',
   label: 'Color Fade',
   description: 'Smooth transition between two colors',
+  icon: 'Blend',
   defaultDuration: 3,
 
   handler: ({ params, duration, current }) => {

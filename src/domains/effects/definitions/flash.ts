@@ -6,6 +6,7 @@ export const flashDefinition: EffectDefinition = {
   type: 'flash',
   label: 'Strobe / Flash',
   description: 'Rapidly cycle through multiple colors',
+  icon: 'Zap',
   defaultDuration: 2,
 
   handler: ({ params, current }) => {

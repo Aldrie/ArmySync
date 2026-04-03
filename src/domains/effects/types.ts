@@ -66,6 +66,7 @@ export interface EffectDefinition {
   type: string;
   label: string;
   description: string;
+  icon: string;
   defaultDuration: number;
   handler: (input: EffectHandlerParams) => string;
   uiConfig: FieldDescriptor[];
