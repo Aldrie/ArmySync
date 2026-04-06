@@ -7,6 +7,7 @@ import { useTransientTime } from '../../../stores/use-transient-time';
 interface VideoAreaProps {
   videoRef: RefObject<HTMLVideoElement | null>;
   videoSrc: string;
+  title: string;
   onOpenVideo: () => void;
   onLoadedData: () => void;
   onTimeUpdate: () => void;
@@ -15,6 +16,7 @@ interface VideoAreaProps {
 export default function VideoArea({
   videoRef,
   videoSrc,
+  title,
   onOpenVideo,
   onLoadedData,
   onTimeUpdate,
@@ -45,10 +47,7 @@ export default function VideoArea({
                 Now Playing
               </span>
               <span className="block font-display font-bold text-lg text-on-surface">
-                {videoSrc
-                  .split('/')
-                  .pop()
-                  ?.replace(/\.[^.]+$/, '') || 'Untitled'}
+                {title || 'Untitled'}
               </span>
             </div>
             <span

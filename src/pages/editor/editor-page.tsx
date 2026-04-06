@@ -231,6 +231,7 @@ export default function EditorPage() {
               <VideoArea
                 videoRef={videoRef}
                 videoSrc={videoSrc}
+                title={activeProject?.manifest.name ?? ''}
                 onOpenVideo={() => void openVideoFile()}
                 onLoadedData={() => void handleVideoLoad()}
                 onTimeUpdate={() => {
