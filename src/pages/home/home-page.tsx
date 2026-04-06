@@ -1,9 +1,10 @@
 import { FolderOpen, Plus, Clock, ChevronRight, Sparkles } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
 import { open } from '@tauri-apps/plugin-dialog';
 
 import NewProjectModal from './components/new-project-modal';
+import AppIcon from '../../assets/icon.svg?react';
 import { useAppStore } from '../../stores/app-store';
 import type { RecentProject } from '../../stores/app-store';
 
@@ -11,8 +12,8 @@ export default function HomePage() {
   const recentProjects = useAppStore((s) => s.recentProjects);
   const loadRecentProjects = useAppStore((s) => s.loadRecentProjects);
   const openProject = useAppStore((s) => s.openProject);
-
-  const [modalOpen, setModalOpen] = useState(false);
+  const modalOpen = useAppStore((s) => s.showNewProjectModal);
+  const setModalOpen = useAppStore((s) => s.setShowNewProjectModal);
 
   useEffect(() => {
     void loadRecentProjects();
@@ -31,7 +32,7 @@ export default function HomePage() {
         {/* Header */}
         <div className="mb-12 text-center">
           <div className="mb-3 flex items-center justify-center gap-2">
-            <Sparkles className="h-8 w-8 text-primary" />
+            <AppIcon className="size-12" />
             <h1 className="font-display text-3xl font-bold tracking-tight text-on-surface">
               ArmySync
             </h1>
