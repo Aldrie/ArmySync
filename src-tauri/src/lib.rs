@@ -10,6 +10,7 @@ pub fn run() {
     .plugin(tauri_plugin_fs::init())
     .invoke_handler(tauri::generate_handler![
       effects::parse_effect_file,
+      effects::write_effect_file,
       effects::extract_waveform,
       fs::resolve_path,
       project::create_project,
