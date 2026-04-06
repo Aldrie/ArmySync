@@ -12,7 +12,7 @@ pub struct Effect {
   colors: Vec<String>,
 }
 
-static VALID_TYPES: &[&str] = &["c", "f", "s"];
+static VALID_TYPES: &[&str] = &["c", "f", "s", "b"];
 static HEX_RE: &str = r"^#(?:[0-9a-fA-F]{3}){1,2}$";
 
 #[tauri::command]
@@ -28,8 +28,8 @@ pub fn parse_effect_file(path: String) -> Result<Vec<Effect>, String> {
     .enumerate()
     .map(|(i, line)| {
       let parts: Vec<&str> = line.split_whitespace().collect();
-      if parts.len() < 4 {
-        return Err(format!("Line {}: expected at least 4 fields", i + 1));
+      if parts.len() < 3 {
+        return Err(format!("Line {}: expected at least 3 fields", i + 1));
       }
 
       let from: f64 = parts[0]
@@ -45,6 +45,13 @@ pub fn parse_effect_file(path: String) -> Result<Vec<Effect>, String> {
           "Line {}: unknown effect type '{}'",
           i + 1,
           effect_type
+        ));
+      }
+
+      if effect_type != "b" && parts.len() < 4 {
+        return Err(format!(
+          "Line {}: non-blackout effects require at least one color",
+          i + 1
         ));
       }
 

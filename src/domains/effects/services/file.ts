@@ -13,6 +13,7 @@ const TYPE_MAP: Record<string, string> = {
   c: 'color',
   f: 'fade',
   s: 'flash',
+  b: 'blackout',
 };
 
 let nextId = 1;
@@ -22,6 +23,15 @@ function toInstance(parsed: ParsedEffect): EffectInstance {
   const id = `effect-${Date.now()}-${nextId++}`;
 
   switch (type) {
+    case 'blackout':
+      return {
+        id,
+        type,
+        from: parsed.from,
+        to: parsed.to,
+        params: {},
+      };
+
     case 'fade':
       return {
         id,
