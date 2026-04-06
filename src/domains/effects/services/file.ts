@@ -9,62 +9,64 @@ interface ParsedEffect {
   colors: string[];
 }
 
-const TYPE_MAP: Record<string, string> = {
-  c: 'color',
-  f: 'fade',
-  s: 'flash',
-  b: 'blackout',
-};
+type ParamsBuilder = (colors: string[]) => Record<string, unknown>;
+
+const EFFECT_PARSERS = new Map<
+  string,
+  { type: string; buildParams: ParamsBuilder }
+>([
+  [
+    'c',
+    {
+      type: 'color',
+      buildParams: (c) => ({
+        color: c[0] ?? '#ffffff',
+      }),
+    },
+  ],
+  [
+    'f',
+    {
+      type: 'fade',
+      buildParams: (c) => ({
+        startColor: c[0] ?? '#ffffff',
+        endColor: c[1] ?? '#000000',
+      }),
+    },
+  ],
+  [
+    's',
+    {
+      type: 'flash',
+      buildParams: (c) => ({
+        colors: c,
+        velocity: 20,
+      }),
+    },
+  ],
+  [
+    'b',
+    {
+      type: 'blackout',
+      buildParams: () => ({}),
+    },
+  ],
+]);
+
+const DEFAULT_PARSER = EFFECT_PARSERS.get('c')!;
 
 let nextId = 1;
 
 function toInstance(parsed: ParsedEffect): EffectInstance {
-  const type = TYPE_MAP[parsed.type] ?? 'color';
-  const id = `effect-${Date.now()}-${nextId++}`;
+  const parser = EFFECT_PARSERS.get(parsed.type) ?? DEFAULT_PARSER;
 
-  switch (type) {
-    case 'blackout':
-      return {
-        id,
-        type,
-        from: parsed.from,
-        to: parsed.to,
-        params: {},
-      };
-
-    case 'fade':
-      return {
-        id,
-        type,
-        from: parsed.from,
-        to: parsed.to,
-        params: {
-          startColor: parsed.colors[0] ?? '#ffffff',
-          endColor: parsed.colors[1] ?? '#000000',
-        },
-      };
-
-    case 'flash':
-      return {
-        id,
-        type,
-        from: parsed.from,
-        to: parsed.to,
-        params: {
-          colors: parsed.colors,
-          velocity: 20,
-        },
-      };
-
-    default:
-      return {
-        id,
-        type,
-        from: parsed.from,
-        to: parsed.to,
-        params: { color: parsed.colors[0] ?? '#ffffff' },
-      };
-  }
+  return {
+    id: `effect-${Date.now()}-${nextId++}`,
+    type: parser.type,
+    from: parsed.from,
+    to: parsed.to,
+    params: parser.buildParams(parsed.colors),
+  };
 }
 
 export const parse = async (path: string): Promise<EffectInstance[]> => {
