@@ -13,6 +13,8 @@ pub fn run() {
       effects::write_effect_file,
       effects::extract_waveform,
       fs::resolve_path,
+      fs::copy_file_to_dir,
+      fs::download_youtube,
       project::create_project,
       project::load_project,
       project::save_manifest,
