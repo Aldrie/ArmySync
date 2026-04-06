@@ -1,7 +1,7 @@
 import { createId } from '@paralleldrive/cuid2';
 import { create } from 'zustand';
 
-import { invoke } from '@tauri-apps/api/core';
+import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 
 import type { ActiveProject } from './app-store';
@@ -425,7 +425,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     let videoFilePath: string | null = null;
     if (manifest.videoPath) {
       const fullPath = `${dir}/${manifest.videoPath}`;
-      videoSrc = `asset://localhost/${fullPath}`;
+      videoSrc = convertFileSrc(fullPath);
       videoFilePath = fullPath;
     }
 
@@ -548,7 +548,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
       if (selected) {
         set({
-          videoSrc: `asset://localhost/${selected}`,
+          videoSrc: convertFileSrc(selected),
           videoFilePath: selected,
         });
       }
