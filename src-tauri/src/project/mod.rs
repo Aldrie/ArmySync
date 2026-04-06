@@ -1,3 +1,5 @@
+pub mod recent;
+
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
