@@ -21,7 +21,7 @@ export const fadeDefinition: EffectDefinition = {
     return rgbToHex(r, g, b);
   },
 
-  uiConfig: [
+  fields: [
     {
       key: 'startColor',
       label: 'Start Color',

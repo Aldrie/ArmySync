@@ -9,7 +9,7 @@ export const blackoutDefinition: EffectDefinition = {
 
   handler: () => '#000000',
 
-  uiConfig: [],
+  fields: [],
 
   renderPreview: (ctx, width, height) => {
     ctx.fillStyle = '#000000';

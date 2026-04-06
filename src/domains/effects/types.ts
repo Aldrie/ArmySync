@@ -61,7 +61,7 @@ export interface EffectDefinition {
   icon: string;
   defaultDuration: number;
   handler: (input: EffectHandlerParams) => string;
-  uiConfig: FieldDescriptor[];
+  fields: FieldDescriptor[];
   renderPreview: (
     ctx: CanvasRenderingContext2D,
     width: number,

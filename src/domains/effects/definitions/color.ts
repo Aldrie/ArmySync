@@ -11,9 +11,7 @@ export const colorDefinition: EffectDefinition = {
     return (params.color as string) ?? '#ffffff';
   },
 
-  uiConfig: [
-    { key: 'color', label: 'Color', type: 'color', default: '#ffffff' },
-  ],
+  fields: [{ key: 'color', label: 'Color', type: 'color', default: '#ffffff' }],
 
   renderPreview: (ctx, width, height, params) => {
     ctx.fillStyle = (params.color as string) ?? '#ffffff';

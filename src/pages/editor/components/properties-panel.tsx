@@ -44,9 +44,9 @@ export default function PropertiesPanel({ effect }: PropertiesPanelProps) {
 
       <EffectPreviewCanvas effectType={effect.type} params={effect.params} />
 
-      {definition.uiConfig.length > 0 && (
+      {definition.fields.length > 0 && (
         <div className="flex flex-col gap-3">
-          {definition.uiConfig.map((field) => (
+          {definition.fields.map((field) => (
             <FieldRenderer
               key={field.key}
               field={field}

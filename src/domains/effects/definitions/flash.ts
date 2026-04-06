@@ -16,7 +16,7 @@ export const flashDefinition: EffectDefinition = {
     return colors[index];
   },
 
-  uiConfig: [
+  fields: [
     {
       key: 'colors',
       label: 'Colors',
