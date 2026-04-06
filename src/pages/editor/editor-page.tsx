@@ -12,6 +12,7 @@ import type { EffectInstance } from '../../domains/effects';
 import { getEffectDefinition } from '../../domains/effects';
 import type { LightstickRef } from '../../domains/lightstick';
 import { useKeybind } from '../../lib/use-keybind';
+import { useAppStore } from '../../stores/app-store';
 import { editorRefs } from '../../stores/editor-refs';
 import { useEditorStore, generateEffectId } from '../../stores/editor-store';
 
@@ -27,6 +28,15 @@ export default function EditorPage() {
       editorRefs.lightstick = null;
     };
   });
+
+  const activeProject = useAppStore((s) => s.activeProject);
+  const initFromProject = useEditorStore((s) => s.initFromProject);
+
+  useEffect(() => {
+    if (activeProject) {
+      void initFromProject(activeProject);
+    }
+  }, [activeProject, initFromProject]);
 
   const videoSrc = useEditorStore((s) => s.videoSrc);
   const videoDuration = useEditorStore((s) => s.videoDuration);
@@ -50,6 +60,7 @@ export default function EditorPage() {
   const duplicateSelection = useEditorStore((s) => s.duplicateSelection);
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
+  const saveEffects = useEditorStore((s) => s.saveEffects);
 
   const pointerPosRef = useRef({ x: 0, y: 0 });
 
@@ -87,7 +98,7 @@ export default function EditorPage() {
 
       const params: Record<string, unknown> = {};
 
-      for (const field of definition.uiConfig) {
+      for (const field of definition.fields) {
         params[field.key] = field.default;
       }
 
@@ -150,7 +161,7 @@ export default function EditorPage() {
       ghost.style.width = `${((endTime - dropTime) / videoDuration) * 100}%`;
 
       const params: Record<string, unknown> = {};
-      for (const field of def.uiConfig) params[field.key] = field.default;
+      for (const field of def.fields) params[field.key] = field.default;
       ghost.style.background = def.buildStripBackground(params);
 
       ghost.classList.remove('hidden');
@@ -183,6 +194,9 @@ export default function EditorPage() {
             else undo();
           }
         },
+        KeyS: (e) => {
+          if (e.metaKey || e.ctrlKey) void saveEffects();
+        },
       }),
       [
         togglePlayPause,
@@ -194,6 +208,7 @@ export default function EditorPage() {
         duplicateSelection,
         undo,
         redo,
+        saveEffects,
       ],
     ),
   );

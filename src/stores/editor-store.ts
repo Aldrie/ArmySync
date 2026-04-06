@@ -3,8 +3,9 @@ import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 
+import type { ActiveProject } from './app-store';
 import { editorRefs } from './editor-refs';
-import { sync, effectFile } from '../domains/effects';
+import { sync, effectFile, extractColors } from '../domains/effects';
 import type { EffectInstance } from '../domains/effects';
 import { extractWaveform } from '../lib/audio';
 
@@ -12,6 +13,7 @@ const DEV_VIDEO_PATH = '/example.mp4';
 const DEFAULT_VOLUME = 0.25;
 const FRAME_DURATION = 1 / 24;
 const MAX_HISTORY = 11;
+const AUTO_SAVE_DELAY = 2000;
 
 function seekStepFromZoom(zoom: number): number {
   if (zoom >= 90) return FRAME_DURATION;
@@ -25,6 +27,10 @@ function shiftMultiplier(step: number): number {
 }
 
 interface EditorState {
+  projectDir: string | null;
+  effectsFilePath: string | null;
+  isDirty: boolean;
+
   videoSrc: string;
   videoFilePath: string | null;
   videoDuration: number;
@@ -36,13 +42,10 @@ interface EditorState {
   muted: boolean;
   zoomLevel: number;
 
-  // Selection (multi-select)
   selectedEffectIds: string[];
 
-  // Clipboard
   clipboard: EffectInstance[];
 
-  /** Transient — consume via useTransientTime, never as a selector */
   currentTime: number;
 
   play: () => void;
@@ -58,7 +61,6 @@ interface EditorState {
   toggleMute: () => void;
   setZoomLevel: (value: number) => void;
 
-  // Effect CRUD
   selectEffect: (
     id: string | null,
     mode?: 'replace' | 'toggle' | 'range',
@@ -74,13 +76,11 @@ interface EditorState {
   moveEffects: (moves: Array<{ id: string; from: number; to: number }>) => void;
   resizeEffect: (id: string, edge: 'start' | 'end', newTime: number) => void;
 
-  // Clipboard
   copySelection: () => void;
   pasteSelection: (atTime?: number) => void;
   deleteSelection: () => void;
   duplicateSelection: () => void;
 
-  // History (undo/redo)
   _history: EffectInstance[][];
   _historyCursor: number;
   canUndo: boolean;
@@ -88,6 +88,10 @@ interface EditorState {
   pushHistory: () => void;
   undo: () => void;
   redo: () => void;
+
+  initFromProject: (project: ActiveProject) => Promise<void>;
+  saveEffects: () => Promise<void>;
+  resetEditor: () => void;
 
   handleVideoLoad: () => Promise<void>;
   openVideoFile: () => Promise<void>;
@@ -100,7 +104,18 @@ export function generateEffectId(): string {
   return `effect-${Date.now()}-${nextEffectId++}`;
 }
 
+let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleAutoSave(save: () => Promise<void>) {
+  if (autoSaveTimer) clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => void save(), AUTO_SAVE_DELAY);
+}
+
 export const useEditorStore = create<EditorState>((set, get) => ({
+  projectDir: null,
+  effectsFilePath: null,
+  isDirty: false,
+
   videoSrc: import.meta.env.DEV ? DEV_VIDEO_PATH : '',
   videoFilePath: null,
   videoDuration: 0,
@@ -133,7 +148,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       _historyCursor: cursor,
       canUndo: cursor > 0,
       canRedo: false,
+      isDirty: true,
     });
+    scheduleAutoSave(get().saveEffects);
   },
 
   undo: () => {
@@ -150,7 +167,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       canUndo: cursor > 0,
       canRedo: true,
       selectedEffectIds: [],
+      isDirty: true,
     });
+    scheduleAutoSave(get().saveEffects);
   },
 
   redo: () => {
@@ -167,7 +186,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       canUndo: true,
       canRedo: cursor < _history.length - 1,
       selectedEffectIds: [],
+      isDirty: true,
     });
+    scheduleAutoSave(get().saveEffects);
   },
 
   play: () => {
@@ -395,6 +416,95 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       effects: [...s.effects, ...newEffects],
       selectedEffectIds: newEffects.map((e) => e.id),
     }));
+  },
+
+  initFromProject: async (project) => {
+    const { dir, manifest } = project;
+    const effectsPath = `${dir}/${manifest.effectsFile}`;
+
+    let videoSrc = '';
+    let videoFilePath: string | null = null;
+    if (manifest.videoPath) {
+      const fullPath = `${dir}/${manifest.videoPath}`;
+      videoSrc = `asset://localhost/${fullPath}`;
+      videoFilePath = fullPath;
+    }
+
+    let effects: EffectInstance[] = [];
+    try {
+      effects = await effectFile.parse(effectsPath);
+    } catch {
+      // Empty or missing effects file — start fresh
+    }
+
+    set({
+      projectDir: dir,
+      effectsFilePath: effectsPath,
+      isDirty: false,
+      videoSrc,
+      videoFilePath,
+      effects,
+      selectedEffectIds: [],
+      clipboard: [],
+      _history: [effects.map((e) => ({ ...e, params: { ...e.params } }))],
+      _historyCursor: 0,
+      canUndo: false,
+      canRedo: false,
+      waveform: null,
+      waveformLoading: false,
+    });
+  },
+
+  saveEffects: async () => {
+    const { effectsFilePath, effects } = get();
+    if (!effectsFilePath) return;
+
+    const TYPE_TO_CODE: Record<string, string> = {
+      color: 'c',
+      fade: 'f',
+      flash: 's',
+      blackout: 'b',
+    };
+
+    const writeEffects = effects.map((e) => ({
+      from: e.from,
+      to: e.to,
+      type: TYPE_TO_CODE[e.type] ?? e.type,
+      colors: extractColors(e),
+    }));
+
+    try {
+      await invoke('write_effect_file', {
+        path: effectsFilePath,
+        effects: writeEffects,
+      });
+      set({ isDirty: false });
+    } catch (err) {
+      console.error('Failed to save effects:', err);
+    }
+  },
+
+  resetEditor: () => {
+    if (autoSaveTimer) clearTimeout(autoSaveTimer);
+    set({
+      projectDir: null,
+      effectsFilePath: null,
+      isDirty: false,
+      videoSrc: import.meta.env.DEV ? DEV_VIDEO_PATH : '',
+      videoFilePath: null,
+      videoDuration: 0,
+      isPlaying: false,
+      effects: [],
+      waveform: null,
+      waveformLoading: false,
+      currentTime: 0,
+      selectedEffectIds: [],
+      clipboard: [],
+      _history: [[]],
+      _historyCursor: 0,
+      canUndo: false,
+      canRedo: false,
+    });
   },
 
   handleVideoLoad: async () => {
