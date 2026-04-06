@@ -86,27 +86,22 @@ pub fn parse_effect_file(path: String) -> Result<Vec<Effect>, String> {
     .collect()
 }
 
-fn type_to_code(effect_type: &str) -> Result<&'static str, String> {
-  match effect_type {
-    "color" => Ok("c"),
-    "fade" => Ok("f"),
-    "flash" => Ok("s"),
-    "blackout" => Ok("b"),
-    other => Err(format!("Unknown effect type '{}'", other)),
-  }
-}
-
 #[tauri::command]
 pub fn write_effect_file(path: String, effects: Vec<WriteEffect>) -> Result<(), String> {
   let mut lines = Vec::with_capacity(effects.len());
 
   for effect in &effects {
-    let code = type_to_code(&effect.effect_type)?;
-    let mut line = format!("{} {} {}", effect.from, effect.to, code);
+    if !VALID_TYPES.contains(&effect.effect_type.as_str()) {
+      return Err(format!("Unknown effect type '{}'", effect.effect_type));
+    }
+
+    let mut line = format!("{} {} {}", effect.from, effect.to, effect.effect_type);
+
     for color in &effect.colors {
       line.push(' ');
       line.push_str(color);
     }
+
     lines.push(line);
   }
 
