@@ -14,6 +14,7 @@ export default function HomePage() {
   const openProject = useAppStore((s) => s.openProject);
   const modalOpen = useAppStore((s) => s.showNewProjectModal);
   const setModalOpen = useAppStore((s) => s.setShowNewProjectModal);
+  const pendingDir = useAppStore((s) => s.pendingDir);
 
   useEffect(() => {
     void loadRecentProjects();
@@ -94,7 +95,11 @@ export default function HomePage() {
         </div>
       </div>
 
-      <NewProjectModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <NewProjectModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        prefillDir={pendingDir}
+      />
     </div>
   );
 }

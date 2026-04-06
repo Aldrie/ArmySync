@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { invoke } from '@tauri-apps/api/core';
+import { exists } from '@tauri-apps/plugin-fs';
 
 export interface ProjectManifest {
   name: string;
@@ -29,6 +30,9 @@ interface AppState {
   route: Route;
   activeProject: ActiveProject | null;
   recentProjects: RecentProject[];
+  showNewProjectModal: boolean;
+  pendingDir: string | null;
+  downloading: boolean;
 
   loadRecentProjects: () => Promise<void>;
   openProject: (dir: string) => Promise<void>;
@@ -40,12 +44,16 @@ interface AppState {
     youtubeUrl: string | null;
   }) => Promise<void>;
   closeProject: () => void;
+  setShowNewProjectModal: (open: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
   route: 'home',
   activeProject: null,
   recentProjects: [],
+  showNewProjectModal: false,
+  pendingDir: null,
+  downloading: false,
 
   loadRecentProjects: async () => {
     try {
@@ -57,7 +65,34 @@ export const useAppStore = create<AppState>((set) => ({
   },
 
   openProject: async (dir: string) => {
-    const manifest = await invoke<ProjectManifest>('load_project', { dir });
+    const manifest = await invoke<ProjectManifest | null>('load_project', {
+      dir,
+    });
+
+    if (!manifest) {
+      set({ pendingDir: dir, showNewProjectModal: true });
+      return;
+    }
+
+    if (manifest.videoPath) {
+      const videoExists = await exists(`${dir}/${manifest.videoPath}`);
+
+      if (
+        !videoExists &&
+        manifest.sourceType === 'youtube' &&
+        manifest.youtubeUrl
+      ) {
+        set({ downloading: true });
+        try {
+          await invoke<string>('download_youtube', {
+            url: manifest.youtubeUrl,
+            destDir: dir,
+          });
+        } finally {
+          set({ downloading: false });
+        }
+      }
+    }
 
     await invoke<RecentProject[]>('add_recent_project', {
       name: manifest.name,
@@ -95,5 +130,9 @@ export const useAppStore = create<AppState>((set) => ({
       route: 'home',
       activeProject: null,
     });
+  },
+
+  setShowNewProjectModal: (open) => {
+    set({ showNewProjectModal: open, pendingDir: open ? undefined : null });
   },
 }));

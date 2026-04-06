@@ -1,5 +1,6 @@
 mod effects;
 mod fs;
+mod menu;
 mod project;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -8,6 +9,10 @@ pub fn run() {
     .plugin(tauri_plugin_opener::init())
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_fs::init())
+    .setup(|app| {
+      menu::setup(app)?;
+      Ok(())
+    })
     .invoke_handler(tauri::generate_handler![
       effects::parse_effect_file,
       effects::write_effect_file,
