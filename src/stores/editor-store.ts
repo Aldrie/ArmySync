@@ -1,3 +1,4 @@
+import { createId } from '@paralleldrive/cuid2';
 import { create } from 'zustand';
 
 import { invoke } from '@tauri-apps/api/core';
@@ -98,10 +99,8 @@ interface EditorState {
   loadEffectFile: () => Promise<void>;
 }
 
-let nextEffectId = 1;
-
 export function generateEffectId(): string {
-  return `effect-${Date.now()}-${nextEffectId++}`;
+  return createId();
 }
 
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;

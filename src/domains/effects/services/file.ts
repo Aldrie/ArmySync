@@ -1,3 +1,5 @@
+import { createId } from '@paralleldrive/cuid2';
+
 import { invoke } from '@tauri-apps/api/core';
 
 import type { EffectInstance } from '../types';
@@ -55,13 +57,11 @@ const EFFECT_PARSERS = new Map<
 
 const DEFAULT_PARSER = EFFECT_PARSERS.get('c')!;
 
-let nextId = 1;
-
 function toInstance(parsed: ParsedEffect): EffectInstance {
   const parser = EFFECT_PARSERS.get(parsed.type) ?? DEFAULT_PARSER;
 
   return {
-    id: `effect-${Date.now()}-${nextId++}`,
+    id: createId(),
     type: parser.type,
     from: parsed.from,
     to: parsed.to,
