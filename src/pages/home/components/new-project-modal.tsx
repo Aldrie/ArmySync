@@ -5,11 +5,12 @@ import {
   Loader2,
   Download,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 
+import DownloadModal from '../../../components/download-modal';
 import Modal from '../../../components/modal';
 import { cn } from '../../../lib/cn';
 import { useAppStore } from '../../../stores/app-store';
@@ -19,20 +20,27 @@ type SourceType = 'local' | 'youtube';
 interface NewProjectModalProps {
   open: boolean;
   onClose: () => void;
+  prefillDir?: string | null;
 }
 
 export default function NewProjectModal({
   open: isOpen,
   onClose,
+  prefillDir,
 }: NewProjectModalProps) {
   const createProject = useAppStore((s) => s.createProject);
 
   const [name, setName] = useState('');
   const [dir, setDir] = useState('');
   const [sourceType, setSourceType] = useState<SourceType>('local');
+
+  useEffect(() => {
+    if (prefillDir) setDir(prefillDir);
+  }, [prefillDir]);
   const [videoPath, setVideoPath] = useState('');
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState('');
 
   const reset = () => {
@@ -43,6 +51,7 @@ export default function NewProjectModal({
     setYoutubeUrl('');
     setError('');
     setLoading(false);
+    setDownloading(false);
   };
 
   const handleClose = () => {
@@ -87,11 +96,16 @@ export default function NewProjectModal({
       }
 
       if (sourceType === 'youtube' && youtubeUrl) {
-        const fileName = await invoke<string>('download_youtube', {
-          url: youtubeUrl,
-          destDir: dir,
-        });
-        finalVideoPath = fileName;
+        setDownloading(true);
+        try {
+          const fileName = await invoke<string>('download_youtube', {
+            url: youtubeUrl,
+            destDir: dir,
+          });
+          finalVideoPath = fileName;
+        } finally {
+          setDownloading(false);
+        }
       }
 
       await createProject({
@@ -112,7 +126,7 @@ export default function NewProjectModal({
 
   return (
     <Modal open={isOpen} onClose={handleClose}>
-      <div className="w-[480px] rounded-xl border border-outline-variant bg-surface-container p-6 shadow-2xl">
+      <div className="w-lg rounded-xl border border-outline-variant bg-surface-container p-6 shadow-2xl">
         <h2 className="mb-6 text-lg font-semibold text-on-surface">
           New Project
         </h2>
@@ -256,6 +270,8 @@ export default function NewProjectModal({
           </button>
         </div>
       </div>
+
+      <DownloadModal open={downloading} />
     </Modal>
   );
 }

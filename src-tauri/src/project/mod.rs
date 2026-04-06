@@ -77,14 +77,20 @@ pub fn create_project(
 }
 
 #[tauri::command]
-pub fn load_project(dir: String) -> Result<ProjectManifest, String> {
+pub fn load_project(dir: String) -> Result<Option<ProjectManifest>, String> {
   let manifest_path = Path::new(&dir).join(MANIFEST_FILE);
+
+  if !manifest_path.exists() {
+    return Ok(None);
+  }
 
   let content = fs::read_to_string(&manifest_path)
     .map_err(|e| format!("Failed to read '{}': {}", manifest_path.display(), e))?;
 
-  serde_json::from_str(&content)
-    .map_err(|e| format!("Failed to parse '{}': {}", manifest_path.display(), e))
+  let manifest: ProjectManifest = serde_json::from_str(&content)
+    .map_err(|e| format!("Failed to parse '{}': {}", manifest_path.display(), e))?;
+
+  Ok(Some(manifest))
 }
 
 #[tauri::command]
