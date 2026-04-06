@@ -3,6 +3,7 @@ import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 import { spring } from '../lib/animations';
+import { cn } from '../lib/cn';
 
 interface ModalProps {
   open: boolean;
@@ -47,7 +48,7 @@ export default function Modal({
           />
 
           <motion.div
-            className={`relative z-10 ${className ?? ''}`}
+            className={cn('relative z-10', className)}
             initial={{ opacity: 0, scale: 0.95, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 8 }}

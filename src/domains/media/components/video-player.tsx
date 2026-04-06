@@ -1,6 +1,8 @@
 import { Play, Pause, Volume2, VolumeX, Maximize } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { cn } from '../../../lib/cn';
+
 interface VideoPlayerProps {
   src: string;
 }
@@ -105,7 +107,10 @@ export default function VideoPlayer({ src }: VideoPlayerProps) {
   return (
     <div
       ref={containerRef}
-      className={`group relative flex items-center justify-center w-full h-full bg-black overflow-hidden ${hideMouse ? 'cursor-none' : 'cursor-default'}`}
+      className={cn(
+        'group relative flex items-center justify-center w-full h-full bg-black overflow-hidden',
+        hideMouse ? 'cursor-none' : 'cursor-default',
+      )}
       onMouseMove={handleMouseMove}
     >
       <video
@@ -119,11 +124,12 @@ export default function VideoPlayer({ src }: VideoPlayerProps) {
       />
 
       <div
-        className={`absolute bottom-0 w-full flex items-center gap-3 px-5 py-3 bg-player-bg transition-transform duration-200 z-50 ${
+        className={cn(
+          'absolute bottom-0 w-full flex items-center gap-3 px-5 py-3 bg-player-bg transition-transform duration-200 z-50',
           hideMouse
             ? 'translate-y-full'
-            : 'translate-y-full group-hover:translate-y-0'
-        }`}
+            : 'translate-y-full group-hover:translate-y-0',
+        )}
       >
         <button
           type="button"
