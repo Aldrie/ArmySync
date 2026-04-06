@@ -1,5 +1,6 @@
 mod effects;
 mod fs;
+mod project;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -11,6 +12,9 @@ pub fn run() {
       effects::parse_effect_file,
       effects::extract_waveform,
       fs::resolve_path,
+      project::create_project,
+      project::load_project,
+      project::save_manifest,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
