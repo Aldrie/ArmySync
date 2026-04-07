@@ -44,6 +44,7 @@ pub fn detect_type(name: &str) -> Option<DeviceType> {
 pub const SERVICE_OLDER: Uuid =
   Uuid::from_u128(0x00010203_0405_0607_0809_0a0b0c0d1911);
 
+#[allow(dead_code)]
 pub const SERVICE_V4_INFO: Uuid =
   Uuid::from_u128(0x0000180a_0000_1000_8000_00805f9b34fb);
 

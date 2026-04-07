@@ -42,6 +42,7 @@ pub struct ConnectedDeviceInfo {
 
 struct ConnectedDevice {
   peripheral: Peripheral,
+  #[allow(dead_code)]
   device_type: DeviceType,
   delay_ms: u32,
   last_color: Option<[u8; 3]>,
