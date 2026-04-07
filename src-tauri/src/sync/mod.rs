@@ -38,7 +38,9 @@ struct SyncEngine {
   playback: PlaybackState,
   effects: Vec<SyncEffect>,
   hz: u32,
+  delay_ms: u32,
   last_color: Option<[u8; 3]>,
+  last_ble_color: Option<[u8; 3]>,
 }
 
 #[derive(Clone, Serialize)]
@@ -62,7 +64,9 @@ pub fn init(app: &AppHandle) {
     },
     effects: Vec::new(),
     hz: DEFAULT_HZ,
+    delay_ms: 0,
     last_color: None,
+    last_ble_color: None,
   }));
 
   let shutdown = Arc::new(AtomicBool::new(false));
@@ -100,22 +104,37 @@ fn run_loop(engine: Arc<Mutex<SyncEngine>>, shutdown: Arc<AtomicBool>, app: AppH
       thread::sleep(next_tick - now);
     }
 
-    let color = {
-      let mut state = lock_engine(&engine);
-      let time = state.playback.current_time();
-      let color = compute_color(&state.effects, time);
+    let mut state = lock_engine(&engine);
+    let time = state.playback.current_time();
 
-      if color == state.last_color {
-        continue;
+    let preview_color = compute_color(&state.effects, time);
+    let preview_changed = preview_color != state.last_color;
+    if preview_changed {
+      state.last_color = preview_color;
+    }
+
+    let delay_secs = f64::from(state.delay_ms) / 1000.0;
+    let ble_color = compute_color(&state.effects, time + delay_secs);
+    let ble_changed = ble_color != state.last_ble_color;
+    if ble_changed {
+      state.last_ble_color = ble_color;
+    }
+
+    drop(state);
+
+    if preview_changed {
+      if let Some(rgb) = preview_color {
+        if let Err(e) = app.emit("color-update", ColorUpdate { color: rgb_to_hex(rgb) }) {
+          eprintln!("[sync] failed to emit color-update: {e}");
+        }
       }
+    }
 
-      state.last_color = color;
-      color
-    };
-
-    if let Some(rgb) = color {
-      if let Err(e) = app.emit("color-update", ColorUpdate { color: rgb_to_hex(rgb) }) {
-        eprintln!("[sync] failed to emit color-update: {e}");
+    if ble_changed {
+      if let Some(rgb) = ble_color {
+        if let Err(e) = app.emit("ble-color", ColorUpdate { color: rgb_to_hex(rgb) }) {
+          eprintln!("[sync] failed to emit ble-color: {e}");
+        }
       }
     }
   }
@@ -170,4 +189,11 @@ pub fn sync_set_effects(effects: Vec<SyncEffect>, state: tauri::State<'_, SyncSt
 pub fn sync_set_rate(hz: u32, state: tauri::State<'_, SyncState>) {
   let mut engine = lock_engine(&state.engine);
   engine.hz = hz.clamp(1, 240);
+}
+
+#[tauri::command]
+pub fn sync_set_delay(delay_ms: u32, state: tauri::State<'_, SyncState>) {
+  let mut engine = lock_engine(&state.engine);
+  engine.delay_ms = delay_ms.clamp(0, 200);
+  engine.last_ble_color = None;
 }
