@@ -22,3 +22,6 @@ serde_json = "1"
 symphonia = { version = "0.5", features = ["all"] }
 regex = "1"
 uuid = "1"
+btleplug = "0.12"
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }
+futures = "0.3"

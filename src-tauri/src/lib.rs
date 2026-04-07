@@ -14,6 +14,7 @@ pub fn run() {
     .setup(|app| {
       menu::setup(app)?;
       sync::init(app.handle());
+      ble::init(app.handle());
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
@@ -33,6 +34,11 @@ pub fn run() {
       sync::sync_seek,
       sync::sync_set_effects,
       sync::sync_set_rate,
+      ble::ble_scan,
+      ble::ble_stop_scan,
+      ble::ble_connect,
+      ble::ble_disconnect,
+      ble::ble_set_device_delay,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
