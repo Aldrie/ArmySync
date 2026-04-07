@@ -113,7 +113,11 @@ fn run_loop(engine: Arc<Mutex<SyncEngine>>, shutdown: Arc<AtomicBool>, app: AppH
       state.last_color = preview_color;
     }
 
-    let delay_secs = f64::from(state.delay_ms) / 1000.0;
+    let delay_secs = if state.playback.playing {
+      f64::from(state.delay_ms) / 1000.0
+    } else {
+      0.0
+    };
     let ble_color = compute_color(&state.effects, time + delay_secs);
     let ble_changed = ble_color != state.last_ble_color;
     if ble_changed {
