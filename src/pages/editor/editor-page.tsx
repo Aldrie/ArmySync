@@ -63,7 +63,6 @@ export default function EditorPage() {
   const tick = useEditorStore((s) => s.tick);
   const handleVideoLoad = useEditorStore((s) => s.handleVideoLoad);
   const openVideoFile = useEditorStore((s) => s.openVideoFile);
-  const loadEffectFile = useEditorStore((s) => s.loadEffectFile);
   const addEffect = useEditorStore((s) => s.addEffect);
   const selectEffect = useEditorStore((s) => s.selectEffect);
   const copySelection = useEditorStore((s) => s.copySelection);
@@ -260,10 +259,7 @@ export default function EditorPage() {
             minWidth={240}
             maxWidth={300}
           >
-            <LightstickPanel
-              lightstickRef={lightstickRef}
-              onLoadEffectFile={() => void loadEffectFile()}
-            />
+            <LightstickPanel lightstickRef={lightstickRef} />
           </ResizePanel>
         </div>
 
