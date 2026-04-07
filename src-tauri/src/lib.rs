@@ -1,3 +1,4 @@
+mod ble;
 mod effects;
 mod fs;
 mod menu;
@@ -32,7 +33,6 @@ pub fn run() {
       sync::sync_seek,
       sync::sync_set_effects,
       sync::sync_set_rate,
-      sync::sync_set_delay,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

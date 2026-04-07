@@ -10,33 +10,32 @@ export interface BleDevice {
   deviceType: string;
 }
 
-interface ConnectedDevice {
+export interface ConnectedDevice {
   id: string;
   name: string;
   deviceType: string;
+  delayMs: number;
 }
 
 interface BleState {
   syncEnabled: boolean;
-  delayMs: number;
-  connectedDevice: ConnectedDevice | null;
+  connectedDevices: ConnectedDevice[];
   scanning: boolean;
   devices: BleDevice[];
   showDevicesModal: boolean;
 
   setSyncEnabled: (enabled: boolean) => void;
-  setDelayMs: (ms: number) => void;
+  setDeviceDelay: (deviceId: string, ms: number) => void;
   setShowDevicesModal: (open: boolean) => void;
   scan: () => Promise<void>;
   stopScan: () => Promise<void>;
   connect: (deviceId: string) => Promise<void>;
-  disconnect: () => Promise<void>;
+  disconnect: (deviceId: string) => Promise<void>;
 }
 
 export const useBleStore = create<BleState>((set, get) => ({
   syncEnabled: false,
-  delayMs: 0,
-  connectedDevice: null,
+  connectedDevices: [],
   scanning: false,
   devices: [],
   showDevicesModal: false,
@@ -45,10 +44,14 @@ export const useBleStore = create<BleState>((set, get) => ({
     set({ syncEnabled: enabled });
   },
 
-  setDelayMs: (ms) => {
+  setDeviceDelay: (deviceId, ms) => {
     const clamped = Math.max(0, Math.min(200, ms));
-    set({ delayMs: clamped });
-    void invoke('sync_set_delay', { delayMs: clamped });
+    set((state) => ({
+      connectedDevices: state.connectedDevices.map((d) =>
+        d.id === deviceId ? { ...d, delayMs: clamped } : d,
+      ),
+    }));
+    void invoke('ble_set_device_delay', { deviceId, delayMs: clamped });
   },
 
   setShowDevicesModal: (open) => {
@@ -87,13 +90,15 @@ export const useBleStore = create<BleState>((set, get) => ({
     }
   },
 
-  disconnect: async () => {
+  disconnect: async (deviceId) => {
     try {
-      await invoke('ble_disconnect');
+      await invoke('ble_disconnect', { deviceId });
     } catch (err) {
       console.error('[ble] disconnect failed:', err);
     }
-    set({ connectedDevice: null });
+    set((state) => ({
+      connectedDevices: state.connectedDevices.filter((d) => d.id !== deviceId),
+    }));
   },
 }));
 
@@ -101,9 +106,18 @@ void listen<BleDevice[]>('ble-devices', (event) => {
   useBleStore.setState({ devices: event.payload });
 });
 
-void listen<ConnectedDevice | null>('ble-status', (event) => {
-  useBleStore.setState({
-    connectedDevice: event.payload,
+void listen<ConnectedDevice>('ble-connected', (event) => {
+  const device = { ...event.payload, delayMs: 0 };
+  useBleStore.setState((state) => ({
+    connectedDevices: [...state.connectedDevices, device],
     scanning: false,
-  });
+  }));
+});
+
+void listen<{ id: string }>('ble-disconnected', (event) => {
+  useBleStore.setState((state) => ({
+    connectedDevices: state.connectedDevices.filter(
+      (d) => d.id !== event.payload.id,
+    ),
+  }));
 });

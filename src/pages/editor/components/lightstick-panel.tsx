@@ -21,10 +21,12 @@ export default function LightstickPanel({
 
   const syncEnabled = useBleStore((s) => s.syncEnabled);
   const setSyncEnabled = useBleStore((s) => s.setSyncEnabled);
-  const delayMs = useBleStore((s) => s.delayMs);
-  const setDelayMs = useBleStore((s) => s.setDelayMs);
-  const connectedDevice = useBleStore((s) => s.connectedDevice);
+  const connectedDevices = useBleStore((s) => s.connectedDevices);
+  const setDeviceDelay = useBleStore((s) => s.setDeviceDelay);
   const setShowDevicesModal = useBleStore((s) => s.setShowDevicesModal);
+
+  const deviceCount = connectedDevices.length;
+  const hasDevices = deviceCount > 0;
 
   useTransientTime((time) => {
     if (frameRef.current) {
@@ -33,8 +35,8 @@ export default function LightstickPanel({
   });
 
   const handleDelayChange = useCallback(
-    (v: number) => setDelayMs(v),
-    [setDelayMs],
+    (deviceId: string) => (ms: number) => setDeviceDelay(deviceId, ms),
+    [setDeviceDelay],
   );
 
   return (
@@ -58,7 +60,6 @@ export default function LightstickPanel({
       </div>
 
       <div className="flex flex-col gap-4 w-full">
-        {/* Sync toggle */}
         <div className="flex items-center justify-between">
           <span className="text-xs font-display font-bold text-on-surface-variant uppercase tracking-wider">
             BLE Sync
@@ -78,48 +79,57 @@ export default function LightstickPanel({
           </button>
         </div>
 
-        {/* Device selector */}
         <button
           type="button"
           onClick={() => setShowDevicesModal(true)}
           className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg border border-outline-variant bg-surface-container hover:border-primary/40 transition-colors cursor-pointer"
         >
-          {connectedDevice ? (
+          {hasDevices ? (
             <Bluetooth className="size-4 text-primary shrink-0" />
           ) : (
             <BluetoothOff className="size-4 text-on-surface-variant shrink-0" />
           )}
           <div className="flex flex-col items-start min-w-0">
             <span className="text-xs font-display font-bold text-on-surface truncate">
-              {connectedDevice?.name ?? 'No Device'}
+              {hasDevices
+                ? `${deviceCount} device${deviceCount > 1 ? 's' : ''}`
+                : 'No Device'}
             </span>
             <span className="text-[10px] text-on-surface-variant">
-              {connectedDevice ? connectedDevice.deviceType : 'Tap to connect'}
+              {hasDevices
+                ? connectedDevices.map((d) => d.name).join(', ')
+                : 'Tap to connect'}
             </span>
           </div>
         </button>
 
-        {/* Delay compensation */}
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-on-surface-variant">BLE Delay</span>
-            <span className="text-xs text-on-surface font-mono tabular-nums">
-              {delayMs}ms
-            </span>
+        {connectedDevices.map((device) => (
+          <div key={device.id} className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-on-surface-variant truncate max-w-[60%]">
+                {device.name}
+              </span>
+              <span className="text-xs text-on-surface font-mono tabular-nums">
+                {device.delayMs}ms
+              </span>
+            </div>
+            <Slider
+              min={0}
+              max={200}
+              step={1}
+              defaultValue={device.delayMs}
+              variant="fill"
+              className="w-full h-1.5 rounded-sm"
+              onChange={handleDelayChange(device.id)}
+            />
           </div>
-          <Slider
-            min={0}
-            max={200}
-            step={1}
-            defaultValue={delayMs}
-            variant="fill"
-            className="w-full h-1.5 rounded-sm"
-            onChange={handleDelayChange}
-          />
+        ))}
+
+        {hasDevices && (
           <span className="text-[10px] text-on-surface-variant">
-            Compensate Bluetooth latency
+            Compensate Bluetooth latency per device
           </span>
-        </div>
+        )}
       </div>
     </div>
   );

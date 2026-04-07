@@ -38,9 +38,7 @@ struct SyncEngine {
   playback: PlaybackState,
   effects: Vec<SyncEffect>,
   hz: u32,
-  delay_ms: u32,
   last_color: Option<[u8; 3]>,
-  last_ble_color: Option<[u8; 3]>,
 }
 
 #[derive(Clone, Serialize)]
@@ -48,10 +46,22 @@ pub struct ColorUpdate {
   pub color: String,
 }
 
-pub struct SyncState {
+pub(crate) struct SyncState {
   engine: Arc<Mutex<SyncEngine>>,
-  #[allow(dead_code)] // used for future graceful shutdown (BLE phase)
+  #[allow(dead_code)]
   shutdown: Arc<AtomicBool>,
+}
+
+impl SyncState {
+  /// Returns (playing, current_time, effects) for external consumers like BLE
+  pub(crate) fn read_playback(&self) -> (bool, f64, Vec<SyncEffect>) {
+    let engine = lock_engine(&self.engine);
+    (
+      engine.playback.playing,
+      engine.playback.current_time(),
+      engine.effects.clone(),
+    )
+  }
 }
 
 pub fn init(app: &AppHandle) {
@@ -64,9 +74,7 @@ pub fn init(app: &AppHandle) {
     },
     effects: Vec::new(),
     hz: DEFAULT_HZ,
-    delay_ms: 0,
     last_color: None,
-    last_ble_color: None,
   }));
 
   let shutdown = Arc::new(AtomicBool::new(false));
@@ -90,16 +98,16 @@ fn run_loop(engine: Arc<Mutex<SyncEngine>>, shutdown: Arc<AtomicBool>, app: AppH
   while !shutdown.load(Ordering::Relaxed) {
     let interval = {
       let state = lock_engine(&engine);
-      let hz = if state.playback.playing {
-        state.hz
-      } else {
-        IDLE_HZ
-      };
+
+      let hz = if state.playback.playing { state.hz } else { IDLE_HZ };
+
       Duration::from_micros(1_000_000 / u64::from(hz))
     };
 
     next_tick += interval;
+
     let now = Instant::now();
+
     if next_tick > now {
       thread::sleep(next_tick - now);
     }
@@ -113,31 +121,12 @@ fn run_loop(engine: Arc<Mutex<SyncEngine>>, shutdown: Arc<AtomicBool>, app: AppH
       state.last_color = preview_color;
     }
 
-    let delay_secs = if state.playback.playing {
-      f64::from(state.delay_ms) / 1000.0
-    } else {
-      0.0
-    };
-    let ble_color = compute_color(&state.effects, time + delay_secs);
-    let ble_changed = ble_color != state.last_ble_color;
-    if ble_changed {
-      state.last_ble_color = ble_color;
-    }
-
     drop(state);
 
     if preview_changed {
       if let Some(rgb) = preview_color {
         if let Err(e) = app.emit("color-update", ColorUpdate { color: rgb_to_hex(rgb) }) {
           eprintln!("[sync] failed to emit color-update: {e}");
-        }
-      }
-    }
-
-    if ble_changed {
-      if let Some(rgb) = ble_color {
-        if let Err(e) = app.emit("ble-color", ColorUpdate { color: rgb_to_hex(rgb) }) {
-          eprintln!("[sync] failed to emit ble-color: {e}");
         }
       }
     }
@@ -193,11 +182,4 @@ pub fn sync_set_effects(effects: Vec<SyncEffect>, state: tauri::State<'_, SyncSt
 pub fn sync_set_rate(hz: u32, state: tauri::State<'_, SyncState>) {
   let mut engine = lock_engine(&state.engine);
   engine.hz = hz.clamp(1, 240);
-}
-
-#[tauri::command]
-pub fn sync_set_delay(delay_ms: u32, state: tauri::State<'_, SyncState>) {
-  let mut engine = lock_engine(&state.engine);
-  engine.delay_ms = delay_ms.clamp(0, 200);
-  engine.last_ble_color = None;
 }
