@@ -2,6 +2,8 @@ import { DragDropProvider, DragOverlay } from '@dnd-kit/react';
 import { icons } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
+import { listen } from '@tauri-apps/api/event';
+
 import ControlsBar from './components/controls-bar';
 import EffectsSidebar from './components/effects-sidebar';
 import LightstickPanel from './components/lightstick-panel';
@@ -37,6 +39,16 @@ export default function EditorPage() {
       void initFromProject(activeProject);
     }
   }, [activeProject, initFromProject]);
+
+  useEffect(() => {
+    const unlisten = listen<{ color: string }>('color-update', (event) => {
+      lightstickRef.current?.setColor(event.payload.color);
+    });
+
+    return () => {
+      void unlisten.then((fn) => fn());
+    };
+  }, []);
 
   const videoSrc = useEditorStore((s) => s.videoSrc);
   const videoDuration = useEditorStore((s) => s.videoDuration);

@@ -2,6 +2,7 @@ mod effects;
 mod fs;
 mod menu;
 mod project;
+mod sync;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -11,6 +12,7 @@ pub fn run() {
     .plugin(tauri_plugin_fs::init())
     .setup(|app| {
       menu::setup(app)?;
+      sync::init(app.handle());
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
@@ -25,6 +27,11 @@ pub fn run() {
       project::save_manifest,
       project::recent::load_recent_projects,
       project::recent::add_recent_project,
+      sync::sync_play,
+      sync::sync_pause,
+      sync::sync_seek,
+      sync::sync_set_effects,
+      sync::sync_set_rate,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

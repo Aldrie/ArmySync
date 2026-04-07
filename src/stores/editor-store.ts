@@ -6,7 +6,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 
 import type { ActiveProject } from './app-store';
 import { editorRefs } from './editor-refs';
-import { sync, effectFile, extractColors } from '../domains/effects';
+import { effectFile, extractColors } from '../domains/effects';
 import type { EffectInstance } from '../domains/effects';
 import { extractWaveform } from '../lib/audio';
 
@@ -191,13 +191,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   play: () => {
-    editorRefs.video?.play();
+    const el = editorRefs.video;
+    el?.play();
     set({ isPlaying: true });
+    void invoke('sync_play', { time: el?.currentTime ?? 0 });
   },
 
   pause: () => {
     editorRefs.video?.pause();
     set({ isPlaying: false });
+    void invoke('sync_pause');
   },
 
   togglePlayPause: () => {
@@ -212,6 +215,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const time = Math.max(0, Math.min(el.duration, el.currentTime + delta));
     el.currentTime = time;
     get().tick(time);
+    void invoke('sync_seek', { time });
   },
 
   seekStep: (direction, fast) => {
@@ -225,13 +229,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const time = el.duration * (percent / 100);
     el.currentTime = time;
     get().tick(time);
+    void invoke('sync_seek', { time });
   },
 
   tick: (time) => {
     set({ currentTime: time });
-    sync(get().effects, time, (color) =>
-      editorRefs.lightstick?.setColor(color),
-    );
   },
 
   setVolume: (value) => {
@@ -573,3 +575,19 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
   },
 }));
+
+function syncEffectsToRust(effects: EffectInstance[]) {
+  const payload = effects.map((e) => ({
+    from: e.from,
+    to: e.to,
+    type: e.type,
+    params: e.params,
+  }));
+  void invoke('sync_set_effects', { effects: payload });
+}
+
+useEditorStore.subscribe((state, prev) => {
+  if (state.effects !== prev.effects) {
+    syncEffectsToRust(state.effects);
+  }
+});
