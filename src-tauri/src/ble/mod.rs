@@ -13,31 +13,31 @@ use tauri::{AppHandle, Emitter, Manager as TauriManager};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
-use crate::sync::handlers::{compute_color, SyncEffect};
+use crate::sync::handlers::compute_color;
 use crate::sync::SyncState;
 
 use protocol::{
-  build_packet, detect_type, is_known_device, DeviceType, CHAR_OLDER_WRITE, CHAR_V4_WRITE,
-  SERVICE_OLDER, SERVICE_V4_COLOR,
+  build_packet, detect_type, DeviceType, CHAR_OLDER_WRITE, CHAR_V4_WRITE, SERVICE_OLDER,
+  SERVICE_V4_COLOR,
 };
 
 const BLE_WRITE_HZ: u64 = 30;
 
 #[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BleDeviceInfo {
   id: String,
   name: String,
   rssi: i16,
-  #[serde(rename = "deviceType")]
-  device_type: String,
+  device_type: DeviceType,
 }
 
 #[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ConnectedDeviceInfo {
   id: String,
   name: String,
-  #[serde(rename = "deviceType")]
-  device_type: String,
+  device_type: DeviceType,
 }
 
 struct ConnectedDevice {
@@ -46,6 +46,7 @@ struct ConnectedDevice {
   delay_ms: u32,
   last_color: Option<[u8; 3]>,
   writer_handle: Option<JoinHandle<()>>,
+  shutdown_tx: tokio::sync::watch::Sender<bool>,
 }
 
 pub struct BleState {
@@ -94,11 +95,12 @@ pub async fn ble_scan(
 ) -> Result<(), String> {
   let mut ble = state.lock().await;
 
+  let adapter = get_adapter(&mut ble).await?;
+
   if let Some(handle) = ble.scan_handle.take() {
     handle.abort();
+    let _ = adapter.stop_scan().await;
   }
-
-  let adapter = get_adapter(&mut ble).await?;
 
   adapter
     .start_scan(ScanFilter::default())
@@ -115,20 +117,27 @@ pub async fn ble_scan(
       return;
     };
 
+    let mut last_emit = tokio::time::Instant::now() - Duration::from_secs(1);
+    let debounce = Duration::from_millis(300);
+
     while let Some(event) = events.next().await {
       if let CentralEvent::DeviceDiscovered(_) | CentralEvent::DeviceUpdated(_) = event {
+        if last_emit.elapsed() < debounce {
+          continue;
+        }
+
         if let Ok(peripherals) = scan_adapter.peripherals().await {
           let mut devices = Vec::new();
 
           for p in &peripherals {
             if let Ok(Some(props)) = p.properties().await {
               let name = props.local_name.unwrap_or_default();
-              if is_known_device(&name) {
+              if let Some(device_type) = detect_type(&name) {
                 devices.push(BleDeviceInfo {
                   id: p.id().to_string(),
                   name: name.clone(),
                   rssi: props.rssi.unwrap_or(0),
-                  device_type: detect_type(&name).to_string(),
+                  device_type,
                 });
               }
             }
@@ -137,6 +146,8 @@ pub async fn ble_scan(
           if let Err(e) = scan_app.emit("ble-devices", &devices) {
             eprintln!("[ble] failed to emit ble-devices: {e}");
           }
+
+          last_emit = tokio::time::Instant::now();
         }
       }
     }
@@ -166,13 +177,11 @@ pub async fn ble_connect(
   state: tauri::State<'_, Mutex<BleState>>,
   app: AppHandle,
 ) -> Result<(), String> {
-  let ble = state.lock().await;
-
-  let adapter = ble
-    .adapter
-    .as_ref()
-    .ok_or("No adapter — scan first")?
-    .clone();
+  let (adapter, connected) = {
+    let ble = state.lock().await;
+    let adapter = ble.adapter.as_ref().ok_or("No adapter — scan first")?.clone();
+    (adapter, ble.connected.clone())
+  };
 
   let peripherals = adapter
     .peripherals()
@@ -202,19 +211,19 @@ pub async fn ble_connect(
     .and_then(|p| p.local_name)
     .unwrap_or_else(|| "Unknown".into());
 
-  let device_type = detect_type(&name);
+  let device_type = detect_type(&name).unwrap_or(DeviceType::SE);
 
   let info = ConnectedDeviceInfo {
     id: device_id.clone(),
     name: name.clone(),
-    device_type: device_type.to_string(),
+    device_type,
   };
 
   if let Err(e) = app.emit("ble-connected", &info) {
     eprintln!("[ble] failed to emit ble-connected: {e}");
   }
 
-  let connected = ble.connected.clone();
+  let shutdown = tokio::sync::watch::channel(false);
 
   let writer_handle = tokio::spawn(ble_writer_loop(
     app.clone(),
@@ -222,9 +231,10 @@ pub async fn ble_connect(
     device_type,
     device_id.clone(),
     connected.clone(),
+    shutdown.1,
   ));
 
-  ble.connected.lock().await.insert(
+  connected.lock().await.insert(
     device_id,
     ConnectedDevice {
       peripheral,
@@ -232,11 +242,14 @@ pub async fn ble_connect(
       delay_ms: 0,
       last_color: None,
       writer_handle: Some(writer_handle),
+      shutdown_tx: shutdown.0,
     },
   );
 
   Ok(())
 }
+
+const MAX_CONSECUTIVE_ERRORS: u32 = 5;
 
 async fn ble_writer_loop(
   app: AppHandle,
@@ -244,6 +257,7 @@ async fn ble_writer_loop(
   device_type: DeviceType,
   device_id: String,
   connected: Arc<Mutex<HashMap<String, ConnectedDevice>>>,
+  mut shutdown_rx: tokio::sync::watch::Receiver<bool>,
 ) {
   let interval = Duration::from_millis(1000 / BLE_WRITE_HZ);
 
@@ -259,16 +273,24 @@ async fn ble_writer_loop(
 
   let Some(characteristic) = characteristic else {
     eprintln!("[ble] characteristic not found for {device_id}");
+    connected.lock().await.remove(&device_id);
+    let _ = app.emit("ble-disconnected", serde_json::json!({ "id": device_id }));
     return;
   };
 
+  let mut consecutive_errors: u32 = 0;
+
   loop {
-    tokio::time::sleep(interval).await;
+    tokio::select! {
+      _ = shutdown_rx.changed() => break,
+      _ = tokio::time::sleep(interval) => {}
+    }
 
-    let sync_state: Option<(bool, f64, Vec<SyncEffect>)> =
-      app.try_state::<SyncState>().map(|s| s.read_playback());
-
-    let Some((playing, time, effects)) = sync_state else {
+    // Brief std::sync::Mutex lock — acceptable since the critical section is trivial
+    let Some((playing, time, effects)) = app
+      .try_state::<SyncState>()
+      .map(|s| s.read_playback())
+    else {
       continue;
     };
 
@@ -276,7 +298,7 @@ async fn ble_writer_loop(
       let devices = connected.lock().await;
       match devices.get(&device_id) {
         Some(d) => d.delay_ms,
-        None => break, // device removed
+        None => break,
       }
     };
 
@@ -307,7 +329,16 @@ async fn ble_writer_loop(
     let packet = build_packet(rgb, device_type, 0xFF);
 
     if let Err(e) = peripheral.write(&characteristic, &packet, write_type).await {
+      consecutive_errors += 1;
       eprintln!("[ble] write failed for {device_id}: {e}");
+      if consecutive_errors >= MAX_CONSECUTIVE_ERRORS {
+        eprintln!("[ble] too many failures, disconnecting {device_id}");
+        connected.lock().await.remove(&device_id);
+        let _ = app.emit("ble-disconnected", serde_json::json!({ "id": device_id }));
+        break;
+      }
+    } else {
+      consecutive_errors = 0;
     }
   }
 }
@@ -321,12 +352,17 @@ pub async fn ble_disconnect(
   let ble = state.lock().await;
   let mut connected = ble.connected.lock().await;
 
-  if let Some(mut device) = connected.remove(&device_id) {
-    if let Some(handle) = device.writer_handle.take() {
-      handle.abort();
-    }
-    let _ = device.peripheral.disconnect().await;
+  let Some(mut device) = connected.remove(&device_id) else {
+    return Ok(());
+  };
+
+  let _ = device.shutdown_tx.send(true);
+
+  if let Some(handle) = device.writer_handle.take() {
+    let _ = tokio::time::timeout(Duration::from_millis(500), handle).await;
   }
+
+  let _ = device.peripheral.disconnect().await;
 
   drop(connected);
 
@@ -347,7 +383,7 @@ pub async fn ble_set_device_delay(
   let mut connected = ble.connected.lock().await;
 
   if let Some(device) = connected.get_mut(&device_id) {
-    device.delay_ms = delay_ms.clamp(0, 200);
+    device.delay_ms = delay_ms.min(200);
     device.last_color = None;
     Ok(())
   } else {

@@ -36,7 +36,7 @@ impl PlaybackState {
 
 struct SyncEngine {
   playback: PlaybackState,
-  effects: Vec<SyncEffect>,
+  effects: Arc<Vec<SyncEffect>>,
   hz: u32,
   last_color: Option<[u8; 3]>,
 }
@@ -54,12 +54,12 @@ pub(crate) struct SyncState {
 
 impl SyncState {
   /// Returns (playing, current_time, effects) for external consumers like BLE
-  pub(crate) fn read_playback(&self) -> (bool, f64, Vec<SyncEffect>) {
+  pub(crate) fn read_playback(&self) -> (bool, f64, Arc<Vec<SyncEffect>>) {
     let engine = lock_engine(&self.engine);
     (
       engine.playback.playing,
       engine.playback.current_time(),
-      engine.effects.clone(),
+      Arc::clone(&engine.effects),
     )
   }
 }
@@ -72,7 +72,7 @@ pub fn init(app: &AppHandle) {
       play_started_at: None,
       play_started_time: 0.0,
     },
-    effects: Vec::new(),
+    effects: Arc::new(Vec::new()),
     hz: DEFAULT_HZ,
     last_color: None,
   }));
@@ -174,7 +174,7 @@ pub fn sync_seek(time: f64, state: tauri::State<'_, SyncState>, app: AppHandle) 
 #[tauri::command]
 pub fn sync_set_effects(effects: Vec<SyncEffect>, state: tauri::State<'_, SyncState>) {
   let mut engine = lock_engine(&state.engine);
-  engine.effects = effects;
+  engine.effects = Arc::new(effects);
   engine.last_color = None;
 }
 

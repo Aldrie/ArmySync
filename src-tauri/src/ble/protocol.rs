@@ -1,6 +1,8 @@
+use serde::Serialize;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum DeviceType {
   V4,
   V3,
@@ -25,27 +27,18 @@ impl std::fmt::Display for DeviceType {
   }
 }
 
-pub const KNOWN_NAMES: &[&str] = &[
-  "BTS_V4 LS",
-  "BTS LIGHTSTICK3",
-  "BTS LIGHTSTICK_SE",
-  "multiM",
-];
-
-pub fn detect_type(name: &str) -> DeviceType {
+pub fn detect_type(name: &str) -> Option<DeviceType> {
   if name.contains("BTS_V4") {
-    DeviceType::V4
+    Some(DeviceType::V4)
   } else if name.contains("multiM") {
-    DeviceType::Multi
+    Some(DeviceType::Multi)
   } else if name.contains("BTS LIGHTSTICK3") {
-    DeviceType::V3
+    Some(DeviceType::V3)
+  } else if name.contains("BTS LIGHTSTICK_SE") {
+    Some(DeviceType::SE)
   } else {
-    DeviceType::SE
+    None
   }
-}
-
-pub fn is_known_device(name: &str) -> bool {
-  KNOWN_NAMES.iter().any(|known| name.contains(known))
 }
 
 pub const SERVICE_OLDER: Uuid =
@@ -70,9 +63,8 @@ pub fn build_v4_packet(rgb: [u8; 3], brightness: u8) -> Vec<u8> {
 
 pub fn build_older_packet(rgb: [u8; 3]) -> Vec<u8> {
   let mut packet = vec![0x01, 0x01, 0x0B, 0x00, 0x00, rgb[0], rgb[1], rgb[2], 0x00, 0x00, 0x00];
-  // Checksum: sum of all bytes minus the 2-byte header, truncated to u8
-  let sum: u16 = packet.iter().map(|&b| u16::from(b)).sum();
-  packet[10] = ((sum - 2) & 0xFF) as u8;
+  let sum: u16 = packet[2..10].iter().map(|&b| u16::from(b)).sum();
+  packet[10] = (sum & 0xFF) as u8;
   packet
 }
 
