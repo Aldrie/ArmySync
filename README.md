@@ -89,6 +89,9 @@ pnpm tauri dev
 
 - [ ] Player-only screen (view mode without the editor)
 - [ ] Release builds via GitHub Releases
+- [ ] More effect types
+- [ ] Multiple project windows simultaneously
+- [ ] Browser extension for Netflix sync
 
 ## License
 
