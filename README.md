@@ -85,6 +85,11 @@ pnpm tauri dev
 | `pnpm type-check` | TypeScript type checking |
 | `pnpm check` | Run all checks |
 
+## Roadmap
+
+- [ ] Player-only screen (view mode without the editor)
+- [ ] Release builds via GitHub Releases
+
 ## License
 
 [AGPL-3.0](LICENSE)
