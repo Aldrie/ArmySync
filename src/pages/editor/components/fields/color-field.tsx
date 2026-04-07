@@ -1,4 +1,6 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useState } from 'react';
+
+import ColorPickerPopover from '../../../../components/color-picker-popover';
 
 interface ColorFieldProps {
   label: string;
@@ -11,14 +13,13 @@ export default function ColorField({
   value,
   onChange,
 }: ColorFieldProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
 
-  const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      onChange(e.target.value);
-    },
-    [onChange],
-  );
+  const handleToggle = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchor((prev) => (prev ? null : (e.currentTarget as HTMLElement)));
+  }, []);
+
+  const handleClose = useCallback(() => setAnchor(null), []);
 
   return (
     <div className="flex items-center justify-between gap-2">
@@ -26,7 +27,7 @@ export default function ColorField({
       <button
         type="button"
         className="flex items-center gap-2 cursor-pointer"
-        onClick={() => inputRef.current?.click()}
+        onClick={handleToggle}
       >
         <div
           className="w-6 h-6 rounded-md border border-outline-variant"
@@ -35,14 +36,16 @@ export default function ColorField({
         <span className="text-xs text-on-surface font-mono uppercase">
           {value}
         </span>
-        <input
-          ref={inputRef}
-          type="color"
-          className="sr-only"
-          value={value}
-          onChange={handleChange}
-        />
       </button>
+
+      {anchor && (
+        <ColorPickerPopover
+          color={value}
+          anchor={anchor}
+          onChange={onChange}
+          onClose={handleClose}
+        />
+      )}
     </div>
   );
 }

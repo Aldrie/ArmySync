@@ -1,5 +1,7 @@
 import { Plus, X } from 'lucide-react';
-import { useCallback } from 'react';
+import { useCallback, useRef, useState } from 'react';
+
+import ColorPickerPopover from '../../../../components/color-picker-popover';
 
 interface ColorListFieldProps {
   label: string;
@@ -16,6 +18,10 @@ export default function ColorListField({
   max = 8,
   onChange,
 }: ColorListFieldProps) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const swatchRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
+
   const handleColorChange = useCallback(
     (index: number, color: string) => {
       const next = [...value];
@@ -33,10 +39,16 @@ export default function ColorListField({
   const handleRemove = useCallback(
     (index: number) => {
       if (value.length <= min) return;
+      if (activeIndex === index) setActiveIndex(null);
       onChange(value.filter((_, i) => i !== index));
     },
-    [value, min, onChange],
+    [value, min, activeIndex, onChange],
   );
+
+  const handleClose = useCallback(() => {
+    setActiveIndex(null);
+    setAnchor(null);
+  }, []);
 
   return (
     <div className="flex flex-col gap-2">
@@ -44,18 +56,30 @@ export default function ColorListField({
       <div className="flex flex-wrap gap-1.5">
         {value.map((color, i) => (
           <div key={i} className="relative group">
-            <label className="cursor-pointer">
+            <button
+              ref={(el) => {
+                if (el) swatchRefs.current.set(i, el);
+                else swatchRefs.current.delete(i);
+              }}
+              type="button"
+              className="cursor-pointer"
+              onClick={(e) => {
+                const next = activeIndex === i ? null : i;
+                setActiveIndex(next);
+                setAnchor(
+                  next !== null ? (e.currentTarget as HTMLElement) : null,
+                );
+              }}
+            >
               <div
-                className="w-7 h-7 rounded-md border border-outline-variant"
+                className={`w-7 h-7 rounded-md border transition-colors ${
+                  activeIndex === i
+                    ? 'border-primary ring-1 ring-primary/40'
+                    : 'border-outline-variant'
+                }`}
                 style={{ backgroundColor: color }}
               />
-              <input
-                type="color"
-                className="sr-only"
-                value={color}
-                onChange={(e) => handleColorChange(i, e.target.value)}
-              />
-            </label>
+            </button>
             {value.length > min && (
               <button
                 type="button"
@@ -77,6 +101,15 @@ export default function ColorListField({
           </button>
         )}
       </div>
+
+      {activeIndex !== null && activeIndex < value.length && (
+        <ColorPickerPopover
+          color={value[activeIndex]}
+          anchor={anchor}
+          onChange={(c) => handleColorChange(activeIndex, c)}
+          onClose={handleClose}
+        />
+      )}
     </div>
   );
 }
