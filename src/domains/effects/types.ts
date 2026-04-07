@@ -41,12 +41,20 @@ export interface ColorListFieldDescriptor {
   max?: number;
 }
 
+export interface BpmFieldDescriptor {
+  key: string;
+  label: string;
+  type: 'tap-sync';
+  default: number;
+}
+
 export type FieldDescriptor =
   | ColorFieldDescriptor
   | NumberFieldDescriptor
   | SelectFieldDescriptor
   | DurationFieldDescriptor
-  | ColorListFieldDescriptor;
+  | ColorListFieldDescriptor
+  | BpmFieldDescriptor;
 
 export interface EffectHandlerParams {
   params: Record<string, unknown>;
@@ -68,7 +76,10 @@ export interface EffectDefinition {
     height: number,
     params: Record<string, unknown>,
   ) => void;
-  buildStripBackground: (params: Record<string, unknown>) => string;
+  buildStripBackground: (
+    params: Record<string, unknown>,
+    duration?: number,
+  ) => string;
 }
 
 export interface EffectInstance {

@@ -76,8 +76,9 @@ fn handle_flash(params: &serde_json::Value, current: f64) -> [u8; 3] {
     .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect())
     .unwrap_or_else(|| vec!["#ffffff", "#000000"]);
 
-  let velocity = params["velocity"].as_f64().unwrap_or(20.0);
-  let index = (current * velocity).floor() as usize % colors.len().max(1);
+  let bpm = params["bpm"].as_f64().unwrap_or(240.0);
+  let hz = bpm / 60.0;
+  let index = (current * hz).floor() as usize % colors.len().max(1);
 
   hex_to_rgb(colors.get(index).unwrap_or(&"#ffffff"))
 }

@@ -13,8 +13,11 @@ export default function EffectStrip({ effect, width, left }: EffectStripProps) {
   const background = useMemo(() => {
     const definition = getEffectDefinition(effect.type);
     if (!definition) return 'transparent';
-    return definition.buildStripBackground(effect.params);
-  }, [effect.type, effect.params]);
+    return definition.buildStripBackground(
+      effect.params,
+      effect.to - effect.from,
+    );
+  }, [effect.type, effect.params, effect.from, effect.to]);
 
   return (
     <div

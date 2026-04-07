@@ -5,6 +5,7 @@ import ColorListField from './color-list-field';
 import DurationField from './duration-field';
 import NumberField from './number-field';
 import SelectField from './select-field';
+import TapSyncField from './tap-sync-field';
 import type { FieldDescriptor } from '../../../../domains/effects/types';
 
 interface FieldRendererProps {
@@ -62,6 +63,9 @@ const FIELD_RENDERERS: Record<string, RenderFn> = {
       max={'max' in field ? field.max : undefined}
       onChange={onChange}
     />
+  ),
+  'tap-sync': (_field, _value, onChange) => (
+    <TapSyncField onChange={(v) => onChange(v)} />
   ),
 };
 

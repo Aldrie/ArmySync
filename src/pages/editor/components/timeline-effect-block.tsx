@@ -259,8 +259,9 @@ export default function TimelineEffectBlock({
   );
 
   const definition = getEffectDefinition(effect.type);
+  const duration = effect.to - effect.from;
   const background = definition
-    ? definition.buildStripBackground(effect.params)
+    ? definition.buildStripBackground(effect.params, duration)
     : 'transparent';
 
   const width = percentageOf(videoDuration || 1, effect.to - effect.from);
