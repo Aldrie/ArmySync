@@ -91,6 +91,9 @@ pnpm tauri dev
 - [ ] Release builds via GitHub Releases
 - [ ] More effect types
 - [ ] Multiple project windows simultaneously
+- [ ] Internationalization (i18n)
+- [ ] Theming (light/dark mode, custom themes)
+- [ ] UX improvements (more shortcuts, quality of life tweaks)
 - [ ] Browser extension for Netflix sync
 
 ## License
