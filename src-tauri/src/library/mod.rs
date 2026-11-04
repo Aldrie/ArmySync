@@ -148,7 +148,7 @@ fn write_app_json_in(base: &Path, name: &str, value: &Value) -> Result<(), Strin
   write_json_atomic(base, &app_json_file(name)?, value)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn list_projects(app: tauri::AppHandle) -> Result<Vec<ProjectSummary>, String> {
   list_projects_in(&app_data_dir(&app)?)
 }
@@ -158,12 +158,12 @@ pub fn read_project(app: tauri::AppHandle, id: String) -> Result<Value, String> 
   read_project_in(&app_data_dir(&app)?, &id)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn write_project(app: tauri::AppHandle, id: String, project: Value) -> Result<(), String> {
   write_project_in(&app_data_dir(&app)?, &id, &project)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn delete_project(app: tauri::AppHandle, id: String) -> Result<(), String> {
   delete_project_in(&app_data_dir(&app)?, &id)
 }
