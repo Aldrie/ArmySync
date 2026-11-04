@@ -32,14 +32,13 @@ export default function EditorPage() {
     };
   });
 
-  const activeProject = useAppStore((s) => s.activeProject);
+  const activeProjectId = useAppStore((s) => s.activeProject?.id);
   const initFromProject = useEditorStore((s) => s.initFromProject);
 
   useEffect(() => {
-    if (activeProject) {
-      void initFromProject(activeProject);
-    }
-  }, [activeProject, initFromProject]);
+    const project = useAppStore.getState().activeProject;
+    if (project) void initFromProject(project);
+  }, [activeProjectId, initFromProject]);
 
   useEffect(() => {
     const unlisten = listen<{ color: string }>('color-update', (event) => {
@@ -63,7 +62,6 @@ export default function EditorPage() {
   const adjustVolume = useEditorStore((s) => s.adjustVolume);
   const tick = useEditorStore((s) => s.tick);
   const handleVideoLoad = useEditorStore((s) => s.handleVideoLoad);
-  const openVideoFile = useEditorStore((s) => s.openVideoFile);
   const addEffect = useEditorStore((s) => s.addEffect);
   const selectEffect = useEditorStore((s) => s.selectEffect);
   const copySelection = useEditorStore((s) => s.copySelection);
@@ -243,7 +241,6 @@ export default function EditorPage() {
               <VideoArea
                 videoRef={videoRef}
                 videoSrc={videoSrc}
-                onOpenVideo={() => void openVideoFile()}
                 onLoadedData={() => void handleVideoLoad()}
                 onTimeUpdate={() => {
                   if (videoRef.current) tick(videoRef.current.currentTime);

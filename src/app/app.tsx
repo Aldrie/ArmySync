@@ -1,32 +1,24 @@
 import { useEffect } from 'react';
 
 import { listen } from '@tauri-apps/api/event';
-import { open } from '@tauri-apps/plugin-dialog';
 
 import './globals.css';
 import DownloadModal from '../components/download-modal';
 import EditorPage from '../pages/editor/editor-page';
-import HomePage from '../pages/home/home-page';
+import LibraryPage from '../pages/library/library-page';
 import { useAppStore } from '../stores/app-store';
 import { useEditorStore } from '../stores/editor-store';
 
 function useMenuListener() {
   useEffect(() => {
     const unlisten = listen<string>('menu-action', (event) => {
-      const { route, closeProject, openProject, setShowNewProjectModal } =
+      const { route, closeProject, setShowNewSongModal } =
         useAppStore.getState();
 
       switch (event.payload) {
         case 'new_project':
           if (route === 'editor') closeProject();
-          setShowNewProjectModal(true);
-          break;
-
-        case 'open_project':
-          void (async () => {
-            const selected = await open({ directory: true, multiple: false });
-            if (selected) await openProject(selected);
-          })();
+          setShowNewSongModal(true);
           break;
 
         case 'save':
@@ -53,7 +45,7 @@ export default function App() {
 
   return (
     <>
-      {route === 'editor' ? <EditorPage /> : <HomePage />}
+      {route === 'editor' ? <EditorPage /> : <LibraryPage />}
       <DownloadModal open={downloading} />
     </>
   );

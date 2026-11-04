@@ -1,16 +1,22 @@
 import { createId } from '@paralleldrive/cuid2';
 import { create } from 'zustand';
 
-import { convertFileSrc, invoke } from '@tauri-apps/api/core';
-import { open } from '@tauri-apps/plugin-dialog';
+import { invoke } from '@tauri-apps/api/core';
 
-import type { ActiveProject } from './app-store';
 import { editorRefs } from './editor-refs';
-import { effectFile, extractColors } from '../domains/effects';
 import type { EffectInstance } from '../domains/effects';
+import {
+  getSongEffects,
+  getSongMedia,
+  projectFilePath,
+  projectFileUrl,
+  saveProject,
+  withSongEffects,
+  withSongMediaDuration,
+} from '../domains/project';
+import type { MediaType, Project } from '../domains/project';
 import { extractWaveform } from '../lib/audio';
 
-const DEV_VIDEO_PATH = '/example.mp4';
 const DEFAULT_VOLUME = 0.25;
 const FRAME_DURATION = 1 / 24;
 const MAX_HISTORY = 11;
@@ -28,12 +34,11 @@ function shiftMultiplier(step: number): number {
 }
 
 interface EditorState {
-  projectDir: string | null;
-  effectsFilePath: string | null;
+  project: Project | null;
   isDirty: boolean;
 
   videoSrc: string;
-  videoFilePath: string | null;
+  mediaType: MediaType | null;
   videoDuration: number;
   isPlaying: boolean;
   effects: EffectInstance[];
@@ -90,13 +95,11 @@ interface EditorState {
   undo: () => void;
   redo: () => void;
 
-  initFromProject: (project: ActiveProject) => Promise<void>;
+  initFromProject: (project: Project) => Promise<void>;
   saveEffects: () => Promise<void>;
   resetEditor: () => void;
 
   handleVideoLoad: () => Promise<void>;
-  openVideoFile: () => Promise<void>;
-  loadEffectFile: () => Promise<void>;
 }
 
 export function generateEffectId(): string {
@@ -111,12 +114,11 @@ function scheduleAutoSave(save: () => Promise<void>) {
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
-  projectDir: null,
-  effectsFilePath: null,
+  project: null,
   isDirty: false,
 
-  videoSrc: import.meta.env.DEV ? DEV_VIDEO_PATH : '',
-  videoFilePath: null,
+  videoSrc: '',
+  mediaType: null,
   videoDuration: 0,
   isPlaying: false,
   effects: [],
@@ -420,30 +422,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   initFromProject: async (project) => {
-    const { dir, manifest } = project;
-    const effectsPath = `${dir}/${manifest.effectsFile}`;
-
-    let videoSrc = '';
-    let videoFilePath: string | null = null;
-    if (manifest.videoPath) {
-      const fullPath = `${dir}/${manifest.videoPath}`;
-      videoSrc = convertFileSrc(fullPath);
-      videoFilePath = fullPath;
-    }
-
-    let effects: EffectInstance[] = [];
-    try {
-      effects = await effectFile.parse(effectsPath);
-    } catch {
-      // Empty or missing effects file — start fresh
-    }
+    const song = getSongMedia(project);
+    const videoSrc = song
+      ? await projectFileUrl(project.id, song.media.file)
+      : '';
+    const effects = getSongEffects(project);
 
     set({
-      projectDir: dir,
-      effectsFilePath: effectsPath,
+      project,
       isDirty: false,
       videoSrc,
-      videoFilePath,
+      mediaType: song?.media.type ?? null,
       effects,
       selectedEffectIds: [],
       clipboard: [],
@@ -457,28 +446,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   saveEffects: async () => {
-    const { effectsFilePath, effects } = get();
-    if (!effectsFilePath) return;
-
-    const TYPE_TO_CODE: Record<string, string> = {
-      color: 'c',
-      fade: 'f',
-      flash: 's',
-      blackout: 'b',
-    };
-
-    const writeEffects = effects.map((e) => ({
-      from: e.from,
-      to: e.to,
-      type: TYPE_TO_CODE[e.type] ?? e.type,
-      colors: extractColors(e),
-    }));
+    const { project, effects } = get();
+    if (!project) return;
 
     try {
-      await invoke('write_effect_file', {
-        path: effectsFilePath,
-        effects: writeEffects,
-      });
+      await persist(withSongEffects(project, effects));
       set({ isDirty: false });
     } catch (err) {
       console.error('Failed to save effects:', err);
@@ -488,11 +460,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   resetEditor: () => {
     if (autoSaveTimer) clearTimeout(autoSaveTimer);
     set({
-      projectDir: null,
-      effectsFilePath: null,
+      project: null,
       isDirty: false,
-      videoSrc: import.meta.env.DEV ? DEV_VIDEO_PATH : '',
-      videoFilePath: null,
+      videoSrc: '',
+      mediaType: null,
       videoDuration: 0,
       isPlaying: false,
       effects: [],
@@ -515,66 +486,34 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     el.volume = get().volume;
     set({ videoDuration: el.duration });
 
-    let filePath = get().videoFilePath;
+    const { project } = get();
+    const song = project && getSongMedia(project);
+    if (!project || !song) return;
 
-    if (!filePath && import.meta.env.DEV) {
-      try {
-        filePath = await invoke<string>('resolve_path', {
-          relative: '../public/example.mp4',
-        });
-      } catch (err) {
-        console.error('Could not resolve dev video path:', err);
-        return;
-      }
+    if (song.media.duration === 0 && Number.isFinite(el.duration)) {
+      persist(withSongMediaDuration(project, el.duration)).catch((err) =>
+        console.error('Failed to save media duration:', err),
+      );
     }
 
-    if (filePath) {
-      set({ waveformLoading: true });
-      extractWaveform(filePath)
-        .then((w) => set({ waveform: w, waveformLoading: false }))
-        .catch((err) => {
-          console.error(err);
-          set({ waveformLoading: false });
-        });
-    }
-  },
-
-  openVideoFile: async () => {
+    set({ waveformLoading: true });
     try {
-      const selected = await open({
-        multiple: false,
-        filters: [
-          { name: 'Video Files', extensions: ['mp4', 'webm', 'mkv', 'avi'] },
-        ],
-      });
-
-      if (selected) {
-        set({
-          videoSrc: convertFileSrc(selected),
-          videoFilePath: selected,
-        });
-      }
+      const path = await projectFilePath(project.id, song.media.file);
+      set({ waveform: await extractWaveform(path), waveformLoading: false });
     } catch (err) {
-      console.error('Failed to open video:', err);
-    }
-  },
-
-  loadEffectFile: async () => {
-    try {
-      const selected = await open({
-        multiple: false,
-        filters: [{ name: 'Effect Files', extensions: ['async', 'txt'] }],
-      });
-
-      if (!selected) return;
-
-      const effects = await effectFile.parse(selected);
-      set({ effects });
-    } catch (err) {
-      console.error('Failed to load effect file:', err);
+      console.error(err);
+      set({ waveformLoading: false });
     }
   },
 }));
+
+async function persist(next: Project) {
+  useEditorStore.setState({ project: next });
+  const saved = await saveProject(next);
+  if (useEditorStore.getState().project === next) {
+    useEditorStore.setState({ project: saved });
+  }
+}
 
 function syncEffectsToRust(effects: EffectInstance[]) {
   const payload = effects.map((e) => ({

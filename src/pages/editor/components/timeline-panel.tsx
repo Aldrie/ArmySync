@@ -44,7 +44,7 @@ export default function TimelinePanel({
 
   const selectEffect = useEditorStore((s) => s.selectEffect);
   const isDirty = useEditorStore((s) => s.isDirty);
-  const projectName = useAppStore((s) => s.activeProject?.manifest.name);
+  const projectName = useAppStore((s) => s.activeProject?.name);
 
   const { ref: droppableRef, isDropTarget } = useDroppable({
     id: 'effect-track',

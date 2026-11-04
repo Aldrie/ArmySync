@@ -1,60 +1,49 @@
 import {
   AlertCircle,
-  FolderOpen,
   Film,
   Link as LinkIcon,
   Loader2,
   Download,
+  Music,
 } from 'lucide-react';
-import { useEffect, useId, useState } from 'react';
+import { useId, useState } from 'react';
 
-import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 
 import Button from '../../../components/button';
-import DownloadModal from '../../../components/download-modal';
 import Modal from '../../../components/modal';
+import { AUDIO_EXTENSIONS, VIDEO_EXTENSIONS } from '../../../domains/project';
 import { cn } from '../../../lib/cn';
 import { useAppStore } from '../../../stores/app-store';
 
-type SourceType = 'local' | 'youtube';
+type SourceKind = 'video' | 'audio' | 'youtube';
 
-interface NewProjectModalProps {
+interface NewSongModalProps {
   open: boolean;
   onClose: () => void;
-  prefillDir?: string | null;
 }
 
-export default function NewProjectModal({
+export default function NewSongModal({
   open: isOpen,
   onClose,
-  prefillDir,
-}: NewProjectModalProps) {
-  const createProject = useAppStore((s) => s.createProject);
+}: NewSongModalProps) {
+  const createSong = useAppStore((s) => s.createSong);
   const titleId = useId();
 
   const [name, setName] = useState('');
-  const [dir, setDir] = useState('');
-  const [sourceType, setSourceType] = useState<SourceType>('local');
-
-  useEffect(() => {
-    if (prefillDir) setDir(prefillDir);
-  }, [prefillDir]);
-  const [videoPath, setVideoPath] = useState('');
+  const [sourceKind, setSourceKind] = useState<SourceKind>('video');
+  const [filePath, setFilePath] = useState('');
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [loading, setLoading] = useState(false);
-  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState('');
 
   const reset = () => {
     setName('');
-    setDir('');
-    setSourceType('local');
-    setVideoPath('');
+    setSourceKind('video');
+    setFilePath('');
     setYoutubeUrl('');
     setError('');
     setLoading(false);
-    setDownloading(false);
   };
 
   const handleClose = () => {
@@ -62,25 +51,25 @@ export default function NewProjectModal({
     onClose();
   };
 
-  const handlePickFolder = async () => {
-    const selected = await open({ directory: true, multiple: false });
-    if (selected) setDir(selected);
+  const handleSourceKind = (kind: SourceKind) => {
+    setSourceKind(kind);
+    setFilePath('');
   };
 
-  const handlePickVideo = async () => {
+  const handlePickFile = async () => {
     const selected = await open({
       multiple: false,
-      filters: [
-        { name: 'Video', extensions: ['mp4', 'mkv', 'webm', 'avi', 'mov'] },
-      ],
+      filters:
+        sourceKind === 'audio'
+          ? [{ name: 'Audio', extensions: AUDIO_EXTENSIONS }]
+          : [{ name: 'Video', extensions: VIDEO_EXTENSIONS }],
     });
-    if (selected) setVideoPath(selected);
+    if (selected) setFilePath(selected);
   };
 
+  const isYoutube = sourceKind === 'youtube';
   const canCreate =
-    name.trim() &&
-    dir.trim() &&
-    (sourceType === 'local' ? videoPath.trim() : youtubeUrl.trim());
+    name.trim() && (isYoutube ? youtubeUrl.trim() : filePath.trim());
 
   const handleCreate = async () => {
     if (!canCreate) return;
@@ -88,37 +77,12 @@ export default function NewProjectModal({
     setError('');
 
     try {
-      let finalVideoPath: string | null = null;
-
-      if (sourceType === 'local' && videoPath) {
-        const fileName = await invoke<string>('copy_file_to_dir', {
-          src: videoPath,
-          destDir: dir,
-        });
-        finalVideoPath = fileName;
-      }
-
-      if (sourceType === 'youtube' && youtubeUrl) {
-        setDownloading(true);
-        try {
-          const fileName = await invoke<string>('download_youtube', {
-            url: youtubeUrl,
-            destDir: dir,
-          });
-          finalVideoPath = fileName;
-        } finally {
-          setDownloading(false);
-        }
-      }
-
-      await createProject({
-        dir,
+      await createSong({
         name: name.trim(),
-        sourceType,
-        videoPath: finalVideoPath,
-        youtubeUrl: sourceType === 'youtube' ? youtubeUrl : null,
+        source: isYoutube
+          ? { type: 'youtube', url: youtubeUrl.trim() }
+          : { type: 'file', path: filePath },
       });
-
       handleClose();
     } catch (e) {
       setError(String(e));
@@ -126,6 +90,8 @@ export default function NewProjectModal({
       setLoading(false);
     }
   };
+
+  const fileNoun = sourceKind === 'audio' ? 'an audio file' : 'a video file';
 
   return (
     <Modal
@@ -139,12 +105,12 @@ export default function NewProjectModal({
           id={titleId}
           className="font-display text-lg font-bold tracking-tight text-on-surface"
         >
-          New Project
+          New Song
         </h2>
       </div>
 
       <div className="flex flex-col gap-5 overflow-y-auto px-6 pb-6">
-        <Field label="Project Name" htmlFor={`${titleId}-name`}>
+        <Field label="Name" htmlFor={`${titleId}-name`}>
           <input
             id={`${titleId}-name`}
             type="text"
@@ -156,71 +122,37 @@ export default function NewProjectModal({
           />
         </Field>
 
-        <Field label="Project Folder" htmlFor={`${titleId}-dir`}>
-          <div className="flex gap-2">
-            <input
-              id={`${titleId}-dir`}
-              type="text"
-              value={dir}
-              readOnly
-              onClick={() => void handlePickFolder()}
-              placeholder="Select a folder..."
-              className={cn(INPUT, 'cursor-pointer')}
-            />
-            <Button onClick={() => void handlePickFolder()}>
-              <FolderOpen />
-              Browse
-            </Button>
-          </div>
-        </Field>
-
-        <Field label="Video Source">
+        <Field label="Source">
           <div
             role="radiogroup"
             className="flex gap-1 rounded-lg border border-border bg-surface-low p-1"
           >
             <SourceTab
-              active={sourceType === 'local'}
-              onClick={() => setSourceType('local')}
+              active={sourceKind === 'video'}
+              onClick={() => handleSourceKind('video')}
               icon={<Film className="size-4" />}
-              label="Local Video"
+              label="Video file"
             />
             <SourceTab
-              active={sourceType === 'youtube'}
-              onClick={() => setSourceType('youtube')}
+              active={sourceKind === 'audio'}
+              onClick={() => handleSourceKind('audio')}
+              icon={<Music className="size-4" />}
+              label="Audio file"
+            />
+            <SourceTab
+              active={isYoutube}
+              onClick={() => handleSourceKind('youtube')}
               icon={<Download className="size-4" />}
               label="YouTube"
             />
           </div>
         </Field>
 
-        {sourceType === 'local' ? (
-          <Field
-            label="Video File"
-            htmlFor={`${titleId}-video`}
-            hint="The video will be copied into the project folder if not already there."
-          >
-            <div className="flex gap-2">
-              <input
-                id={`${titleId}-video`}
-                type="text"
-                value={videoPath}
-                readOnly
-                onClick={() => void handlePickVideo()}
-                placeholder="Select a video file..."
-                className={cn(INPUT, 'cursor-pointer')}
-              />
-              <Button onClick={() => void handlePickVideo()}>
-                <Film />
-                Browse
-              </Button>
-            </div>
-          </Field>
-        ) : (
+        {isYoutube ? (
           <Field
             label="YouTube URL"
             htmlFor={`${titleId}-url`}
-            hint="The video will be downloaded using yt-dlp into the project folder."
+            hint="The video will be downloaded into your library."
           >
             <div className="relative">
               <LinkIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-outline" />
@@ -232,6 +164,28 @@ export default function NewProjectModal({
                 placeholder="https://www.youtube.com/watch?v=..."
                 className={cn(INPUT, 'pl-9')}
               />
+            </div>
+          </Field>
+        ) : (
+          <Field
+            label={sourceKind === 'audio' ? 'Audio file' : 'Video file'}
+            htmlFor={`${titleId}-file`}
+            hint="The file will be copied into your library."
+          >
+            <div className="flex gap-2">
+              <input
+                id={`${titleId}-file`}
+                type="text"
+                value={filePath}
+                readOnly
+                onClick={() => void handlePickFile()}
+                placeholder={`Select ${fileNoun}...`}
+                className={cn(INPUT, 'cursor-pointer')}
+              />
+              <Button onClick={() => void handlePickFile()}>
+                {sourceKind === 'audio' ? <Music /> : <Film />}
+                Browse
+              </Button>
             </div>
           </Field>
         )}
@@ -258,14 +212,12 @@ export default function NewProjectModal({
         >
           {loading && <Loader2 className="animate-spin" />}
           {loading
-            ? sourceType === 'youtube'
+            ? isYoutube
               ? 'Downloading...'
               : 'Creating...'
-            : 'Create Project'}
+            : 'Create Song'}
         </Button>
       </div>
-
-      <DownloadModal open={downloading} />
     </Modal>
   );
 }

@@ -2,14 +2,9 @@ use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::{App, Emitter};
 
 pub fn setup(app: &App) -> Result<(), Box<dyn std::error::Error>> {
-  let new_project = MenuItemBuilder::new("New Project")
+  let new_project = MenuItemBuilder::new("New Song")
     .id("new_project")
     .accelerator("CmdOrCtrl+N")
-    .build(app)?;
-
-  let open_project = MenuItemBuilder::new("Open Project...")
-    .id("open_project")
-    .accelerator("CmdOrCtrl+O")
     .build(app)?;
 
   let save = MenuItemBuilder::new("Save")
@@ -24,7 +19,6 @@ pub fn setup(app: &App) -> Result<(), Box<dyn std::error::Error>> {
 
   let file_menu = SubmenuBuilder::new(app, "File")
     .item(&new_project)
-    .item(&open_project)
     .separator()
     .item(&save)
     .separator()
@@ -52,7 +46,7 @@ pub fn setup(app: &App) -> Result<(), Box<dyn std::error::Error>> {
   app.on_menu_event(move |_app, event| {
     let id = event.id().0.as_str();
     match id {
-      "new_project" | "open_project" | "save" | "close_project" => {
+      "new_project" | "save" | "close_project" => {
         let _ = app_handle.emit("menu-action", id);
       }
       _ => {}

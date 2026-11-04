@@ -1,12 +1,12 @@
-import { Film } from 'lucide-react';
+import { Music } from 'lucide-react';
 import type { RefObject } from 'react';
 
-import Button from '../../../components/button';
+import { useAppStore } from '../../../stores/app-store';
+import { useEditorStore } from '../../../stores/editor-store';
 
 interface VideoAreaProps {
   videoRef: RefObject<HTMLVideoElement | null>;
   videoSrc: string;
-  onOpenVideo: () => void;
   onLoadedData: () => void;
   onTimeUpdate: () => void;
 }
@@ -14,13 +14,15 @@ interface VideoAreaProps {
 export default function VideoArea({
   videoRef,
   videoSrc,
-  onOpenVideo,
   onLoadedData,
   onTimeUpdate,
 }: VideoAreaProps) {
+  const mediaType = useEditorStore((s) => s.mediaType);
+  const songName = useAppStore((s) => s.activeProject?.name);
+
   return (
     <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-lg bg-black ring-1 ring-border">
-      {videoSrc ? (
+      {videoSrc && (
         <video
           ref={videoRef}
           src={videoSrc}
@@ -28,12 +30,15 @@ export default function VideoArea({
           onLoadedData={onLoadedData}
           onTimeUpdate={onTimeUpdate}
         />
-      ) : (
-        <div className="flex flex-col items-center gap-4 text-center">
+      )}
+      {mediaType === 'audio' && (
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
           <div className="flex size-11 items-center justify-center rounded-xl bg-surface-high text-on-surface-variant">
-            <Film className="size-5" />
+            <Music className="size-5" />
           </div>
-          <Button onClick={onOpenVideo}>Open Video File</Button>
+          <p className="max-w-full truncate text-sm font-medium text-on-surface">
+            {songName}
+          </p>
         </div>
       )}
     </div>
