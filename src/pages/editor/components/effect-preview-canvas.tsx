@@ -36,7 +36,7 @@ export default function EffectPreviewCanvas({
   return (
     <canvas
       ref={canvasRef}
-      className="w-full h-10 rounded-md border border-outline-variant"
+      className="w-full h-10 rounded-lg outline-1 -outline-offset-1 outline-border-strong"
     />
   );
 }

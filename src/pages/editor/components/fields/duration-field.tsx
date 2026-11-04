@@ -29,12 +29,13 @@ export default function DurationField({
     <div className="flex items-center justify-between gap-2">
       <span className="text-xs text-on-surface-variant">{label}</span>
       <div className="flex items-center gap-2">
-        <span className="text-xs text-on-surface-variant font-mono tabular-nums">
+        <span className="text-[11px] text-outline tabular-nums">
           {format.videoTime(value)}
         </span>
         <input
           type="number"
-          className="bg-surface-high text-on-surface text-xs rounded-md px-2 py-1.5 border border-outline-variant outline-none w-16 text-right font-mono tabular-nums"
+          aria-label={label}
+          className="h-7 rounded-md border border-border-strong bg-surface-container text-xs text-on-surface outline-none transition-[border-color,box-shadow] hover:border-outline-variant focus:border-primary/70 focus:ring-3 focus:ring-primary/15 w-16 px-2 text-right tabular-nums"
           value={value.toFixed(1)}
           min={min}
           max={max}

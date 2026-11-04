@@ -28,7 +28,7 @@ export default function NumberField({
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between">
         <span className="text-xs text-on-surface-variant">{label}</span>
-        <span className="text-xs text-on-surface font-mono tabular-nums">
+        <span className="text-xs font-medium text-on-surface tabular-nums">
           {value}
         </span>
       </div>
@@ -37,7 +37,8 @@ export default function NumberField({
         max={max}
         step={step}
         defaultValue={value}
-        className="w-full h-1.5 rounded-sm"
+        aria-label={label}
+        className="w-full"
         onChange={handleSliderChange}
       />
     </div>

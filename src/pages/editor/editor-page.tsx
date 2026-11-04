@@ -290,17 +290,17 @@ export default function EditorPage() {
             const Icon = icons[def.icon as keyof typeof icons];
 
             return (
-              <div className="flex w-64 items-center gap-2.5 p-2.5 rounded-lg bg-surface-highest border border-primary/50 shadow-popover cursor-grabbing">
+              <div className="flex w-64 items-center gap-3 p-2.5 rounded-lg bg-surface-highest border border-primary/50 shadow-popover cursor-grabbing">
                 {Icon && (
-                  <div className="w-7 h-7 rounded-md bg-surface-bright flex items-center justify-center shrink-0">
-                    <Icon className="size-3.5 text-primary" />
+                  <div className="size-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                    <Icon className="size-4 text-primary" />
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <span className="block font-semibold text-xs text-on-surface">
+                  <span className="block font-medium text-[13px] leading-tight text-on-surface">
                     {def.label}
                   </span>
-                  <span className="block text-[11px] text-on-surface-variant truncate">
+                  <span className="mt-0.5 block text-[11px] text-on-surface-variant truncate">
                     {def.description}
                   </span>
                 </div>

@@ -26,18 +26,28 @@ export default function PropertiesPanel({ effect }: PropertiesPanelProps) {
 
   if (!definition) return null;
 
+  const timing = [
+    { label: 'Start', value: effect.from },
+    { label: 'End', value: effect.to },
+    { label: 'Duration', value: effect.to - effect.from },
+  ];
+
   return (
-    <div className="flex flex-col gap-4 pb-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <span className="block font-display font-bold text-sm text-on-surface">
+    <div className="flex flex-col gap-4 pb-2">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <span className="block font-medium text-[13px] text-on-surface">
             {definition.label}
           </span>
-          <span className="block text-[10px] text-on-surface-variant mt-0.5">
+          <span className="block text-[11px] text-on-surface-variant mt-0.5">
             {definition.description}
           </span>
         </div>
-        <IconButton label="Delete effect" onClick={() => deleteSelection()}>
+        <IconButton
+          label="Delete effect"
+          className="-mt-1 -mr-1 hover:bg-error/10 hover:text-error"
+          onClick={() => deleteSelection()}
+        >
           <Trash2 />
         </IconButton>
       </div>
@@ -45,7 +55,7 @@ export default function PropertiesPanel({ effect }: PropertiesPanelProps) {
       <EffectPreviewCanvas effectType={effect.type} params={effect.params} />
 
       {definition.fields.length > 0 && (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3.5">
           {definition.fields.map((field) => (
             <FieldRenderer
               key={field.key}
@@ -57,26 +67,16 @@ export default function PropertiesPanel({ effect }: PropertiesPanelProps) {
         </div>
       )}
 
-      <div className="flex flex-col gap-2 pt-2 border-t border-outline-variant">
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-on-surface-variant">Start</span>
-          <span className="text-xs text-on-surface font-mono tabular-nums">
-            {effect.from.toFixed(2)}s
-          </span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-on-surface-variant">End</span>
-          <span className="text-xs text-on-surface font-mono tabular-nums">
-            {effect.to.toFixed(2)}s
-          </span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-on-surface-variant">Duration</span>
-          <span className="text-xs text-on-surface font-mono tabular-nums">
-            {(effect.to - effect.from).toFixed(2)}s
-          </span>
-        </div>
-      </div>
+      <dl className="grid grid-cols-3 divide-x divide-border rounded-lg border border-border bg-surface-container">
+        {timing.map(({ label, value }) => (
+          <div key={label} className="flex flex-col gap-0.5 px-3 py-2">
+            <dt className="text-[11px] text-on-surface-variant">{label}</dt>
+            <dd className="text-xs font-medium text-on-surface tabular-nums">
+              {value.toFixed(2)}s
+            </dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }

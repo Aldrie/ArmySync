@@ -24,7 +24,8 @@ export default function SelectField({
     <div className="flex items-center justify-between gap-2">
       <span className="text-xs text-on-surface-variant">{label}</span>
       <select
-        className="bg-surface-high text-on-surface text-xs rounded-md px-2 py-1.5 border border-outline-variant outline-none"
+        aria-label={label}
+        className="h-7 rounded-md border border-border-strong bg-surface-container text-xs text-on-surface outline-none transition-[border-color,box-shadow] hover:border-outline-variant focus:border-primary/70 focus:ring-3 focus:ring-primary/15 cursor-pointer px-2"
         value={value}
         onChange={handleChange}
       >

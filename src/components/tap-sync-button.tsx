@@ -106,7 +106,7 @@ export default function TapSyncButton({ onBpmEstimate }: TapSyncButtonProps) {
       <div className="flex items-center justify-between">
         <span className="text-xs text-on-surface-variant">Tap Sync</span>
         {currentBpm !== null && (
-          <span className="text-xs text-primary font-mono tabular-nums">
+          <span className="text-xs font-medium text-primary tabular-nums">
             {currentBpm} BPM
           </span>
         )}
@@ -114,7 +114,7 @@ export default function TapSyncButton({ onBpmEstimate }: TapSyncButtonProps) {
 
       <motion.button
         type="button"
-        className="relative overflow-hidden rounded-lg h-10 font-display font-bold text-xs tracking-wider uppercase cursor-pointer select-none border border-outline-variant bg-surface-container text-on-surface-variant transition-colors hover:border-primary/40"
+        className="relative overflow-hidden rounded-lg h-9 text-xs font-semibold cursor-pointer select-none border border-border-strong bg-surface-container text-on-surface shadow-raised transition-colors hover:border-primary/40"
         onClick={handleTap}
         whileTap={{ scale: 0.97 }}
         transition={{ type: 'spring', stiffness: 600, damping: 30, mass: 0.5 }}

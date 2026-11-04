@@ -26,14 +26,16 @@ export default function ColorField({
       <span className="text-xs text-on-surface-variant">{label}</span>
       <button
         type="button"
-        className="flex items-center gap-2 cursor-pointer"
+        aria-label={`${label}: ${value}`}
+        aria-expanded={anchor !== null}
+        className="flex h-7 cursor-pointer items-center gap-2 rounded-md border border-border-strong bg-surface-container pr-2.5 pl-1 transition-colors hover:border-outline-variant"
         onClick={handleToggle}
       >
-        <div
-          className="w-6 h-6 rounded-md border border-outline-variant"
+        <span
+          className="size-5 rounded-[4px] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.15)]"
           style={{ backgroundColor: value }}
         />
-        <span className="text-xs text-on-surface font-mono uppercase">
+        <span className="font-mono text-[11px] text-on-surface uppercase tabular-nums">
           {value}
         </span>
       </button>

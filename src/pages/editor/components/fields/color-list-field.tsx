@@ -62,7 +62,8 @@ export default function ColorListField({
                 else swatchRefs.current.delete(i);
               }}
               type="button"
-              className="cursor-pointer"
+              aria-label={`${label} ${i + 1}: ${color}`}
+              className="block cursor-pointer rounded-md"
               onClick={(e) => {
                 const next = activeIndex === i ? null : i;
                 setActiveIndex(next);
@@ -72,10 +73,10 @@ export default function ColorListField({
               }}
             >
               <div
-                className={`w-7 h-7 rounded-md border transition-colors ${
+                className={`size-7 rounded-md shadow-[inset_0_0_0_1px_rgba(255,255,255,0.15)] transition-shadow ${
                   activeIndex === i
-                    ? 'border-primary ring-1 ring-primary/40'
-                    : 'border-outline-variant'
+                    ? 'ring-2 ring-primary ring-offset-2 ring-offset-surface-low'
+                    : ''
                 }`}
                 style={{ backgroundColor: color }}
               />
@@ -83,7 +84,8 @@ export default function ColorListField({
             {value.length > min && (
               <button
                 type="button"
-                className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-error rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                aria-label={`Remove ${color}`}
+                className="absolute -top-1.5 -right-1.5 size-4 bg-error rounded-full shadow-[0_0_0_2px_var(--color-surface-low)] focus-visible:opacity-100 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                 onClick={() => handleRemove(i)}
               >
                 <X className="size-2 text-on-error" strokeWidth={3} />
@@ -94,10 +96,11 @@ export default function ColorListField({
         {value.length < max && (
           <button
             type="button"
-            className="w-7 h-7 rounded-md border border-dashed border-outline-variant flex items-center justify-center hover:border-on-surface-variant transition-colors cursor-pointer"
+            aria-label="Add color"
+            className="size-7 rounded-md border border-dashed border-outline-variant flex items-center justify-center text-on-surface-variant hover:border-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
             onClick={handleAdd}
           >
-            <Plus className="size-3 text-on-surface-variant" />
+            <Plus className="size-3.5" />
           </button>
         )}
       </div>

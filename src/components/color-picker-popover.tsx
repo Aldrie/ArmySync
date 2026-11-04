@@ -48,7 +48,7 @@ export default function ColorPickerPopover({
   return createPortal(
     <div
       ref={popoverRef}
-      className="fixed z-100 rounded-lg border border-outline-variant bg-surface-container p-3 shadow-xl"
+      className="fixed z-100 rounded-xl border border-border-strong bg-surface-container p-3 shadow-popover"
       style={{ top: position.top, left: position.left }}
     >
       <HexColorPicker color={color} onChange={onChange} />
@@ -56,7 +56,7 @@ export default function ColorPickerPopover({
         color={color}
         onChange={onChange}
         prefixed
-        className="mt-2 w-full rounded-md border border-outline-variant bg-surface-high px-2.5 py-1.5 text-xs font-mono text-on-surface outline-none focus:border-primary"
+        className="mt-3 w-full h-7 rounded-md border border-border-strong bg-surface-container text-xs text-on-surface outline-none transition-[border-color,box-shadow] hover:border-outline-variant focus:border-primary/70 focus:ring-3 focus:ring-primary/15 px-2.5 font-mono uppercase"
       />
     </div>,
     document.body,
