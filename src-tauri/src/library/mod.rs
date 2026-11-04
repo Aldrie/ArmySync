@@ -46,10 +46,14 @@ fn project_dir(base: &Path, id: &str) -> Result<PathBuf, String> {
   Ok(projects_root(base).join(id))
 }
 
+fn parse_json(path: &Path, content: &str) -> Result<Value, String> {
+  serde_json::from_str(content).map_err(|e| format!("Failed to parse '{}': {}", path.display(), e))
+}
+
 fn read_json(path: &Path) -> Result<Value, String> {
   let content =
     fs::read_to_string(path).map_err(|e| format!("Failed to read '{}': {}", path.display(), e))?;
-  serde_json::from_str(&content).map_err(|e| format!("Failed to parse '{}': {}", path.display(), e))
+  parse_json(path, &content)
 }
 
 fn write_json_atomic(dir: &Path, file_name: &str, value: &Value) -> Result<(), String> {
@@ -58,8 +62,12 @@ fn write_json_atomic(dir: &Path, file_name: &str, value: &Value) -> Result<(), S
   let tmp = dir.join(format!("{}.tmp", file_name));
   let json =
     serde_json::to_string_pretty(value).map_err(|e| format!("Failed to serialize: {}", e))?;
-  fs::write(&tmp, json).map_err(|e| format!("Failed to write '{}': {}", tmp.display(), e))?;
-  fs::rename(&tmp, &target).map_err(|e| format!("Failed to write '{}': {}", target.display(), e))
+  fs::write(&tmp, json)
+    .and_then(|_| fs::rename(&tmp, &target))
+    .map_err(|e| {
+      let _ = fs::remove_file(&tmp);
+      format!("Failed to write '{}': {}", target.display(), e)
+    })
 }
 
 fn list_projects_in(base: &Path) -> Result<Vec<ProjectSummary>, String> {
@@ -129,10 +137,11 @@ fn app_json_file(name: &str) -> Result<String, String> {
 
 fn read_app_json_in(base: &Path, name: &str) -> Result<Value, String> {
   let path = base.join(app_json_file(name)?);
-  if !path.exists() {
-    return Ok(Value::Null);
+  match fs::read_to_string(&path) {
+    Ok(content) => parse_json(&path, &content),
+    Err(e) if e.kind() == ErrorKind::NotFound => Ok(Value::Null),
+    Err(e) => Err(format!("Failed to read '{}': {}", path.display(), e)),
   }
-  read_json(&path)
 }
 
 fn write_app_json_in(base: &Path, name: &str, value: &Value) -> Result<(), String> {
@@ -159,7 +168,7 @@ pub fn delete_project(app: tauri::AppHandle, id: String) -> Result<(), String> {
   delete_project_in(&app_data_dir(&app)?, &id)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn import_media(
   app: tauri::AppHandle,
   project_id: String,
@@ -365,5 +374,28 @@ mod tests {
       })
       .collect();
     assert!(leftovers.is_empty());
+  }
+
+  #[cfg(unix)]
+  #[test]
+  fn app_json_read_error_is_not_null() {
+    use std::os::unix::fs::PermissionsExt;
+    let t = TempBase::new();
+    let base = t.base();
+    fs::create_dir_all(&base).unwrap();
+    fs::write(base.join("settings.json"), "{}").unwrap();
+    fs::set_permissions(&base, fs::Permissions::from_mode(0o000)).unwrap();
+    let result = read_app_json_in(&base, "settings");
+    fs::set_permissions(&base, fs::Permissions::from_mode(0o755)).unwrap();
+    assert!(result.is_err());
+  }
+
+  #[test]
+  fn failed_rename_removes_tmp() {
+    let t = TempBase::new();
+    let base = t.base();
+    fs::create_dir_all(base.join("projects/abc/project.json/occupied")).unwrap();
+    assert!(write_project_in(&base, "abc", &sample("abc")).is_err());
+    assert!(!base.join("projects/abc/project.json.tmp").exists());
   }
 }
