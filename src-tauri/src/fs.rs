@@ -1,6 +1,8 @@
-use std::io::{BufRead, BufReader};
+use std::collections::VecDeque;
+use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
-use std::process::{Command, ExitStatus, Stdio};
+use std::process::{Command, Stdio};
+use std::thread;
 
 use regex::Regex;
 use serde::Serialize;
@@ -31,7 +33,18 @@ fn parse_progress(percent_re: &Regex, line: &str) -> Option<DownloadProgress> {
   })
 }
 
-fn run_yt_dlp(app: &AppHandle, url: &str, output_template: &Path) -> Result<ExitStatus, String> {
+fn last_lines(reader: impl Read, n: usize) -> String {
+  let mut tail = VecDeque::with_capacity(n);
+  for line in BufReader::new(reader).lines().map_while(Result::ok) {
+    if tail.len() == n {
+      tail.pop_front();
+    }
+    tail.push_back(line);
+  }
+  Vec::from(tail).join("\n")
+}
+
+fn run_yt_dlp(app: &AppHandle, url: &str, output_template: &Path) -> Result<(), String> {
   let mut child = Command::new("yt-dlp")
     .arg("-f")
     .arg("bestvideo+bestaudio/best")
@@ -43,12 +56,15 @@ fn run_yt_dlp(app: &AppHandle, url: &str, output_template: &Path) -> Result<Exit
     .arg("-o")
     .arg(output_template.to_string_lossy().as_ref())
     .arg("--no-playlist")
+    .arg("--")
     .arg(url)
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
     .spawn()
     .map_err(|e| format!("Failed to run yt-dlp (is it installed?): {}", e))?;
 
+  let stderr = child.stderr.take().ok_or("Failed to capture stderr")?;
+  let stderr_tail = thread::spawn(move || last_lines(stderr, 5));
   let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
   let reader = BufReader::new(stdout);
   let percent_re = Regex::new(r"(\d+\.?\d*)%").unwrap();
@@ -63,18 +79,19 @@ fn run_yt_dlp(app: &AppHandle, url: &str, output_template: &Path) -> Result<Exit
   let status = child
     .wait()
     .map_err(|e| format!("Failed to wait for yt-dlp: {}", e))?;
+  let tail = stderr_tail.join().unwrap_or_default();
 
-  if status.success() {
-    let _ = app.emit(
-      "download-progress",
-      DownloadProgress {
-        percent: 100.0,
-        status: "done".to_string(),
-      },
-    );
+  if !status.success() {
+    return Err(format!("yt-dlp download failed: {}", tail));
   }
-
-  Ok(status)
+  let _ = app.emit(
+    "download-progress",
+    DownloadProgress {
+      percent: 100.0,
+      status: "done".to_string(),
+    },
+  );
+  Ok(())
 }
 
 #[tauri::command(async)]
@@ -95,9 +112,7 @@ pub fn download_youtube_media(
     .map_err(|e| format!("Failed to create '{}': {}", media_dir.display(), e))?;
 
   let output_template = media_dir.join(format!("{}.%(ext)s", media_id));
-  if !run_yt_dlp(&app, &url, &output_template)?.success() {
-    return Err("yt-dlp download failed".to_string());
-  }
+  run_yt_dlp(&app, &url, &output_template)?;
 
   let file_name = format!("{}.mp4", media_id);
   if media_dir.join(&file_name).exists() {
@@ -132,5 +147,11 @@ mod tests {
     );
     assert_eq!(parse("50% other"), Some((50.0, "downloading".to_string())));
     assert_eq!(parse("[youtube] Extracting URL"), None);
+  }
+
+  #[test]
+  fn keeps_the_last_lines() {
+    assert_eq!(last_lines("a\nb\nc\nd".as_bytes(), 2), "c\nd");
+    assert_eq!(last_lines("".as_bytes(), 5), "");
   }
 }

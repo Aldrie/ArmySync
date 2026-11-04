@@ -93,6 +93,12 @@ export const createSong = async (input: {
   name: string;
   source: NewSongSource;
 }): Promise<Project> => {
+  if (
+    input.source.type === 'youtube' &&
+    !/^https?:\/\//i.test(input.source.url)
+  ) {
+    throw new Error('Enter a YouTube link starting with https://');
+  }
   const id = createId();
   const mediaId = createId();
   try {

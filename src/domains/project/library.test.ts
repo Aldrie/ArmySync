@@ -84,6 +84,16 @@ describe('createSong', () => {
     ).rejects.toThrow('original');
   });
 
+  it('rejects a YouTube link that is not http(s)', async () => {
+    await expect(
+      createSong({
+        name: 'Song',
+        source: { type: 'youtube', url: '--exec=touch /tmp/x' },
+      }),
+    ).rejects.toThrow('Enter a YouTube link starting with https://');
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
   it('writes a song project for a file source', async () => {
     invokeMock.mockImplementation((cmd) =>
       Promise.resolve(cmd === 'import_media' ? 'media/m1.m4a' : undefined),
