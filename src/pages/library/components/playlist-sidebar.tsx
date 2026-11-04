@@ -1,5 +1,5 @@
 import { Library, ListMusic, Pencil, Plus, Trash2 } from 'lucide-react';
-import { useId, useState, type ReactNode } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 
 import Button from '../../../components/button';
 import IconButton from '../../../components/icon-button';
@@ -184,6 +184,15 @@ function NameInput({
   onCancel: () => void;
 }) {
   const [value, setValue] = useState(initial);
+  const settled = useRef(false);
+
+  const settle = (save: boolean) => {
+    if (settled.current) return;
+    settled.current = true;
+    const name = value.trim();
+    if (save && name && name !== initial) onSubmit(name);
+    else onCancel();
+  };
 
   return (
     <input
@@ -193,10 +202,10 @@ function NameInput({
       autoFocus
       onChange={(e) => setValue(e.target.value)}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') onSubmit(value);
-        if (e.key === 'Escape') onCancel();
+        if (e.key === 'Enter') settle(true);
+        if (e.key === 'Escape') settle(false);
       }}
-      onBlur={onCancel}
+      onBlur={() => settle(true)}
       className="h-8 w-full min-w-0 rounded-lg border border-border-strong bg-surface-low px-2.5 text-sm text-on-surface outline-none transition-[border-color,box-shadow] placeholder:text-outline focus:border-primary/70 focus:ring-3 focus:ring-primary/15"
     />
   );
