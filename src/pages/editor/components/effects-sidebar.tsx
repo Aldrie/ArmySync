@@ -26,7 +26,7 @@ export default function EffectsSidebar() {
       {selectedEffect && (
         <section className="flex flex-col gap-3 border-t border-border p-4">
           <h2 className="text-xs font-semibold text-on-surface">Properties</h2>
-          <PropertiesPanel effect={selectedEffect} />
+          <PropertiesPanel key={selectedEffect.id} effect={selectedEffect} />
         </section>
       )}
     </div>

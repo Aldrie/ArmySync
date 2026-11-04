@@ -58,7 +58,7 @@ export default function PropertiesPanel({ effect }: PropertiesPanelProps) {
         <div className="flex flex-col gap-3.5">
           {definition.fields.map((field) => (
             <FieldRenderer
-              key={field.key}
+              key={`${field.type}-${field.key}`}
               field={field}
               value={effect.params[field.key]}
               onChange={handleFieldChange}
