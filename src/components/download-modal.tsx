@@ -17,7 +17,12 @@ interface DownloadModalProps {
 
 export default function DownloadModal({ open }: DownloadModalProps) {
   return (
-    <Modal open={open} onClose={() => {}}>
+    <Modal
+      open={open}
+      onClose={() => {}}
+      labelledBy="download-modal-title"
+      className="w-sm"
+    >
       {open && <DownloadContent />}
     </Modal>
   );
@@ -49,29 +54,42 @@ function DownloadContent() {
       : 'Downloading video...';
 
   return (
-    <div className="w-sm rounded-xl border border-outline-variant bg-surface-container p-6 shadow-2xl">
-      <div className="mb-4 flex items-center gap-3">
-        {isDone ? (
-          <CheckCircle2 className="h-5 w-5 text-primary" />
-        ) : (
-          <Download className="h-5 w-5 text-primary" />
-        )}
-        <h3 className="text-sm font-semibold text-on-surface">{label}</h3>
+    <div className="p-6">
+      <div className="mb-5 flex items-center gap-3">
+        <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          {isDone ? (
+            <CheckCircle2 className="size-4.5" />
+          ) : (
+            <Download className="size-4.5" />
+          )}
+        </div>
+        <h3
+          id="download-modal-title"
+          className="text-sm font-semibold text-on-surface"
+        >
+          {label}
+        </h3>
       </div>
 
-      <div className="mb-2 h-2 overflow-hidden rounded-full bg-surface-high">
+      <div
+        role="progressbar"
+        aria-valuenow={Math.round(progress.percent)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        className="mb-2 h-1.5 overflow-hidden rounded-full bg-surface-highest"
+      >
         <div
           className={cn(
-            'h-full rounded-full transition-all duration-300',
-            isDone ? 'bg-primary' : 'bg-primary/80',
+            'h-full rounded-full bg-primary transition-[width] duration-300 ease-out',
+            isProcessing && 'animate-pulse',
           )}
           style={{ width: `${Math.min(progress.percent, 100)}%` }}
         />
       </div>
 
-      <div className="flex items-center justify-between text-xs text-on-surface-variant">
+      <div className="flex items-center justify-between text-xs text-on-surface-variant tabular-nums">
         <span>{Math.round(progress.percent)}%</span>
-        {!isDone && <Loader2 className="h-3 w-3 animate-spin" />}
+        {!isDone && <Loader2 className="size-3 animate-spin" />}
       </div>
     </div>
   );

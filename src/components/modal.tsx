@@ -10,6 +10,7 @@ interface ModalProps {
   onClose: () => void;
   children: ReactNode;
   className?: string;
+  labelledBy?: string;
 }
 
 export default function Modal({
@@ -17,6 +18,7 @@ export default function Modal({
   onClose,
   children,
   className,
+  labelledBy,
 }: ModalProps) {
   useEffect(() => {
     if (!open) return;
@@ -40,7 +42,7 @@ export default function Modal({
           transition={{ duration: 0.15 }}
         >
           <motion.div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
             onClick={onClose}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -48,10 +50,16 @@ export default function Modal({
           />
 
           <motion.div
-            className={cn('relative z-10', className)}
-            initial={{ opacity: 0, scale: 0.95, y: 8 }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={labelledBy}
+            className={cn(
+              'relative z-10 max-h-[calc(100vh-4rem)] rounded-xl border border-border-strong bg-surface-container shadow-popover',
+              className,
+            )}
+            initial={{ opacity: 0, scale: 0.97, y: 6 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 8 }}
+            exit={{ opacity: 0, scale: 0.97, y: 6 }}
             transition={spring}
             onClick={(e) => e.stopPropagation()}
           >

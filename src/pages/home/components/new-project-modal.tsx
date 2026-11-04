@@ -1,15 +1,17 @@
 import {
+  AlertCircle,
   FolderOpen,
   Film,
   Link as LinkIcon,
   Loader2,
   Download,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 
+import Button from '../../../components/button';
 import DownloadModal from '../../../components/download-modal';
 import Modal from '../../../components/modal';
 import { cn } from '../../../lib/cn';
@@ -29,6 +31,7 @@ export default function NewProjectModal({
   prefillDir,
 }: NewProjectModalProps) {
   const createProject = useAppStore((s) => s.createProject);
+  const titleId = useId();
 
   const [name, setName] = useState('');
   const [dir, setDir] = useState('');
@@ -125,154 +128,173 @@ export default function NewProjectModal({
   };
 
   return (
-    <Modal open={isOpen} onClose={handleClose}>
-      <div className="w-lg rounded-xl border border-outline-variant bg-surface-container p-6 shadow-2xl">
-        <h2 className="mb-6 text-lg font-semibold text-on-surface">
+    <Modal
+      open={isOpen}
+      onClose={handleClose}
+      labelledBy={titleId}
+      className="flex w-lg flex-col"
+    >
+      <div className="px-6 pt-6 pb-5">
+        <h2
+          id={titleId}
+          className="font-display text-lg font-bold tracking-tight text-on-surface"
+        >
           New Project
         </h2>
+      </div>
 
-        {/* Project name */}
-        <fieldset className="mb-4">
-          <label className="mb-1.5 block text-xs font-medium text-on-surface-variant">
-            Project Name
-          </label>
+      <div className="flex flex-col gap-5 overflow-y-auto px-6 pb-6">
+        <Field label="Project Name" htmlFor={`${titleId}-name`}>
           <input
+            id={`${titleId}-name`}
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="My Concert Edit"
-            className="w-full rounded-lg border border-outline-variant bg-surface px-3 py-2 text-sm text-on-surface placeholder:text-outline outline-none transition-colors focus:border-primary"
+            autoFocus
+            className={INPUT}
           />
-        </fieldset>
+        </Field>
 
-        {/* Project folder */}
-        <fieldset className="mb-4">
-          <label className="mb-1.5 block text-xs font-medium text-on-surface-variant">
-            Project Folder
-          </label>
+        <Field label="Project Folder" htmlFor={`${titleId}-dir`}>
           <div className="flex gap-2">
             <input
+              id={`${titleId}-dir`}
               type="text"
               value={dir}
               readOnly
-              placeholder="Select a folder..."
-              className="min-w-0 flex-1 rounded-lg border border-outline-variant bg-surface px-3 py-2 text-sm text-on-surface placeholder:text-outline outline-none"
-            />
-            <button
               onClick={() => void handlePickFolder()}
-              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-outline-variant bg-surface-high px-3 py-2 text-sm text-on-surface transition-colors hover:bg-surface-highest"
-            >
-              <FolderOpen className="h-4 w-4" />
+              placeholder="Select a folder..."
+              className={cn(INPUT, 'cursor-pointer')}
+            />
+            <Button onClick={() => void handlePickFolder()}>
+              <FolderOpen />
               Browse
-            </button>
+            </Button>
           </div>
-        </fieldset>
+        </Field>
 
-        {/* Source type toggle */}
-        <fieldset className="mb-4">
-          <label className="mb-1.5 block text-xs font-medium text-on-surface-variant">
-            Video Source
-          </label>
-          <div className="flex gap-1 rounded-lg border border-outline-variant bg-surface p-1">
+        <Field label="Video Source">
+          <div
+            role="radiogroup"
+            className="flex gap-1 rounded-lg border border-border bg-surface-low p-1"
+          >
             <SourceTab
               active={sourceType === 'local'}
               onClick={() => setSourceType('local')}
-              icon={<Film className="h-4 w-4" />}
+              icon={<Film className="size-4" />}
               label="Local Video"
             />
             <SourceTab
               active={sourceType === 'youtube'}
               onClick={() => setSourceType('youtube')}
-              icon={<Download className="h-4 w-4" />}
+              icon={<Download className="size-4" />}
               label="YouTube"
             />
           </div>
-        </fieldset>
+        </Field>
 
-        {/* Source field */}
-        <fieldset className="mb-6">
-          {sourceType === 'local' ? (
-            <>
-              <label className="mb-1.5 block text-xs font-medium text-on-surface-variant">
-                Video File
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={videoPath}
-                  readOnly
-                  placeholder="Select a video file..."
-                  className="min-w-0 flex-1 rounded-lg border border-outline-variant bg-surface px-3 py-2 text-sm text-on-surface placeholder:text-outline outline-none"
-                />
-                <button
-                  onClick={() => void handlePickVideo()}
-                  className="flex shrink-0 items-center gap-1.5 rounded-lg border border-outline-variant bg-surface-high px-3 py-2 text-sm text-on-surface transition-colors hover:bg-surface-highest"
-                >
-                  <Film className="h-4 w-4" />
-                  Browse
-                </button>
-              </div>
-              <p className="mt-1.5 text-xs text-outline">
-                The video will be copied into the project folder if not already
-                there.
-              </p>
-            </>
-          ) : (
-            <>
-              <label className="mb-1.5 block text-xs font-medium text-on-surface-variant">
-                YouTube URL
-              </label>
-              <div className="flex items-center gap-2 rounded-lg border border-outline-variant bg-surface px-3 py-2">
-                <LinkIcon className="h-4 w-4 shrink-0 text-outline" />
-                <input
-                  type="text"
-                  value={youtubeUrl}
-                  onChange={(e) => setYoutubeUrl(e.target.value)}
-                  placeholder="https://www.youtube.com/watch?v=..."
-                  className="min-w-0 flex-1 bg-transparent text-sm text-on-surface placeholder:text-outline outline-none"
-                />
-              </div>
-              <p className="mt-1.5 text-xs text-outline">
-                The video will be downloaded using yt-dlp into the project
-                folder.
-              </p>
-            </>
-          )}
-        </fieldset>
-
-        {/* Error */}
-        {error && (
-          <div className="mb-4 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-xs text-error">
-            {error}
-          </div>
+        {sourceType === 'local' ? (
+          <Field
+            label="Video File"
+            htmlFor={`${titleId}-video`}
+            hint="The video will be copied into the project folder if not already there."
+          >
+            <div className="flex gap-2">
+              <input
+                id={`${titleId}-video`}
+                type="text"
+                value={videoPath}
+                readOnly
+                onClick={() => void handlePickVideo()}
+                placeholder="Select a video file..."
+                className={cn(INPUT, 'cursor-pointer')}
+              />
+              <Button onClick={() => void handlePickVideo()}>
+                <Film />
+                Browse
+              </Button>
+            </div>
+          </Field>
+        ) : (
+          <Field
+            label="YouTube URL"
+            htmlFor={`${titleId}-url`}
+            hint="The video will be downloaded using yt-dlp into the project folder."
+          >
+            <div className="relative">
+              <LinkIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-outline" />
+              <input
+                id={`${titleId}-url`}
+                type="url"
+                value={youtubeUrl}
+                onChange={(e) => setYoutubeUrl(e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=..."
+                className={cn(INPUT, 'pl-9')}
+              />
+            </div>
+          </Field>
         )}
 
-        {/* Actions */}
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={handleClose}
-            disabled={loading}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-high disabled:opacity-50"
+        {error && (
+          <div
+            role="alert"
+            className="flex items-start gap-2 rounded-lg border border-error/25 bg-error/8 px-3 py-2.5 text-xs text-error"
           >
-            Cancel
-          </button>
-          <button
-            onClick={() => void handleCreate()}
-            disabled={!canCreate || loading}
-            className="flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-on-primary transition-colors hover:bg-primary-container disabled:opacity-50"
-          >
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {loading
-              ? sourceType === 'youtube'
-                ? 'Downloading...'
-                : 'Creating...'
-              : 'Create Project'}
-          </button>
-        </div>
+            <AlertCircle className="mt-px size-3.5 shrink-0" />
+            <span className="min-w-0 break-words">{error}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-end gap-2 rounded-b-xl border-t border-border bg-surface-low/60 px-6 py-4">
+        <Button intent="ghost" onClick={handleClose} disabled={loading}>
+          Cancel
+        </Button>
+        <Button
+          intent="primary"
+          onClick={() => void handleCreate()}
+          disabled={!canCreate || loading}
+        >
+          {loading && <Loader2 className="animate-spin" />}
+          {loading
+            ? sourceType === 'youtube'
+              ? 'Downloading...'
+              : 'Creating...'
+            : 'Create Project'}
+        </Button>
       </div>
 
       <DownloadModal open={downloading} />
     </Modal>
+  );
+}
+
+const INPUT =
+  'h-9 w-full min-w-0 rounded-lg border border-border-strong bg-surface-low px-3 text-sm text-on-surface placeholder:text-outline outline-none transition-[border-color,box-shadow] focus:border-primary/70 focus:ring-3 focus:ring-primary/15';
+
+function Field({
+  label,
+  htmlFor,
+  hint,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label
+        htmlFor={htmlFor}
+        className="text-xs font-medium text-on-surface-variant"
+      >
+        {label}
+      </label>
+      {children}
+      {hint && <p className="text-xs text-outline">{hint}</p>}
+    </div>
   );
 }
 
@@ -289,12 +311,15 @@ function SourceTab({
 }) {
   return (
     <button
+      type="button"
+      role="radio"
+      aria-checked={active}
       onClick={onClick}
       className={cn(
-        'flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+        'flex h-8 flex-1 cursor-pointer items-center justify-center gap-2 rounded-md px-3 text-sm font-medium transition-colors',
         active
-          ? 'bg-surface-high text-on-surface'
-          : 'text-outline hover:text-on-surface-variant',
+          ? 'bg-surface-highest text-on-surface shadow-raised'
+          : 'text-on-surface-variant hover:text-on-surface',
       )}
     >
       {icon}
