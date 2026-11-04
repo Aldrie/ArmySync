@@ -1,10 +1,12 @@
-import { FolderOpen, Plus, Clock, ChevronRight, Sparkles } from 'lucide-react';
+import { FolderOpen, Plus, ChevronRight, Sparkles } from 'lucide-react';
 import { useEffect } from 'react';
 
 import { open } from '@tauri-apps/plugin-dialog';
 
 import NewProjectModal from './components/new-project-modal';
 import AppIcon from '../../assets/icon.svg?react';
+import Button from '../../components/button';
+import { modKey } from '../../lib/keys';
 import { useAppStore } from '../../stores/app-store';
 import type { RecentProject } from '../../stores/app-store';
 
@@ -28,48 +30,43 @@ export default function HomePage() {
   };
 
   return (
-    <div className="flex h-screen flex-col items-center bg-surface">
-      <div className="flex w-full max-w-2xl flex-1 flex-col px-6 pt-24">
-        {/* Header */}
-        <div className="mb-12 text-center">
-          <div className="mb-3 flex items-center justify-center gap-2">
-            <AppIcon className="size-12" />
-            <h1 className="font-display text-3xl font-bold tracking-tight text-on-surface">
-              ArmySync
-            </h1>
-          </div>
-          <p className="text-sm text-on-surface-variant">
+    <div className="relative flex h-screen flex-col items-center overflow-y-auto bg-surface">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-96 bg-[radial-gradient(ellipse_50%_60%_at_50%_0%,color-mix(in_srgb,var(--color-primary)_10%,transparent),transparent)]"
+      />
+
+      <div className="relative flex w-full max-w-xl flex-1 flex-col px-6 pt-24 pb-12">
+        <header className="mb-10 flex flex-col items-center text-center">
+          <AppIcon className="mb-4 size-14 drop-shadow-[0_0_24px_color-mix(in_srgb,var(--color-primary)_45%,transparent)]" />
+          <h1 className="font-display text-3xl font-bold tracking-tight text-on-surface">
+            ArmySync
+          </h1>
+          <p className="mt-2 text-sm text-on-surface-variant">
             Lightstick animation editor for BTS Army Bombs
           </p>
-        </div>
+        </header>
 
-        {/* Actions */}
-        <div className="mb-10 flex items-center justify-center gap-3">
-          <button
-            onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary transition-colors hover:bg-primary-container"
-          >
-            <Plus className="h-4 w-4" />
+        <div className="mb-12 flex items-center justify-center gap-3">
+          <Button intent="primary" size="lg" onClick={() => setModalOpen(true)}>
+            <Plus />
             New Project
-          </button>
-          <button
-            onClick={() => void handleOpenProject()}
-            className="flex items-center gap-2 rounded-lg border border-outline-variant bg-surface-container px-5 py-2.5 text-sm font-medium text-on-surface transition-colors hover:bg-surface-high"
-          >
-            <FolderOpen className="h-4 w-4" />
+            <Kbd>{modKey}N</Kbd>
+          </Button>
+          <Button size="lg" onClick={() => void handleOpenProject()}>
+            <FolderOpen />
             Open Project
-          </button>
+            <Kbd>{modKey}O</Kbd>
+          </Button>
         </div>
 
-        {/* Recent projects */}
-        <div className="flex-1">
+        <section className="flex-1">
           {recentProjects.length > 0 && (
             <>
-              <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-on-surface-variant">
-                <Clock className="h-3.5 w-3.5" />
-                Recent Projects
-              </div>
-              <div className="flex flex-col gap-1">
+              <h2 className="mb-2.5 px-1 text-xs font-semibold text-on-surface-variant">
+                Recent projects
+              </h2>
+              <div className="flex flex-col divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface-low shadow-raised">
                 {recentProjects.map((project) => (
                   <RecentProjectRow
                     key={project.dir}
@@ -82,17 +79,19 @@ export default function HomePage() {
           )}
 
           {recentProjects.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <FolderOpen className="mb-3 h-10 w-10 text-outline-variant" />
-              <p className="text-sm text-on-surface-variant">
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border-strong px-6 py-14 text-center">
+              <div className="mb-4 flex size-11 items-center justify-center rounded-xl bg-surface-high text-on-surface-variant">
+                <FolderOpen className="size-5" />
+              </div>
+              <p className="text-sm font-medium text-on-surface">
                 No recent projects
               </p>
-              <p className="mt-1 text-xs text-outline">
+              <p className="mt-1 max-w-xs text-xs text-balance text-on-surface-variant">
                 Create a new project or open an existing one to get started
               </p>
             </div>
           )}
-        </div>
+        </section>
       </div>
 
       <NewProjectModal
@@ -101,6 +100,14 @@ export default function HomePage() {
         prefillDir={pendingDir}
       />
     </div>
+  );
+}
+
+function Kbd({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd className="ml-1 font-sans text-xs font-medium tracking-wide opacity-55">
+      {children}
+    </kbd>
   );
 }
 
@@ -116,11 +123,12 @@ function RecentProjectRow({
 
   return (
     <button
+      type="button"
       onClick={onOpen}
-      className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-surface-container"
+      className="group flex cursor-pointer items-center gap-3 px-3.5 py-3 text-left transition-colors hover:bg-surface-container focus-visible:-outline-offset-2"
     >
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-surface-high text-primary">
-        <Sparkles className="h-4 w-4" />
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-high text-on-surface-variant transition-colors group-hover:text-primary">
+        <Sparkles className="size-4" />
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-on-surface">
@@ -128,8 +136,14 @@ function RecentProjectRow({
         </p>
         <p className="truncate text-xs text-outline">{project.dir}</p>
       </div>
-      <span className="shrink-0 text-xs text-outline">{timeAgo}</span>
-      <ChevronRight className="h-4 w-4 shrink-0 text-outline-variant opacity-0 transition-opacity group-hover:opacity-100" />
+      <time
+        dateTime={date.toISOString()}
+        title={date.toLocaleString()}
+        className="shrink-0 text-xs text-outline tabular-nums"
+      >
+        {timeAgo}
+      </time>
+      <ChevronRight className="size-4 shrink-0 -translate-x-1 text-outline opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
     </button>
   );
 }
