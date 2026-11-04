@@ -47,6 +47,7 @@ export default function NewSongModal({
   };
 
   const handleClose = () => {
+    if (loading) return;
     reset();
     onClose();
   };
@@ -83,10 +84,10 @@ export default function NewSongModal({
           ? { type: 'youtube', url: youtubeUrl.trim() }
           : { type: 'file', path: filePath },
       });
-      handleClose();
+      reset();
+      onClose();
     } catch (e) {
-      setError(String(e));
-    } finally {
+      setError(e instanceof Error ? e.message : String(e));
       setLoading(false);
     }
   };
@@ -125,6 +126,7 @@ export default function NewSongModal({
         <Field label="Source">
           <div
             role="radiogroup"
+            aria-label="Source"
             className="flex gap-1 rounded-lg border border-border bg-surface-low p-1"
           >
             <SourceTab

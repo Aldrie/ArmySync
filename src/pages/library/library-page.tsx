@@ -21,6 +21,7 @@ export default function LibraryPage() {
   const [pendingDelete, setPendingDelete] = useState<ProjectSummary | null>(
     null,
   );
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const deleteTitleId = useId();
 
   const songs = projects.filter((p) => p.kind === 'song');
@@ -40,7 +41,7 @@ export default function LibraryPage() {
     deleteProject(pendingDelete.id).catch((e: unknown) =>
       console.error('Failed to delete song:', e),
     );
-    setPendingDelete(null);
+    setDeleteOpen(false);
   };
 
   return (
@@ -81,7 +82,10 @@ export default function LibraryPage() {
                     key={project.id}
                     project={project}
                     onOpen={() => handleOpen(project.id)}
-                    onDelete={() => setPendingDelete(project)}
+                    onDelete={() => {
+                      setPendingDelete(project);
+                      setDeleteOpen(true);
+                    }}
                   />
                 ))}
               </div>
@@ -105,8 +109,8 @@ export default function LibraryPage() {
       <NewSongModal open={modalOpen} onClose={() => setModalOpen(false)} />
 
       <Modal
-        open={pendingDelete !== null}
-        onClose={() => setPendingDelete(null)}
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
         labelledBy={deleteTitleId}
         className="flex w-sm flex-col"
       >
@@ -122,7 +126,7 @@ export default function LibraryPage() {
           </p>
         </div>
         <div className="flex justify-end gap-2 rounded-b-xl border-t border-border bg-surface-low/60 px-6 py-4">
-          <Button intent="ghost" onClick={() => setPendingDelete(null)}>
+          <Button intent="ghost" onClick={() => setDeleteOpen(false)}>
             Cancel
           </Button>
           <Button intent="danger" onClick={handleConfirmDelete}>

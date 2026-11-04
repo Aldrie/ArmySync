@@ -25,6 +25,8 @@ interface AppState {
   setShowNewSongModal: (open: boolean) => void;
 }
 
+let closing: Promise<void> = Promise.resolve();
+
 export const useAppStore = create<AppState>((set, get) => ({
   route: 'library',
   projects: [],
@@ -41,6 +43,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   openProject: async (id) => {
+    await closing;
     const project = await library.loadProject(id);
     set({ route: 'editor', activeProject: project });
   },
@@ -62,9 +65,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   closeProject: () => {
     const editor = useEditorStore.getState();
-    const flushed = editor.isDirty ? editor.saveEffects() : Promise.resolve();
+    closing = editor.isDirty ? editor.saveEffects() : Promise.resolve();
+    editor.resetEditor();
     set({ route: 'library', activeProject: null });
-    void flushed.then(() => get().refreshProjects());
+    void closing.then(() => get().refreshProjects());
   },
 
   setShowNewSongModal: (open) => {

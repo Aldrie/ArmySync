@@ -499,10 +499,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({ waveformLoading: true });
     try {
       const path = await projectFilePath(project.id, song.media.file);
-      set({ waveform: await extractWaveform(path), waveformLoading: false });
+      const waveform = await extractWaveform(path);
+      if (get().project?.id !== project.id) return;
+      set({ waveform, waveformLoading: false });
     } catch (err) {
       console.error(err);
-      set({ waveformLoading: false });
+      if (get().project?.id === project.id) set({ waveformLoading: false });
     }
   },
 }));
