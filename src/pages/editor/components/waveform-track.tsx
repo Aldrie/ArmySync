@@ -38,14 +38,14 @@ export default function WaveformTrack({ waveform }: WaveformTrackProps) {
       const sampleIndex = Math.floor(i * samplesPerBar);
       const amplitude = waveform[Math.min(sampleIndex, waveform.length - 1)];
 
-      const barHeight = Math.max(1, amplitude * rect.height * 0.9);
+      const barHeight = Math.max(2, amplitude * rect.height * 0.9);
       const x = i * step;
-      const y = rect.height - barHeight;
+      const y = (rect.height - barHeight) / 2;
 
       ctx.fillStyle = primary;
-      ctx.globalAlpha = 0.25 + amplitude * 0.55;
+      ctx.globalAlpha = 0.2 + amplitude * 0.45;
       ctx.beginPath();
-      ctx.roundRect(x, y, barWidth, barHeight, [1, 1, 0, 0]);
+      ctx.roundRect(x, y, barWidth, barHeight, 1.5);
       ctx.fill();
     }
 
@@ -66,7 +66,7 @@ export default function WaveformTrack({ waveform }: WaveformTrackProps) {
   return (
     <canvas
       ref={canvasRef}
-      className="w-full h-12 text-primary"
+      className="w-full h-full text-primary"
       style={{ display: 'block' }}
     />
   );

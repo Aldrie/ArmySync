@@ -270,9 +270,9 @@ export default function TimelineEffectBlock({
   return (
     <div
       className={cn(
-        'group/block absolute h-full rounded-md cursor-grab active:cursor-grabbing transition-shadow hover:opacity-90',
+        'group/block absolute h-full rounded-md cursor-grab active:cursor-grabbing transition-[opacity,box-shadow] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)] hover:opacity-90',
         isSelected &&
-          'z-2 ring-2 ring-primary ring-offset-1 ring-offset-surface-dim',
+          'z-2 ring-2 ring-primary ring-offset-2 ring-offset-surface-dim',
         isDragging && 'z-3 ring-2 ring-primary/60 ring-dashed opacity-80',
       )}
       style={{
@@ -299,7 +299,7 @@ export default function TimelineEffectBlock({
       </div>
 
       {width > 3 && (
-        <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-white/70 pointer-events-none truncate px-2 drop-shadow-sm">
+        <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-white/90 pointer-events-none truncate px-2 [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]">
           {definition?.label}
         </span>
       )}

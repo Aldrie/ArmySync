@@ -14,11 +14,11 @@ export default function WaveformSkeleton() {
   const bars = useMemo(() => generateBars(), []);
 
   return (
-    <div className="w-full h-12 flex items-end gap-px">
+    <div className="w-full h-full flex items-center gap-px">
       {bars.map((height, i) => (
         <div
           key={i}
-          className="bg-shimmer-vertical animate-shimmer-y flex-1 rounded-t-sm"
+          className="bg-shimmer-vertical animate-shimmer-y flex-1 rounded-sm"
           style={{ height: `${height}%` }}
         />
       ))}
