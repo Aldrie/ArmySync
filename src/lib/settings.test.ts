@@ -68,3 +68,11 @@ it('never writes after a failed read', async () => {
   await updateSettings({ bleDelays: { a: 40 } });
   expect(writes()).toHaveLength(0);
 });
+
+it('loadSettings reflects a previous updateSettings', async () => {
+  invokeMock.mockResolvedValue(null);
+  const { loadSettings, updateSettings } = await importSettings();
+  await loadSettings();
+  await updateSettings({ bleDelays: { a: 40 } });
+  expect(await loadSettings()).toEqual({ bleDelays: { a: 40 } });
+});

@@ -24,7 +24,7 @@ const parseDelays = (value: unknown): Record<string, number> =>
 
 let stored: StoredSettings = { bleDelays: {} };
 let writable = false;
-let loading: Promise<Settings> | null = null;
+let loading: Promise<void> | null = null;
 let writeQueue: Promise<void> = Promise.resolve();
 
 export const loadSettings = (): Promise<Settings> => {
@@ -37,13 +37,14 @@ export const loadSettings = (): Promise<Settings> => {
         stored = { ...value, bleDelays: parseDelays(value.bleDelays) };
       }
       writable = true;
-      return { ...stored };
     })
     .catch((e: unknown) => {
       console.error('Failed to load settings:', e);
-      return { ...stored };
     });
-  return loading;
+  return loading.then(() => ({
+    ...stored,
+    bleDelays: { ...stored.bleDelays },
+  }));
 };
 
 export const updateSettings = async (

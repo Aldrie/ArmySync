@@ -73,3 +73,40 @@ it('ignores a duplicate connect event', async () => {
   await new Promise((resolve) => setTimeout(resolve, 0));
   expect(useBleStore.getState().connectedDevices).toHaveLength(1);
 });
+
+it('persists delays for two devices and re-applies the latest on reconnect', async () => {
+  vi.useFakeTimers();
+  try {
+    invokeMock.mockResolvedValue(null);
+    const { useBleStore, emit } = await loadStore();
+    const dev2 = { ...dev1, id: 'dev2' };
+    emit('ble-connected', dev1);
+    emit('ble-connected', dev2);
+    await vi.waitFor(() =>
+      expect(useBleStore.getState().connectedDevices).toHaveLength(2),
+    );
+    useBleStore.getState().setDeviceDelay('dev1', 60);
+    await vi.advanceTimersByTimeAsync(300);
+    useBleStore.getState().setDeviceDelay('dev2', 30);
+    await vi.advanceTimersByTimeAsync(300);
+    const writes = invokeMock.mock.calls.filter(
+      ([cmd]) => cmd === 'write_app_json',
+    );
+    expect(writes[writes.length - 1]?.[1]).toEqual({
+      name: 'settings',
+      value: { bleDelays: { dev1: 60, dev2: 30 } },
+    });
+
+    emit('ble-disconnected', { id: 'dev1' });
+    invokeMock.mockClear();
+    emit('ble-connected', dev1);
+    await vi.waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith('ble_set_device_delay', {
+        deviceId: 'dev1',
+        delayMs: 60,
+      }),
+    );
+  } finally {
+    vi.useRealTimers();
+  }
+});
