@@ -11,7 +11,6 @@ interface SliderProps {
   max?: number;
   step?: number;
   defaultValue?: number;
-  variant?: 'fill' | 'zoom';
   trackColor?: string;
   className?: string;
   onChange?: (value: number) => void;
@@ -23,7 +22,6 @@ const Slider = forwardRef<SliderRef, SliderProps>(function Slider(
     max = 100,
     step = 1,
     defaultValue = 0,
-    variant = 'fill',
     trackColor,
     className = '',
     onChange,
@@ -63,10 +61,7 @@ const Slider = forwardRef<SliderRef, SliderProps>(function Slider(
     <input
       ref={inputRef}
       type="range"
-      className={cn(
-        variant === 'zoom' ? 'range-zoom' : 'range-fill',
-        className,
-      )}
+      className={cn('range-fill', className)}
       min={min}
       max={max}
       step={step}

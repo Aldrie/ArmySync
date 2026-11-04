@@ -118,7 +118,6 @@ export default function LightstickPanel({
               max={200}
               step={1}
               defaultValue={device.delayMs}
-              variant="fill"
               className="w-full h-1.5 rounded-sm"
               onChange={handleDelayChange(device.id)}
             />

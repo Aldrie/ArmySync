@@ -83,10 +83,10 @@ export default function ColorListField({
             {value.length > min && (
               <button
                 type="button"
-                className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-danger rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-error rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                 onClick={() => handleRemove(i)}
               >
-                <X className="size-2 text-white" />
+                <X className="size-2 text-on-error" strokeWidth={3} />
               </button>
             )}
           </div>

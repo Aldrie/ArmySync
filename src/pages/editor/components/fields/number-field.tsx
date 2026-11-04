@@ -37,7 +37,6 @@ export default function NumberField({
         max={max}
         step={step}
         defaultValue={value}
-        variant="fill"
         className="w-full h-1.5 rounded-sm"
         onChange={handleSliderChange}
       />

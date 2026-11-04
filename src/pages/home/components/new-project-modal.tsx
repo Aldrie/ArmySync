@@ -242,7 +242,7 @@ export default function NewProjectModal({
 
         {/* Error */}
         {error && (
-          <div className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
+          <div className="mb-4 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-xs text-error">
             {error}
           </div>
         )}

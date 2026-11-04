@@ -256,7 +256,6 @@ export default function TimelinePanel({
           max={100}
           step={0.1}
           defaultValue={0}
-          variant="zoom"
           className="w-24 h-2 rounded-sm"
           onChange={handleZoomInputChange}
         />
