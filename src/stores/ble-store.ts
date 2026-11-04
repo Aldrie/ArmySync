@@ -50,6 +50,15 @@ const persistDelay = (deviceId: string, delayMs: number) => {
   }, 300);
 };
 
+const connectTokens = new Map<string, symbol>();
+
+const removeDevice = (deviceId: string) => {
+  connectTokens.delete(deviceId);
+  useBleStore.setState((state) => ({
+    connectedDevices: state.connectedDevices.filter((d) => d.id !== deviceId),
+  }));
+};
+
 export const useBleStore = create<BleState>((set, get) => ({
   syncEnabled: false,
   connectedDevices: [],
@@ -114,9 +123,7 @@ export const useBleStore = create<BleState>((set, get) => ({
     } catch (err) {
       console.error('[ble] disconnect failed:', err);
     }
-    set((state) => ({
-      connectedDevices: state.connectedDevices.filter((d) => d.id !== deviceId),
-    }));
+    removeDevice(deviceId);
   },
 }));
 
@@ -125,17 +132,27 @@ void listen<BleDevice[]>('ble-devices', (event) => {
 });
 
 const addConnectedDevice = async (payload: ConnectedDevice) => {
+  const token = Symbol(payload.id);
+  connectTokens.set(payload.id, token);
   const { bleDelays } = await loadSettings();
+  if (connectTokens.get(payload.id) !== token) return;
+  connectTokens.delete(payload.id);
+  const { connectedDevices } = useBleStore.getState();
+  if (connectedDevices.some((d) => d.id === payload.id)) return;
   const device = { ...payload, delayMs: bleDelays[payload.id] ?? 0 };
   useBleStore.setState((state) => ({
     connectedDevices: [...state.connectedDevices, device],
     scanning: false,
   }));
   if (device.delayMs > 0) {
-    await invoke('ble_set_device_delay', {
-      deviceId: device.id,
-      delayMs: device.delayMs,
-    });
+    try {
+      await invoke('ble_set_device_delay', {
+        deviceId: device.id,
+        delayMs: device.delayMs,
+      });
+    } catch (err) {
+      console.error('[ble] set device delay failed:', err);
+    }
   }
 };
 
@@ -144,9 +161,5 @@ void listen<ConnectedDevice>('ble-connected', (event) => {
 });
 
 void listen<{ id: string }>('ble-disconnected', (event) => {
-  useBleStore.setState((state) => ({
-    connectedDevices: state.connectedDevices.filter(
-      (d) => d.id !== event.payload.id,
-    ),
-  }));
+  removeDevice(event.payload.id);
 });
