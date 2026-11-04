@@ -11,7 +11,7 @@ interface SliderProps {
   max?: number;
   step?: number;
   defaultValue?: number;
-  trackColor?: string;
+  'aria-label'?: string;
   className?: string;
   onChange?: (value: number) => void;
 }
@@ -22,7 +22,7 @@ const Slider = forwardRef<SliderRef, SliderProps>(function Slider(
     max = 100,
     step = 1,
     defaultValue = 0,
-    trackColor,
+    'aria-label': ariaLabel,
     className = '',
     onChange,
   },
@@ -66,11 +66,9 @@ const Slider = forwardRef<SliderRef, SliderProps>(function Slider(
       max={max}
       step={step}
       defaultValue={defaultValue}
+      aria-label={ariaLabel}
       style={{
         backgroundSize: `${((defaultValue - min) / (max - min)) * 100}% 100%`,
-        ...(trackColor
-          ? ({ '--slider-track': trackColor } as React.CSSProperties)
-          : {}),
       }}
       onChange={handleChange}
     />

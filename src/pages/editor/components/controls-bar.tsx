@@ -14,6 +14,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import IconButton from '../../../components/icon-button';
 import Slider from '../../../components/slider';
 import type { SliderRef } from '../../../components/slider';
+import { modKey } from '../../../lib/keys';
 import { useEditorStore } from '../../../stores/editor-store';
 
 export default function ControlsBar() {
@@ -59,34 +60,56 @@ export default function ControlsBar() {
   }, [toggleMute]);
 
   return (
-    <div className="bg-surface-container flex items-center px-4 py-2.5">
-      <div className="flex-1 flex items-center gap-1">
-        <IconButton onClick={undo} disabled={!canUndo}>
+    <div className="flex h-14 shrink-0 items-center px-4">
+      <div className="flex flex-1 items-center gap-0.5">
+        <IconButton
+          label={`Undo (${modKey}Z)`}
+          onClick={undo}
+          disabled={!canUndo}
+        >
           <Undo2 />
         </IconButton>
-        <IconButton onClick={redo} disabled={!canRedo}>
+        <IconButton
+          label={`Redo (${modKey}⇧Z)`}
+          onClick={redo}
+          disabled={!canRedo}
+        >
           <Redo2 />
         </IconButton>
       </div>
 
-      <div className="flex items-center gap-1">
-        <IconButton onClick={(e) => seekStep(-1, e.shiftKey)}>
-          <Rewind />
+      <div className="flex items-center gap-2">
+        <IconButton
+          label="Rewind (←)"
+          onClick={(e) => seekStep(-1, e.shiftKey)}
+        >
+          <Rewind fill="currentColor" />
         </IconButton>
-        <IconButton size="md" onClick={togglePlayPause}>
+        <IconButton
+          size="md"
+          label={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
+          className="rounded-full bg-on-surface text-surface shadow-[0_1px_2px_rgba(0,0,0,0.5)] hover:bg-white hover:text-surface [&_svg]:size-4"
+          onClick={togglePlayPause}
+        >
           {isPlaying ? (
             <Pause fill="currentColor" />
           ) : (
-            <Play fill="currentColor" />
+            <Play fill="currentColor" className="translate-x-px" />
           )}
         </IconButton>
-        <IconButton onClick={(e) => seekStep(1, e.shiftKey)}>
-          <FastForward />
+        <IconButton
+          label="Fast forward (→)"
+          onClick={(e) => seekStep(1, e.shiftKey)}
+        >
+          <FastForward fill="currentColor" />
         </IconButton>
       </div>
 
-      <div className="flex-1 flex items-center justify-end gap-2">
-        <IconButton onClick={handleToggleMute}>
+      <div className="flex flex-1 items-center justify-end gap-1.5">
+        <IconButton
+          label={muted ? 'Unmute' : 'Mute'}
+          onClick={handleToggleMute}
+        >
           <VolumeIcon />
         </IconButton>
         <Slider
@@ -95,8 +118,8 @@ export default function ControlsBar() {
           max={100}
           step={1}
           defaultValue={25}
-          trackColor="var(--color-surface-high)"
-          className="w-20 h-1.5 rounded-sm"
+          aria-label="Volume"
+          className="w-24"
           onChange={handleVolumeChange}
         />
       </div>

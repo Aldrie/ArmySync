@@ -37,7 +37,7 @@ export default function PropertiesPanel({ effect }: PropertiesPanelProps) {
             {definition.description}
           </span>
         </div>
-        <IconButton onClick={() => deleteSelection()}>
+        <IconButton label="Delete effect" onClick={() => deleteSelection()}>
           <Trash2 />
         </IconButton>
       </div>

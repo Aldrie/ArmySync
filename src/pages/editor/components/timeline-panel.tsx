@@ -173,7 +173,7 @@ export default function TimelinePanel({
 
   return (
     <div
-      className="w-full h-full bg-surface-low select-none flex flex-col z-20 relative"
+      className="w-full h-full bg-surface-low border-t border-border select-none flex flex-col z-20 relative"
       onClick={() => selectEffect(null)}
     >
       <div className="flex justify-between items-center px-4 pt-3 pb-1 ml-auto">

@@ -12,7 +12,7 @@ export default function EffectsSidebar() {
       : null;
 
   return (
-    <div className="h-full bg-surface-low flex flex-col py-5 px-4 gap-4 overflow-y-auto">
+    <div className="h-full bg-surface-low border-r border-border flex flex-col py-5 px-4 gap-4 overflow-y-auto">
       <div className="flex flex-col gap-3 px-3">
         <span className="font-display font-bold text-xs tracking-widest uppercase text-on-surface-variant">
           Effects

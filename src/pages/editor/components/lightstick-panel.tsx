@@ -40,7 +40,7 @@ export default function LightstickPanel({
   );
 
   return (
-    <div className="h-full bg-surface-low flex flex-col py-5 px-4">
+    <div className="h-full bg-surface-low border-l border-border flex flex-col py-5 px-4">
       <div className="flex-1 flex flex-col items-center justify-center gap-4 min-h-0 overflow-hidden">
         <div className="shrink min-h-0 origin-center scale-60">
           <Lightstick ref={lightstickRef} />

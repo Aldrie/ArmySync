@@ -227,7 +227,7 @@ export default function EditorPage() {
 
   return (
     <DragDropProvider onDragMove={handleDragMove} onDragEnd={handleDragEnd}>
-      <div className="flex flex-col w-full h-full bg-surface overflow-hidden">
+      <div className="flex flex-col w-full h-full bg-surface-dim overflow-hidden">
         <div className="flex flex-1 min-h-0">
           <ResizePanel
             direction="right"
@@ -238,12 +238,11 @@ export default function EditorPage() {
             <EffectsSidebar />
           </ResizePanel>
 
-          <div className="flex flex-col flex-1 min-w-0">
-            <div className="flex-1 min-h-0 p-3">
+          <div className="flex flex-col flex-1 min-w-0 bg-surface">
+            <div className="flex-1 min-h-0 px-4 pt-4">
               <VideoArea
                 videoRef={videoRef}
                 videoSrc={videoSrc}
-                title={activeProject?.manifest.name ?? ''}
                 onOpenVideo={() => void openVideoFile()}
                 onLoadedData={() => void handleVideoLoad()}
                 onTimeUpdate={() => {
@@ -291,17 +290,17 @@ export default function EditorPage() {
             const Icon = icons[def.icon as keyof typeof icons];
 
             return (
-              <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-surface-high border border-primary/40 shadow-lg">
+              <div className="flex w-64 items-center gap-2.5 p-2.5 rounded-lg bg-surface-highest border border-primary/50 shadow-popover cursor-grabbing">
                 {Icon && (
                   <div className="w-7 h-7 rounded-md bg-surface-bright flex items-center justify-center shrink-0">
                     <Icon className="size-3.5 text-primary" />
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <span className="block font-display font-bold text-xs text-on-surface">
+                  <span className="block font-semibold text-xs text-on-surface">
                     {def.label}
                   </span>
-                  <span className="block text-[10px] text-on-surface-variant truncate">
+                  <span className="block text-[11px] text-on-surface-variant truncate">
                     {def.description}
                   </span>
                 </div>
