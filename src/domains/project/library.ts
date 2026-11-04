@@ -12,7 +12,7 @@ export type NewSongSource =
 
 export const listProjects = async (): Promise<ProjectSummary[]> => {
   const projects = await invoke<ProjectSummary[]>('list_projects');
-  return projects.sort((a, b) => b.updatedAt - a.updatedAt);
+  return [...projects].sort((a, b) => b.updatedAt - a.updatedAt);
 };
 
 export const loadProject = async (id: string): Promise<Project> =>
@@ -98,7 +98,7 @@ export const createSong = async (input: {
       }),
     );
   } catch (error) {
-    await deleteProject(id);
+    await deleteProject(id).catch(() => undefined);
     throw error;
   }
 };

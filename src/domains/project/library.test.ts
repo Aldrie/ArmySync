@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 
 import { createSong, listProjects, saveProject } from './library';
 import { createSongProject } from './model';
+import type { Project } from './types';
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
@@ -52,6 +53,53 @@ describe('createSong', () => {
     expect(invokeMock).toHaveBeenCalledWith('delete_project', {
       id: projectId,
     });
+  });
+
+  it('rejects unsupported media and cleans up', async () => {
+    invokeMock.mockImplementation((cmd) =>
+      Promise.resolve(cmd === 'import_media' ? 'media/m1.mkv' : undefined),
+    );
+    await expect(
+      createSong({ name: 'Song', source: { type: 'file', path: '/a/b.mkv' } }),
+    ).rejects.toThrow('Unsupported media file');
+    expect(invokeMock).toHaveBeenCalledWith(
+      'delete_project',
+      expect.anything(),
+    );
+  });
+
+  it('rethrows the original error when cleanup fails', async () => {
+    invokeMock.mockImplementation((cmd) =>
+      Promise.reject(
+        new Error(cmd === 'delete_project' ? 'cleanup' : 'original'),
+      ),
+    );
+    await expect(
+      createSong({ name: 'Song', source: { type: 'file', path: '/a/b.mp4' } }),
+    ).rejects.toThrow('original');
+  });
+
+  it('writes a song project for a file source', async () => {
+    invokeMock.mockImplementation((cmd) =>
+      Promise.resolve(cmd === 'import_media' ? 'media/m1.m4a' : undefined),
+    );
+    const created = await createSong({
+      name: 'Song',
+      source: { type: 'file', path: '/music/My Song.m4a' },
+    });
+    const writeCall = invokeMock.mock.calls.find(
+      ([cmd]) => cmd === 'write_project',
+    );
+    const { project: written } = writeCall?.[1] as { project: Project };
+    expect(written).toEqual(created);
+    expect(Object.values(written.media)).toEqual([
+      {
+        file: 'media/m1.m4a',
+        type: 'audio',
+        duration: 0,
+        source: { type: 'file', originalName: 'My Song.m4a' },
+      },
+    ]);
   });
 });
 
