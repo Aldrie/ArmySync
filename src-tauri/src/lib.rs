@@ -1,6 +1,7 @@
 mod ble;
 mod effects;
 mod fs;
+mod library;
 mod menu;
 mod project;
 mod sync;
@@ -24,6 +25,13 @@ pub fn run() {
       fs::resolve_path,
       fs::copy_file_to_dir,
       fs::download_youtube,
+      library::list_projects,
+      library::read_project,
+      library::write_project,
+      library::delete_project,
+      library::import_media,
+      library::read_app_json,
+      library::write_app_json,
       project::create_project,
       project::load_project,
       project::save_manifest,
