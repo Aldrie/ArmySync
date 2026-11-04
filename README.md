@@ -29,7 +29,7 @@
 2. **Add effects** — Drag effects from the left palette onto the timeline
 3. **Edit effects** — Click an effect on the timeline to open its properties panel, adjust colors, duration, BPM, etc.
 4. **Preview** — Hit play to watch the video with the lightstick preview updating in real-time
-5. **Connect a lightstick** — Enable BLE Sync in the right panel, tap the device button, scan and connect your Army Bomb
+5. **Connect a lightstick** — Enable Bluetooth sync in the right panel, tap the device button, scan and connect your Army Bomb
 6. **Calibrate delay** — Use the per-device delay slider (0-200ms) to compensate Bluetooth latency
 7. **Save** — Effects auto-save, or press `Cmd+S` to save manually
 
