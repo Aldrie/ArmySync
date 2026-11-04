@@ -25,6 +25,7 @@ pub fn run() {
       fs::resolve_path,
       fs::copy_file_to_dir,
       fs::download_youtube,
+      fs::download_youtube_media,
       library::list_projects,
       library::read_project,
       library::write_project,
