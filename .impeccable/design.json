@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-04T19:00:00Z",
+  "title": "Design System: ArmySync",
+  "extensions": {
+    "colorMeta": {
+      "primary": { "role": "primary", "displayName": "Borahae Glow", "canonical": "#e1b6ff", "tonalRamp": ["#2b0f40", "#43205d", "#5c3777", "#7a5196", "#9a6db7", "#bb92d8", "#e1b6ff", "#f5e6ff"] },
+      "primary-dim": { "role": "primary", "displayName": "Dimmed Glow", "canonical": "#c49be0" },
+      "on-primary": { "role": "primary", "displayName": "Deep Plum Ink", "canonical": "#43205d" },
+      "surface-dim": { "role": "neutral", "displayName": "Arena Floor", "canonical": "#0e0e0e", "tonalRamp": ["#0e0e0e", "#131313", "#1c1b1b", "#201f1f", "#2a2a2a", "#353534", "#393939", "#e5e2e1"] },
+      "surface": { "role": "neutral", "displayName": "House Dark", "canonical": "#131313" },
+      "surface-low": { "role": "neutral", "displayName": "Panel Shade", "canonical": "#1c1b1b" },
+      "surface-container": { "role": "neutral", "displayName": "Raised Shade", "canonical": "#201f1f" },
+      "surface-high": { "role": "neutral", "displayName": "Control Gray", "canonical": "#2a2a2a" },
+      "surface-highest": { "role": "neutral", "displayName": "Pressed Gray", "canonical": "#353534" },
+      "on-surface": { "role": "neutral", "displayName": "Bone White", "canonical": "#e5e2e1" },
+      "on-surface-variant": { "role": "neutral", "displayName": "Lilac Mist", "canonical": "#cec3d0" },
+      "outline": { "role": "neutral", "displayName": "Dusk Gray", "canonical": "#978e99" },
+      "outline-variant": { "role": "neutral", "displayName": "Shadow Lilac", "canonical": "#4b444e" },
+      "border": { "role": "neutral", "displayName": "Hairline", "canonical": "rgba(255, 255, 255, 0.07)" },
+      "border-strong": { "role": "neutral", "displayName": "Hairline Strong", "canonical": "rgba(255, 255, 255, 0.12)" },
+      "error": { "role": "error", "displayName": "Soft Coral", "canonical": "#ffb4ab", "tonalRamp": ["#410002", "#690005", "#93000a", "#c0392b", "#e2574a", "#ff897d", "#ffb4ab", "#ffdad6"] },
+      "on-error": { "role": "error", "displayName": "Deep Maroon", "canonical": "#690005" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "The ArmySync wordmark on Home." },
+      "headline": { "displayName": "Headline", "purpose": "Dialog titles." },
+      "title": { "displayName": "Title", "purpose": "Timeline header: project name and time readout." },
+      "body": { "displayName": "Body", "purpose": "Item names: palette items, effect name, devices, recent projects." },
+      "label": { "displayName": "Label", "purpose": "Sentence-case panel headings and field labels." },
+      "caption": { "displayName": "Caption", "purpose": "Descriptions, hints, frame counter, ruler labels." }
+    },
+    "shadows": [
+      { "name": "raised", "value": "inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.3)", "purpose": "Tactile edge on secondary buttons, palette items, cards and the selected segment." },
+      { "name": "popover", "value": "0 1px 2px rgba(0,0,0,0.4), 0 12px 32px -8px rgba(0,0,0,0.6)", "purpose": "Dialogs, color picker and the drag overlay: things that float." },
+      { "name": "button-primary", "value": "inset 0 1px 0 rgba(255,255,255,0.35), 0 1px 2px rgba(0,0,0,0.4)", "purpose": "Lit top edge of the primary action." }
+    ],
+    "motion": [
+      { "name": "control-transition", "value": "150ms ease-out", "purpose": "Color, border and shadow changes on buttons and controls." },
+      { "name": "dialog-spring", "value": "spring(stiffness 600, damping 30, mass 0.6)", "purpose": "Dialog entrance: scale 0.97 to 1 and 6px rise." },
+      { "name": "thumb-feedback", "value": "120ms ease-out", "purpose": "Slider thumb halo on hover and 1.15 scale on press." }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one primary action per view, with an optional shortcut suffix.",
+      "html": "<button class=\"ds-btn ds-btn-primary\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M5 12h14\"/><path d=\"M12 5v14\"/></svg>New Project<kbd class=\"ds-kbd\">⌘N</kbd></button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 20px; border-radius: 8px; font: 600 14px Inter, system-ui, sans-serif; border: none; cursor: pointer; transition: background-color 150ms ease-out, box-shadow 150ms ease-out, transform 150ms ease-out; } .ds-btn:active { transform: translateY(1px); } .ds-btn:focus-visible { outline: 2px solid var(--color-primary, #e1b6ff); outline-offset: 2px; } .ds-btn-primary { background: var(--color-primary, #e1b6ff); color: var(--color-on-primary, #43205d); box-shadow: inset 0 1px 0 rgba(255,255,255,0.35), 0 1px 2px rgba(0,0,0,0.4); } .ds-btn-primary:hover { background: var(--color-primary-dim, #c49be0); } .ds-kbd { margin-left: 4px; font: 500 12px Inter, system-ui, sans-serif; opacity: 0.55; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Default button for non-primary actions (Open Project, Browse, Scan).",
+      "html": "<button class=\"ds-btn2\">Open Project</button>",
+      "css": ".ds-btn2 { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 8px; font: 500 14px Inter, system-ui, sans-serif; color: var(--color-on-surface, #e5e2e1); background: var(--color-surface-high, #2a2a2a); border: 1px solid rgba(255,255,255,0.12); box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.3); cursor: pointer; transition: background-color 150ms ease-out; } .ds-btn2:hover { background: var(--color-surface-highest, #353534); } .ds-btn2:active { transform: translateY(1px); } .ds-btn2:focus-visible { outline: 2px solid var(--color-primary, #e1b6ff); outline-offset: 2px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Low-emphasis action such as Cancel.",
+      "html": "<button class=\"ds-btn-ghost\">Cancel</button>",
+      "css": ".ds-btn-ghost { height: 36px; padding: 0 14px; border-radius: 8px; border: none; background: transparent; color: var(--color-on-surface-variant, #cec3d0); font: 500 14px Inter, system-ui, sans-serif; cursor: pointer; transition: background-color 150ms ease-out, color 150ms ease-out; } .ds-btn-ghost:hover { background: var(--color-surface-high, #2a2a2a); color: var(--color-on-surface, #e5e2e1); } .ds-btn-ghost:focus-visible { outline: 2px solid var(--color-primary, #e1b6ff); outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Dialog text field with label and Glow focus halo.",
+      "html": "<label class=\"ds-field\"><span>Project Name</span><input class=\"ds-input\" placeholder=\"My Concert Edit\"></label>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 6px; font: 500 12px Inter, system-ui, sans-serif; color: var(--color-on-surface-variant, #cec3d0); } .ds-input { height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.12); background: var(--color-surface-low, #1c1b1b); color: var(--color-on-surface, #e5e2e1); font: 400 14px Inter, system-ui, sans-serif; outline: none; transition: border-color 150ms, box-shadow 150ms; } .ds-input::placeholder { color: var(--color-outline, #978e99); } .ds-input:focus { border-color: rgba(225,182,255,0.7); box-shadow: 0 0 0 3px rgba(225,182,255,0.15); }"
+    },
+    {
+      "name": "Switch",
+      "kind": "custom",
+      "description": "Bluetooth sync toggle, role=switch.",
+      "html": "<button class=\"ds-switch\" role=\"switch\" aria-checked=\"true\"><span></span></button>",
+      "css": ".ds-switch { position: relative; width: 36px; height: 20px; border-radius: 9999px; border: none; background: var(--color-primary, #e1b6ff); box-shadow: inset 0 1px 2px rgba(0,0,0,0.3); cursor: pointer; } .ds-switch[aria-checked=\"false\"] { background: var(--color-surface-highest, #353534); } .ds-switch span { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.4); transform: translateX(16px); transition: transform 200ms ease-out; } .ds-switch[aria-checked=\"false\"] span { transform: none; } .ds-switch:focus-visible { outline: 2px solid var(--color-primary, #e1b6ff); outline-offset: 2px; }"
+    },
+    {
+      "name": "Effect Palette Item",
+      "kind": "card",
+      "refersTo": "palette-item",
+      "description": "Draggable effect card in the sidebar; grip appears on hover.",
+      "html": "<div class=\"ds-palette\"><div class=\"ds-palette-icon\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z\"/></svg></div><div><b>Strobe / Flash</b><small>Rapidly cycle through multiple colors</small></div></div>",
+      "css": ".ds-palette { display: flex; align-items: center; gap: 12px; padding: 10px; width: 300px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.07); background: var(--color-surface-container, #201f1f); box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 2px rgba(0,0,0,0.3); cursor: grab; transition: background-color 150ms, border-color 150ms; font-family: Inter, system-ui, sans-serif; } .ds-palette:hover { background: var(--color-surface-high, #2a2a2a); border-color: rgba(255,255,255,0.12); } .ds-palette-icon { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; background: rgba(225,182,255,0.1); color: var(--color-primary, #e1b6ff); flex-shrink: 0; } .ds-palette b { display: block; font-weight: 500; font-size: 13px; color: var(--color-on-surface, #e5e2e1); } .ds-palette small { display: block; margin-top: 2px; font-size: 11px; color: var(--color-on-surface-variant, #cec3d0); }"
+    },
+    {
+      "name": "Timeline Effect Block",
+      "kind": "custom",
+      "description": "Effect rendered in its own colors on the Arena Floor track; selected state shown.",
+      "html": "<div class=\"ds-track\"><div class=\"ds-block ds-block-selected\"><span>Color Fade</span></div></div>",
+      "css": ".ds-track { width: 320px; height: 64px; padding: 0 24px; display: flex; align-items: stretch; border-radius: 8px; background: var(--color-surface-dim, #0e0e0e); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.07); } .ds-block { width: 120px; border-radius: 6px; display: flex; align-items: center; justify-content: center; background: linear-gradient(90deg, #22e5f2, #f2b322); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12); font: 600 10px Inter, system-ui, sans-serif; color: rgba(255,255,255,0.9); text-shadow: 0 1px 2px rgba(0,0,0,0.7); cursor: grab; } .ds-block-selected { outline: 2px solid var(--color-primary, #e1b6ff); outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Darkened Arena",
+    "overview": "ArmySync looks like a stadium a minute before the show: the house lights are down, the structure is barely visible, and the only color in the room comes from light itself. The chrome of the app recedes into near-black, neutral layers so the three things that actually glow — the video, the simulated Army Bomb, and the effect blocks on the timeline — own every bit of saturation on screen. The interface is the venue, never the performance.\n\nThis is an Operate surface for a precise, keyboard-heavy editing job, so density is moderate-to-high and familiarity wins over expression. Brand lives in small, exact details: the Borahae Glow accent on the one thing that matters in each region, hairline borders that separate panels without boxing them, and a single soft glow reserved for the lightstick and logo, where light is the literal subject.\n\nDepth comes from tonal stepping and 1px hairlines, not from shadows. Shadows appear only on things that float above the arena: dialogs, popovers, and an effect being dragged.",
+    "keyCharacteristics": [
+      "Near-black tonal stack (six neutral steps) with panels separated by 7%-white hairlines.",
+      "One accent, Borahae Glow, used for current state, primary action, and selection only.",
+      "Content (video, effect colors, waveform) is the only saturated material on screen.",
+      "Inter for all UI; Manrope only for the app title and dialog titles.",
+      "Every interactive element has a visible keyboard focus ring in the accent."
+    ],
+    "rules": [
+      { "name": "The House Lights Rule", "body": "The interface itself never carries saturated color outside Borahae Glow and Soft Coral. Saturation on screen belongs to the video, the lightstick, and effect blocks — if chrome competes with them, it's wrong.", "section": "colors" },
+      { "name": "The One Glow Rule", "body": "Borahae Glow marks what is current, selected, primary, or focused. It is never used for decoration, section labels, or inactive states.", "section": "colors" },
+      { "name": "The Sentence Case Rule", "body": "Panel and section headings are sentence case, semibold, at label size. No uppercase, wide-tracked eyebrows, and no Manrope in labels, buttons, or data.", "section": "typography" },
+      { "name": "The Tabular Time Rule", "body": "Every number that changes while you watch — timecodes, frames, BPM, milliseconds, start/end/duration — uses tabular-nums so it never jitters. Monospace is reserved for hex color codes.", "section": "typography" },
+      { "name": "The Tonal-First Rule", "body": "Separate with tone and hairlines first. A shadow is allowed only when something genuinely floats above other content (dialog, popover, dragged item).", "section": "elevation" },
+      { "name": "The Only Glow Rule", "body": "Colored glow (drop-shadow/box-shadow in Borahae Glow or an effect color) is reserved for light sources: the lightstick preview and the app icon. Never on buttons, cards, or text.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep chrome neutral and let video, lightstick, and effect colors carry all saturation (The House Lights Rule).",
+      "Do separate regions with 1px hairlines (border / border-strong) and tonal steps before reaching for a shadow.",
+      "Do use the shared Button and IconButton components; give every icon button a label, and include its shortcut when one exists.",
+      "Do use sentence-case semibold labels at 12px for panel headings.",
+      "Do use tabular-nums for every changing number.",
+      "Do keep text at 11px or larger (10px only for ruler ticks and effect-block labels)."
+    ],
+    "donts": [
+      "Don't use uppercase, wide-tracked eyebrow labels above headings or sections.",
+      "Don't use Manrope for labels, buttons, or data.",
+      "Don't use Borahae Glow for decoration or inactive states.",
+      "Don't put colored glows on UI controls; glow belongs to light sources only.",
+      "Don't overlay text on the video; titles and time live in the timeline header.",
+      "Don't use solid saturated red for destructive actions; use the Soft Coral tint.",
+      "Don't use monospace for anything except hex color codes."
+    ]
+  }
+}
