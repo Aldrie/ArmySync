@@ -1,10 +1,11 @@
-import { Bluetooth, BluetoothOff } from 'lucide-react';
+import { Bluetooth, BluetoothOff, ChevronRight } from 'lucide-react';
 import type { RefObject } from 'react';
 import { useCallback, useRef } from 'react';
 
 import Slider from '../../../components/slider';
 import { Lightstick } from '../../../domains/lightstick';
 import type { LightstickRef } from '../../../domains/lightstick';
+import { cn } from '../../../lib/cn';
 import { useBleStore } from '../../../stores/ble-store';
 import { useTransientTime } from '../../../stores/use-transient-time';
 
@@ -40,41 +41,44 @@ export default function LightstickPanel({
   );
 
   return (
-    <div className="h-full bg-surface-low border-l border-border flex flex-col py-5 px-4">
-      <div className="flex-1 flex flex-col items-center justify-center gap-4 min-h-0 overflow-hidden">
+    <div className="h-full bg-surface-low border-l border-border flex flex-col">
+      <div className="flex items-center justify-between px-4 pt-4">
+        <h2 className="text-xs font-semibold text-on-surface">Preview</h2>
+        <span ref={frameRef} className="text-[11px] text-outline tabular-nums">
+          Frame 0
+        </span>
+      </div>
+
+      <div className="flex-1 flex items-center justify-center min-h-0 overflow-hidden">
         <div className="shrink min-h-0 origin-center scale-60">
           <Lightstick ref={lightstickRef} />
         </div>
-
-        <div className="flex flex-col items-center gap-1 mt-2">
-          <span className="font-display font-bold text-[10px] tracking-widest uppercase text-on-surface-variant">
-            Live Preview
-          </span>
-          <span
-            ref={frameRef}
-            className="text-[10px] text-on-surface-variant tabular-nums font-mono"
-          >
-            Frame 0
-          </span>
-        </div>
       </div>
 
-      <div className="flex flex-col gap-4 w-full">
+      <section className="flex flex-col gap-3 w-full border-t border-border p-4">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-display font-bold text-on-surface-variant uppercase tracking-wider">
-            BLE Sync
+          <span
+            id="ble-sync-label"
+            className="text-xs font-semibold text-on-surface"
+          >
+            Bluetooth sync
           </span>
           <button
             type="button"
+            role="switch"
+            aria-checked={syncEnabled}
+            aria-labelledby="ble-sync-label"
             onClick={() => setSyncEnabled(!syncEnabled)}
-            className={`relative w-10 h-5.5 rounded-full transition-colors cursor-pointer ${
-              syncEnabled ? 'bg-primary' : 'bg-surface-highest'
-            }`}
+            className={cn(
+              'relative h-5 w-9 shrink-0 rounded-full transition-colors cursor-pointer shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]',
+              syncEnabled ? 'bg-primary' : 'bg-surface-highest',
+            )}
           >
             <span
-              className={`absolute top-0.75 left-0.75 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
-                syncEnabled ? 'translate-x-4.5' : 'translate-x-0'
-              }`}
+              className={cn(
+                'absolute top-0.5 left-0.5 size-4 rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.4)] transition-transform duration-200 ease-out',
+                syncEnabled && 'translate-x-4',
+              )}
             />
           </button>
         </div>
@@ -82,34 +86,44 @@ export default function LightstickPanel({
         <button
           type="button"
           onClick={() => setShowDevicesModal(true)}
-          className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg border border-outline-variant bg-surface-container hover:border-primary/40 transition-colors cursor-pointer"
+          className="group flex items-center gap-3 w-full p-2.5 rounded-lg border border-border bg-surface-container shadow-raised text-left hover:bg-surface-high hover:border-border-strong transition-colors cursor-pointer"
         >
-          {hasDevices ? (
-            <Bluetooth className="size-4 text-primary shrink-0" />
-          ) : (
-            <BluetoothOff className="size-4 text-on-surface-variant shrink-0" />
-          )}
-          <div className="flex flex-col items-start min-w-0">
-            <span className="text-xs font-display font-bold text-on-surface truncate">
+          <div
+            className={cn(
+              'flex size-8 shrink-0 items-center justify-center rounded-md',
+              hasDevices
+                ? 'bg-primary/10 text-primary'
+                : 'bg-surface-high text-on-surface-variant',
+            )}
+          >
+            {hasDevices ? (
+              <Bluetooth className="size-4" />
+            ) : (
+              <BluetoothOff className="size-4" />
+            )}
+          </div>
+          <div className="flex flex-1 flex-col min-w-0">
+            <span className="text-[13px] font-medium text-on-surface truncate">
               {hasDevices
                 ? `${deviceCount} device${deviceCount > 1 ? 's' : ''}`
                 : 'No Device'}
             </span>
-            <span className="text-[10px] text-on-surface-variant">
+            <span className="text-[11px] text-on-surface-variant truncate">
               {hasDevices
                 ? connectedDevices.map((d) => d.name).join(', ')
                 : 'Tap to connect'}
             </span>
           </div>
+          <ChevronRight className="size-4 shrink-0 text-outline transition-transform group-hover:translate-x-0.5" />
         </button>
 
         {connectedDevices.map((device) => (
-          <div key={device.id} className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-on-surface-variant truncate max-w-[60%]">
+          <div key={device.id} className="flex flex-col gap-2 pt-1">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-on-surface-variant truncate">
                 {device.name}
               </span>
-              <span className="text-xs text-on-surface font-mono tabular-nums">
+              <span className="text-xs font-medium text-on-surface tabular-nums">
                 {device.delayMs}ms
               </span>
             </div>
@@ -118,18 +132,19 @@ export default function LightstickPanel({
               max={200}
               step={1}
               defaultValue={device.delayMs}
-              className="w-full h-1.5 rounded-sm"
+              aria-label={`${device.name} latency`}
+              className="w-full"
               onChange={handleDelayChange(device.id)}
             />
           </div>
         ))}
 
         {hasDevices && (
-          <span className="text-[10px] text-on-surface-variant">
+          <span className="text-[11px] text-outline">
             Compensate Bluetooth latency per device
           </span>
         )}
-      </div>
+      </section>
     </div>
   );
 }
