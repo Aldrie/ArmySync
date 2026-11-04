@@ -3,6 +3,8 @@ import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
+import { clampDelay, loadSettings, updateSettings } from '../lib/settings';
+
 export interface BleDevice {
   id: string;
   name: string;
@@ -33,6 +35,21 @@ interface BleState {
   disconnect: (deviceId: string) => Promise<void>;
 }
 
+let pendingDelays: Record<string, number> = {};
+let persistTimer: ReturnType<typeof setTimeout> | undefined;
+
+const persistDelay = (deviceId: string, delayMs: number) => {
+  pendingDelays = { ...pendingDelays, [deviceId]: delayMs };
+  clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    const delays = pendingDelays;
+    pendingDelays = {};
+    void loadSettings().then(({ bleDelays }) =>
+      updateSettings({ bleDelays: { ...bleDelays, ...delays } }),
+    );
+  }, 300);
+};
+
 export const useBleStore = create<BleState>((set, get) => ({
   syncEnabled: false,
   connectedDevices: [],
@@ -45,13 +62,14 @@ export const useBleStore = create<BleState>((set, get) => ({
   },
 
   setDeviceDelay: (deviceId, ms) => {
-    const clamped = Math.max(0, Math.min(200, ms));
+    const clamped = clampDelay(ms);
     set((state) => ({
       connectedDevices: state.connectedDevices.map((d) =>
         d.id === deviceId ? { ...d, delayMs: clamped } : d,
       ),
     }));
     void invoke('ble_set_device_delay', { deviceId, delayMs: clamped });
+    persistDelay(deviceId, clamped);
   },
 
   setShowDevicesModal: (open) => {
@@ -106,12 +124,23 @@ void listen<BleDevice[]>('ble-devices', (event) => {
   useBleStore.setState({ devices: event.payload });
 });
 
-void listen<ConnectedDevice>('ble-connected', (event) => {
-  const device = { ...event.payload, delayMs: 0 };
+const addConnectedDevice = async (payload: ConnectedDevice) => {
+  const { bleDelays } = await loadSettings();
+  const device = { ...payload, delayMs: bleDelays[payload.id] ?? 0 };
   useBleStore.setState((state) => ({
     connectedDevices: [...state.connectedDevices, device],
     scanning: false,
   }));
+  if (device.delayMs > 0) {
+    await invoke('ble_set_device_delay', {
+      deviceId: device.id,
+      delayMs: device.delayMs,
+    });
+  }
+};
+
+void listen<ConnectedDevice>('ble-connected', (event) => {
+  void addConnectedDevice(event.payload);
 });
 
 void listen<{ id: string }>('ble-disconnected', (event) => {
