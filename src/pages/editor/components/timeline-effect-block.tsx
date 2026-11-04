@@ -299,8 +299,8 @@ export default function TimelineEffectBlock({
       </div>
 
       {width > 3 && (
-        <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-white/90 pointer-events-none truncate px-2 [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]">
-          {definition?.label}
+        <span className="absolute inset-0 flex items-center justify-center px-2 text-[10px] font-semibold text-white/90 pointer-events-none [text-shadow:0_1px_2px_rgba(0,0,0,0.7)]">
+          <span className="truncate">{definition?.label}</span>
         </span>
       )}
     </div>

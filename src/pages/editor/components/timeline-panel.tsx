@@ -268,7 +268,7 @@ export default function TimelinePanel({
               />
             </div>
 
-            <div className="w-full mt-3 flex-1 min-h-10 max-h-40">
+            <div className="w-full mt-3 flex-1 min-h-10">
               {waveformLoading ? (
                 <WaveformSkeleton />
               ) : (
