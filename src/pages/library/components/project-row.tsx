@@ -1,4 +1,4 @@
-import { ChevronRight, Music, Trash2 } from 'lucide-react';
+import { ChevronRight, ListMinus, ListPlus, Music, Trash2 } from 'lucide-react';
 
 import IconButton from '../../../components/icon-button';
 import type { ProjectSummary } from '../../../domains/project';
@@ -7,12 +7,16 @@ interface ProjectRowProps {
   project: ProjectSummary;
   onOpen: () => void;
   onDelete: () => void;
+  onAddToPlaylist: () => void;
+  onRemoveFromPlaylist?: () => void;
 }
 
 export default function ProjectRow({
   project,
   onOpen,
   onDelete,
+  onAddToPlaylist,
+  onRemoveFromPlaylist,
 }: ProjectRowProps) {
   const date = new Date(project.updatedAt);
 
@@ -38,7 +42,19 @@ export default function ProjectRow({
         </time>
         <ChevronRight className="size-4 shrink-0 -translate-x-1 text-outline opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
       </button>
-      <IconButton label="Delete song" className="ml-1" onClick={onDelete}>
+      <IconButton
+        label="Add to playlist"
+        className="ml-1"
+        onClick={onAddToPlaylist}
+      >
+        <ListPlus />
+      </IconButton>
+      {onRemoveFromPlaylist && (
+        <IconButton label="Remove from playlist" onClick={onRemoveFromPlaylist}>
+          <ListMinus />
+        </IconButton>
+      )}
+      <IconButton label="Delete song" onClick={onDelete}>
         <Trash2 />
       </IconButton>
     </div>
