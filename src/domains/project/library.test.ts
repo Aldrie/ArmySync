@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { invoke } from '@tauri-apps/api/core';
 
-import { createSong, listProjects, saveProject } from './library';
+import {
+  createSong,
+  deleteProject,
+  listProjects,
+  saveProject,
+} from './library';
 import { createSongProject } from './model';
 import type { Project } from './types';
 
@@ -128,6 +133,28 @@ describe('saveProject', () => {
     const second = saveProject(project('p2'));
     await expect(first).rejects.toThrow('disk');
     await expect(second).resolves.toMatchObject({ id: 'p2' });
+  });
+});
+
+describe('deleteProject', () => {
+  it('waits for a pending write before deleting', async () => {
+    const order: string[] = [];
+    invokeMock.mockImplementation(async (cmd) => {
+      if (cmd === 'write_project') await new Promise((r) => setTimeout(r, 20));
+      order.push(cmd);
+    });
+    await Promise.all([saveProject(project('p3')), deleteProject('p3')]);
+    expect(order).toEqual(['write_project', 'delete_project']);
+  });
+
+  it('does not write a project saved after its deletion', async () => {
+    invokeMock.mockResolvedValue(undefined);
+    await deleteProject('p4');
+    await expect(saveProject(project('p4'))).rejects.toThrow();
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      'write_project',
+      expect.anything(),
+    );
   });
 });
 

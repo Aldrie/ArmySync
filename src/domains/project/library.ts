@@ -19,20 +19,29 @@ export const loadProject = async (id: string): Promise<Project> =>
   parseProject(await invoke<unknown>('read_project', { id }));
 
 let saveQueue: Promise<unknown> = Promise.resolve();
+const deletedIds = new Set<string>();
 
-export const saveProject = (project: Project): Promise<Project> => {
-  const run = saveQueue.then(async () => {
-    const stamped = { ...project, updatedAt: Date.now() };
-    await invoke('write_project', { id: stamped.id, project: stamped });
-    return stamped;
-  });
+const enqueue = <T>(task: () => Promise<T>): Promise<T> => {
+  const run = saveQueue.then(task);
   saveQueue = run.catch(() => undefined);
   return run;
 };
 
-export const deleteProject = async (id: string): Promise<void> => {
-  await invoke('delete_project', { id });
-};
+export const saveProject = (project: Project): Promise<Project> =>
+  enqueue(async () => {
+    if (deletedIds.has(project.id)) {
+      throw new Error(`Project ${project.id} was deleted`);
+    }
+    const stamped = { ...project, updatedAt: Date.now() };
+    await invoke('write_project', { id: stamped.id, project: stamped });
+    return stamped;
+  });
+
+export const deleteProject = (id: string): Promise<void> =>
+  enqueue(async () => {
+    await invoke('delete_project', { id });
+    deletedIds.add(id);
+  });
 
 export const projectFilePath = async (
   projectId: string,
