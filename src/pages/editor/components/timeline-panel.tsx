@@ -278,7 +278,7 @@ export default function TimelinePanel({
             <div
               ref={trackRefCallback}
               className={cn(
-                'w-full h-20 shrink-0 bg-surface-dim rounded-lg relative z-4 overflow-visible ring-1 ring-inset ring-border transition-[background-color,box-shadow]',
+                'w-full h-20 shrink-0 bg-surface-dim rounded-lg relative z-4 cursor-col-resize overflow-visible ring-1 ring-inset ring-border transition-[background-color,box-shadow]',
                 isDropTarget && 'bg-primary/5 ring-primary/50',
               )}
               onClick={handleTrackClick}
