@@ -1,4 +1,5 @@
 import { createId } from '@paralleldrive/cuid2';
+import { useEffect } from 'react';
 import { create } from 'zustand';
 
 import { invoke } from '@tauri-apps/api/core';
@@ -111,6 +112,20 @@ export function generateEffectId(): string {
 }
 
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+let historyBatch: { pushed: boolean } | null = null;
+
+export function beginHistoryBatch(): () => void {
+  historyBatch = { pushed: false };
+  return () => {
+    historyBatch = null;
+  };
+}
+
+export function useHistoryBatch(session: number | null) {
+  useEffect(() => {
+    if (session !== null) return beginHistoryBatch();
+  }, [session]);
+}
 
 function scheduleAutoSave(save: () => Promise<void>) {
   if (autoSaveTimer) clearTimeout(autoSaveTimer);
@@ -142,6 +157,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   canRedo: false,
 
   pushHistory: () => {
+    if (historyBatch?.pushed) {
+      set({ isDirty: true });
+      scheduleAutoSave(get().saveEffects);
+      return;
+    }
+    if (historyBatch) historyBatch.pushed = true;
     const past = [...get()._past, cloneEffects(get().effects)].slice(
       -MAX_HISTORY,
     );
@@ -156,6 +177,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   undo: () => {
+    if (historyBatch) historyBatch.pushed = false;
     const { _past, _future, effects } = get();
     const previous = _past[_past.length - 1];
     if (!previous) return;
@@ -172,6 +194,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   redo: () => {
+    if (historyBatch) historyBatch.pushed = false;
     const { _past, _future, effects } = get();
     const next = _future[0];
     if (!next) return;

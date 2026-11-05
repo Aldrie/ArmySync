@@ -2,6 +2,7 @@ import { Plus, X } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
 
 import ColorPickerPopover from '../../../../components/color-picker-popover';
+import { useHistoryBatch } from '../../../../stores/editor-store';
 
 interface ColorListFieldProps {
   label: string;
@@ -20,6 +21,7 @@ export default function ColorListField({
 }: ColorListFieldProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  useHistoryBatch(activeIndex);
   const swatchRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 
   const handleColorChange = useCallback(

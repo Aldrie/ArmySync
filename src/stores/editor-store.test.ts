@@ -4,7 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 
 import { useAppStore } from './app-store';
 import { editorRefs } from './editor-refs';
-import { useEditorStore } from './editor-store';
+import { beginHistoryBatch, useEditorStore } from './editor-store';
 import {
   createSongProject,
   getSongEffects,
@@ -103,4 +103,25 @@ it('undoes and redoes one change at a time', async () => {
   store().redo();
   expect(ids()).toEqual(['a', 'b']);
   expect(store().canRedo).toBe(false);
+});
+
+it('records one undo entry per history batch', async () => {
+  await useEditorStore.getState().initFromProject(song());
+  const store = useEditorStore.getState;
+  store().addEffect({
+    id: 'a',
+    type: 'color',
+    from: 0,
+    to: 1,
+    params: { color: '#000000' },
+  });
+
+  const endBatch = beginHistoryBatch();
+  for (const color of ['#111111', '#222222', '#333333']) {
+    store().updateEffectParams('a', { color });
+  }
+  endBatch();
+
+  store().undo();
+  expect(store().effects[0].params.color).toBe('#000000');
 });

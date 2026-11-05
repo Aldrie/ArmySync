@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 
 import ColorPickerPopover from '../../../../components/color-picker-popover';
+import { useHistoryBatch } from '../../../../stores/editor-store';
 
 interface ColorFieldProps {
   label: string;
@@ -14,6 +15,7 @@ export default function ColorField({
   onChange,
 }: ColorFieldProps) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  useHistoryBatch(anchor ? 0 : null);
 
   const handleToggle = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     setAnchor((prev) => (prev ? null : (e.currentTarget as HTMLElement)));
