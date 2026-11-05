@@ -9,10 +9,18 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(async () => ({
   plugins: [react(), tailwindcss(), svgr()],
   clearScreen: false,
+  build: {
+    rollupOptions: {
+      input: {
+        main: 'index.html',
+        remote: 'remote.html',
+      },
+    },
+  },
   server: {
     port: 1420,
     strictPort: true,
-    host: host || false,
+    host: host || true,
     hmr: host
       ? {
         protocol: 'ws',

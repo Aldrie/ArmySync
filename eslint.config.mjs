@@ -34,6 +34,9 @@ export default tseslint.config(
       react: {
         version: 'detect',
       },
+      'import/resolver': {
+        node: { extensions: ['.ts', '.tsx', '.js', '.jsx'] },
+      },
     },
     rules: {
       ...react.configs.recommended.rules,
@@ -53,6 +56,13 @@ export default tseslint.config(
       '@typescript-eslint/require-await': 'off',
       '@typescript-eslint/no-unsafe-return': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',
+
+      'import/no-restricted-paths': ['error', {
+        zones: [
+          { target: './src/remote', from: ['./src/pages', './src/stores'] },
+          { target: ['./src/pages', './src/stores', './src/app'], from: './src/remote' },
+        ],
+      }],
 
       'import/order': ['warn', {
         groups: ['builtin', 'external', 'internal', ['parent', 'sibling', 'index']],
