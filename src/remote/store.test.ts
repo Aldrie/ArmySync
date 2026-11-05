@@ -87,3 +87,29 @@ it('does not send empty takes', () => {
   receive(transport(false, 8));
   expect(takes()).toEqual([]);
 });
+
+const stateAt = (songTime: number, serverTime: number): MacToPhone => ({
+  type: 'state',
+  transport: { playing: true, songTime, serverTime },
+});
+
+const takeRanges = () =>
+  takes().map((m) =>
+    m.type === 'take' ? m.take.effects.map((e) => [e.from, e.to]) : [],
+  );
+
+it('keeps one take when a playing state only corrects drift', () => {
+  store.getState().press('red');
+  receive(stateAt(5, 1000));
+  receive(stateAt(6.04, 2000));
+  receive(transport(false, 8));
+  expect(takeRanges()).toEqual([[[5, 8]]]);
+});
+
+it('splits the take when a playing state jumps', () => {
+  store.getState().press('red');
+  receive(stateAt(5, 1000));
+  receive(stateAt(8, 2000));
+  receive(transport(false, 10));
+  expect(takeRanges()).toEqual([[[5, 6]], [[8, 10]]]);
+});

@@ -71,6 +71,7 @@ type Open = (
 ) => Client;
 
 const COUNTDOWN_MS = 3000;
+const SEEK_JUMP_S = 0.25;
 
 const noopStorage: StateStorage = {
   getItem: () => null,
@@ -140,16 +141,19 @@ export function createRemoteStore(open: Open) {
         };
 
         const onTransport = (transport: TransportSnapshot) => {
-          const wasPlaying = get().transport.playing;
-          if (wasPlaying)
-            finishTake(
-              transport.playing ? get().songNow() : transport.songTime,
-            );
+          const old = get().transport;
+          const expected = songTimeAt(old, transport.serverTime);
+          const jumped =
+            transport.playing &&
+            Math.abs(transport.songTime - expected) > SEEK_JUMP_S;
+          if (old.playing && (!transport.playing || jumped))
+            finishTake(transport.playing ? expected : transport.songTime);
           set({
             transport,
             countdownUntil: transport.playing ? null : get().countdownUntil,
           });
-          if (transport.playing) openTake(transport.songTime);
+          if (transport.playing && !get().recording)
+            openTake(transport.songTime);
         };
 
         const onHello = (m: Extract<MacToPhone, { type: 'hello' }>) => {
