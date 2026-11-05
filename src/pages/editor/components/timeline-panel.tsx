@@ -118,6 +118,25 @@ export default function TimelinePanel({
     [onSeek],
   );
 
+  const handleNeedlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLSpanElement>) => {
+      e.stopPropagation();
+      e.currentTarget.setPointerCapture(e.pointerId);
+    },
+    [],
+  );
+
+  const handleNeedlePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLSpanElement>) => {
+      const timeline = timelineRef.current;
+      if (!timeline || !e.currentTarget.hasPointerCapture(e.pointerId)) return;
+      const rect = timeline.getBoundingClientRect();
+      const percent = ((e.clientX - rect.left) / rect.width) * 100;
+      handleInputTimeChange(String(Math.max(0, Math.min(100, percent))));
+    },
+    [handleInputTimeChange],
+  );
+
   const setZoomLevel = useEditorStore((s) => s.setZoomLevel);
 
   const handleZoomInputChange = useCallback(
@@ -268,7 +287,9 @@ export default function TimelinePanel({
           <div className="w-full pt-2 pb-2 flex flex-col flex-1 min-h-0">
             <span
               ref={needleRef}
-              className="absolute w-0.5 z-5 top-0 left-0 h-full bg-primary pointer-events-none shadow-[0_0_0_1px_rgba(0,0,0,0.25)] before:content-[''] before:block before:absolute before:top-0 before:bg-primary before:w-3 before:h-3.5 before:rounded-b-[5px] before:rounded-t-[2px] before:-translate-x-[5px]"
+              onPointerDown={handleNeedlePointerDown}
+              onPointerMove={handleNeedlePointerMove}
+              className="absolute w-0.5 z-5 top-0 left-0 h-full bg-primary cursor-col-resize after:absolute after:inset-y-0 after:-left-1 after:w-2.5 shadow-[0_0_0_1px_rgba(0,0,0,0.25)] before:content-[''] before:block before:absolute before:top-0 before:bg-primary before:w-3 before:h-3.5 before:rounded-b-[5px] before:rounded-t-[2px] before:-translate-x-[5px]"
             />
 
             <div className="flex justify-between w-full mb-1.5">
@@ -278,7 +299,7 @@ export default function TimelinePanel({
             <div
               ref={trackRefCallback}
               className={cn(
-                'w-full h-20 shrink-0 bg-surface-dim rounded-lg relative z-4 cursor-col-resize overflow-visible ring-1 ring-inset ring-border transition-[background-color,box-shadow]',
+                'w-full h-20 shrink-0 bg-surface-dim rounded-lg relative z-4 overflow-visible ring-1 ring-inset ring-border transition-[background-color,box-shadow]',
                 isDropTarget && 'bg-primary/5 ring-primary/50',
               )}
               onClick={handleTrackClick}

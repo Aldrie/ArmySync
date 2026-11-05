@@ -202,7 +202,7 @@ input[type="range"].range-timeline {
   height: 100%;
   z-index: 3;
   background: transparent;
-  cursor: col-resize;
+  cursor: default;
 }
 
 input[type="range"].range-timeline::-webkit-slider-runnable-track {
