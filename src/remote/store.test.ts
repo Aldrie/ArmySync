@@ -113,3 +113,16 @@ it('splits the take when a playing state jumps', () => {
   receive(transport(false, 10));
   expect(takeRanges()).toEqual([[[5, 6]], [[8, 10]]]);
 });
+
+it('collects calibration clicks per run and saves the latency', () => {
+  receive({ type: 'calibration-click', serverTime: 100 });
+  store.getState().calibrate('image');
+  receive({ type: 'calibration-click', serverTime: 1000 });
+  receive({ type: 'calibration-click', serverTime: 1600 });
+  expect(store.getState().calibrationClicks).toEqual([1000, 1600]);
+  expect(sent).toContainEqual({ type: 'calibrate', mode: 'image' });
+
+  store.getState().saveLatency(42);
+  expect(store.getState().latencyMs).toBe(42);
+  expect(sent).toContainEqual({ type: 'latency-save', latencyMs: 42 });
+});

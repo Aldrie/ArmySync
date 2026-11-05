@@ -52,6 +52,7 @@ export interface RemoteState {
   outbox: Take[];
   countdownUntil: number | null;
   settings: RemoteSettings;
+  calibrationClicks: number[];
   start: () => void;
   press: (padId: string) => void;
   release: (padId: string) => void;
@@ -63,6 +64,8 @@ export interface RemoteState {
   saveProfiles: (profiles: Profile[]) => void;
   setMode: (m: Mode) => void;
   setSettings: (patch: Partial<RemoteSettings>) => void;
+  calibrate: (mode: 'sound' | 'image') => void;
+  saveLatency: (latencyMs: number) => void;
   songNow: () => number;
 }
 
@@ -202,6 +205,11 @@ export function createRemoteStore(open: Open) {
             case 'take-undone':
               set({ lastTakeStart: m.lastTakeStart });
               break;
+            case 'calibration-click':
+              set({
+                calibrationClicks: [...get().calibrationClicks, m.serverTime],
+              });
+              break;
           }
         };
 
@@ -230,6 +238,7 @@ export function createRemoteStore(open: Open) {
           outbox: [],
           countdownUntil: null,
           settings: { autoplay: true, countdown: true, screenRadius: 36 },
+          calibrationClicks: [],
 
           start: () => {
             client ??= open(onMessage, onStatus);
@@ -268,6 +277,14 @@ export function createRemoteStore(open: Open) {
           setMode: (mode) => set({ mode }),
           setSettings: (patch) =>
             set({ settings: { ...get().settings, ...patch } }),
+          calibrate: (mode) => {
+            set({ calibrationClicks: [] });
+            send({ type: 'calibrate', mode });
+          },
+          saveLatency: (latencyMs) => {
+            set({ latencyMs });
+            send({ type: 'latency-save', latencyMs });
+          },
           songNow: () =>
             songTimeAt(get().transport, performance.now() + get().offsetMs),
         };

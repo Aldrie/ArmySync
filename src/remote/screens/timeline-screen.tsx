@@ -100,8 +100,17 @@ export default function TimelineScreen() {
   const settings = useRemoteStore((s) => s.settings);
   const lastTakeStart = useRemoteStore((s) => s.lastTakeStart);
   const countdownUntil = useRemoteStore((s) => s.countdownUntil);
-  const { seek, nudge, play, pause, undoTake, songNow, setSettings, setMode } =
-    useRemoteStore.getState();
+  const {
+    seek,
+    nudge,
+    play,
+    pause,
+    undoTake,
+    songNow,
+    setSettings,
+    setMode,
+    calibrate,
+  } = useRemoteStore.getState();
 
   const [sensitivity, setSensitivity] = useState<Sensitivity>('normal');
   const [scrub, setScrub] = useState<{
@@ -167,7 +176,13 @@ export default function TimelineScreen() {
           <span className="size-1.5 rounded-full bg-current" />
           {STATUS[status].label}
         </span>
-        <Button size="sm" onClick={() => setMode('calibrate')}>
+        <Button
+          size="sm"
+          onClick={() => {
+            calibrate('sound');
+            setMode('calibrate');
+          }}
+        >
           <SlidersHorizontal />
           Calibrate
         </Button>
