@@ -276,7 +276,7 @@ export default function EditorPage() {
 
         <ResizePanel
           direction="top"
-          defaultSize={{ width: '100%', height: 340 }}
+          defaultSize={{ width: '100%', height: 260 }}
           minHeight={200}
           maxHeight={420}
         >
