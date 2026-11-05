@@ -46,12 +46,12 @@ export type MacToPhone =
 
 type Json = Record<string, unknown>;
 
-const PAD_KINDS: ReadonlySet<string> = new Set<PadKind>([
-  'color',
-  'strobe',
-  'fade',
-  'blackout',
-]);
+const PAD_COLOR_COUNT: Record<PadKind, number> = {
+  color: 1,
+  strobe: 2,
+  fade: 2,
+  blackout: 0,
+};
 
 function isObject(value: unknown): value is Json {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -63,6 +63,42 @@ function isNumber(value: unknown): value is number {
 
 function isString(value: unknown): value is string {
   return typeof value === 'string';
+}
+
+function isHex(value: unknown): value is string {
+  return isString(value) && /^#[0-9a-f]{6}$/i.test(value);
+}
+
+function isHexList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every(isHex);
+}
+
+function isPadKind(value: unknown): value is PadKind {
+  return (
+    isString(value) &&
+    Object.prototype.hasOwnProperty.call(PAD_COLOR_COUNT, value)
+  );
+}
+
+function isOptionalNumber(value: unknown): boolean {
+  return value === undefined || isNumber(value);
+}
+
+function hasValidParams(type: string, params: Json): boolean {
+  switch (type) {
+    case 'color':
+      return isHex(params.color);
+    case 'fade':
+      return isHex(params.startColor) && isHex(params.endColor);
+    case 'flash':
+      return (
+        isHexList(params.colors) &&
+        params.colors.length > 0 &&
+        isOptionalNumber(params.bpm)
+      );
+    default:
+      return true;
+  }
 }
 
 function isEffect(
@@ -77,7 +113,8 @@ function isEffect(
     isNumber(value.from) &&
     isNumber(value.to) &&
     value.from < value.to &&
-    isObject(value.params)
+    isObject(value.params) &&
+    hasValidParams(value.type, value.params)
   );
 }
 
@@ -95,11 +132,10 @@ function isPad(value: unknown): value is Pad {
   return (
     isObject(value) &&
     isString(value.id) &&
-    isString(value.kind) &&
-    PAD_KINDS.has(value.kind) &&
-    Array.isArray(value.colors) &&
-    value.colors.every(isString) &&
-    (value.bpm === undefined || isNumber(value.bpm))
+    isPadKind(value.kind) &&
+    isHexList(value.colors) &&
+    value.colors.length === PAD_COLOR_COUNT[value.kind] &&
+    isOptionalNumber(value.bpm)
   );
 }
 
