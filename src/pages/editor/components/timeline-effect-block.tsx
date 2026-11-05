@@ -115,6 +115,26 @@ export default function TimelineEffectBlock({
 
       const container = containerRef.current;
       const containerWidth = container?.scrollWidth ?? 1;
+      const needle = [useEditorStore.getState().currentTime];
+      const snap = (time: number, excludeIds?: Set<string>) =>
+        findSnapTarget(
+          time,
+          effects,
+          containerWidth,
+          videoDuration,
+          effect.id,
+          excludeIds,
+          needle,
+        );
+      const snapEdges = (
+        from: number,
+        to: number,
+        excludeIds?: Set<string>,
+      ) => {
+        const snappedFrom = snap(from, excludeIds);
+        if (snappedFrom !== from) return snappedFrom - from;
+        return snap(to, excludeIds) - to;
+      };
 
       if (drag.mode === 'move') {
         if (drag.groupOrigins.length > 1) {
@@ -128,14 +148,12 @@ export default function TimelineEffectBlock({
 
           const selectedIds = new Set(drag.groupOrigins.map((g) => g.id));
           const snappedDelta =
-            findSnapTarget(
+            clampedDelta +
+            snapEdges(
               drag.origFrom + clampedDelta,
-              effects,
-              containerWidth,
-              videoDuration,
-              effect.id,
+              drag.origTo + clampedDelta,
               selectedIds,
-            ) - drag.origFrom;
+            );
 
           const finalDelta =
             groupMin + snappedDelta >= 0 &&
@@ -164,38 +182,20 @@ export default function TimelineEffectBlock({
             newFrom = videoDuration - duration;
           }
 
-          const snappedFrom = findSnapTarget(
-            newFrom,
-            effects,
-            containerWidth,
-            videoDuration,
-            effect.id,
-          );
-          if (snappedFrom !== newFrom) {
-            newFrom = snappedFrom;
-            newTo = snappedFrom + duration;
+          const shift = snapEdges(newFrom, newTo);
+          if (newFrom + shift >= 0 && newTo + shift <= videoDuration) {
+            newFrom += shift;
+            newTo += shift;
           }
 
           moveEffect(effect.id, newFrom, newTo);
         }
       } else if (drag.mode === 'resize-start') {
-        let newFrom = findSnapTarget(
-          drag.origFrom + delta,
-          effects,
-          containerWidth,
-          videoDuration,
-          effect.id,
-        );
+        let newFrom = snap(drag.origFrom + delta);
         newFrom = Math.max(0, Math.min(newFrom, drag.origTo - 0.1));
         resizeEffect(effect.id, 'start', newFrom);
       } else if (drag.mode === 'resize-end') {
-        let newTo = findSnapTarget(
-          drag.origTo + delta,
-          effects,
-          containerWidth,
-          videoDuration,
-          effect.id,
-        );
+        let newTo = snap(drag.origTo + delta);
         newTo = Math.max(drag.origFrom + 0.1, Math.min(newTo, videoDuration));
         resizeEffect(effect.id, 'end', newTo);
       }

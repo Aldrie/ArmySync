@@ -13,11 +13,25 @@ import DevicesModal from '../../components/devices-modal';
 import ResizePanel from '../../components/resize-panel';
 import type { EffectInstance } from '../../domains/effects';
 import { getEffectDefinition } from '../../domains/effects';
+import { findSnapTarget } from '../../domains/effects/services/timeline';
 import type { LightstickRef } from '../../domains/lightstick';
 import { useKeybind } from '../../lib/use-keybind';
 import { useAppStore } from '../../stores/app-store';
 import { editorRefs } from '../../stores/editor-refs';
 import { useEditorStore, generateEffectId } from '../../stores/editor-store';
+
+function snapDropTime(x: number, width: number, duration: number): number {
+  const { effects, currentTime } = useEditorStore.getState();
+  return findSnapTarget(
+    Math.max(0, (x / width) * duration),
+    effects,
+    width,
+    duration,
+    undefined,
+    undefined,
+    [currentTime],
+  );
+}
 
 export default function EditorPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -100,7 +114,7 @@ export default function EditorPage() {
 
       const rect = trackEl.getBoundingClientRect();
       const x = pointerPosRef.current.x - rect.left;
-      const dropTime = Math.max(0, (x / rect.width) * videoDuration);
+      const dropTime = snapDropTime(x, rect.width, videoDuration);
 
       const duration = definition.defaultDuration;
       const from = dropTime;
@@ -164,7 +178,7 @@ export default function EditorPage() {
       if (!def) return;
 
       const x = pos.x - rect.left;
-      const dropTime = Math.max(0, (x / rect.width) * videoDuration);
+      const dropTime = snapDropTime(x, rect.width, videoDuration);
       const endTime = Math.min(dropTime + def.defaultDuration, videoDuration);
 
       ghost.style.left = `${(dropTime / videoDuration) * 100}%`;

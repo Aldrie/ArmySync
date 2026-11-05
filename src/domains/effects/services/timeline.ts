@@ -25,10 +25,19 @@ export function findSnapTarget(
   duration: number,
   excludeId?: string,
   excludeIds?: Set<string>,
+  points: number[] = [],
 ): number {
   const thresholdTime = (SNAP_THRESHOLD_PX / containerWidth) * duration;
   let best = time;
   let bestDist = thresholdTime;
+
+  for (const point of points) {
+    const dist = Math.abs(time - point);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = point;
+    }
+  }
 
   for (const effect of effects) {
     if (effect.id === excludeId) continue;
