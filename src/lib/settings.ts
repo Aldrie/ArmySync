@@ -2,11 +2,14 @@ import { invoke } from '@tauri-apps/api/core';
 
 export interface Settings {
   bleDelays: Record<string, number>;
+  remoteLatencyMs: number;
 }
 
 type StoredSettings = Settings & Record<string, unknown>;
 
 export const clampDelay = (ms: number) => Math.max(0, Math.min(200, ms));
+
+export const clampLatency = (ms: number) => Math.max(0, Math.min(500, ms));
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -22,7 +25,10 @@ const parseDelays = (value: unknown): Record<string, number> =>
       )
     : {};
 
-let stored: StoredSettings = { bleDelays: {} };
+const parseLatency = (value: unknown): number =>
+  typeof value === 'number' && Number.isFinite(value) ? clampLatency(value) : 0;
+
+let stored: StoredSettings = { bleDelays: {}, remoteLatencyMs: 0 };
 let writable = false;
 let loading: Promise<void> | null = null;
 let writeQueue: Promise<void> = Promise.resolve();
@@ -34,7 +40,11 @@ export const loadSettings = (): Promise<Settings> => {
         throw new Error('Invalid settings file');
       }
       if (value) {
-        stored = { ...value, bleDelays: parseDelays(value.bleDelays) };
+        stored = {
+          ...value,
+          bleDelays: parseDelays(value.bleDelays),
+          remoteLatencyMs: parseLatency(value.remoteLatencyMs),
+        };
       }
       writable = true;
     })

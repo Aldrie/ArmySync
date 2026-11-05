@@ -125,3 +125,80 @@ it('records one undo entry per history batch', async () => {
   store().undo();
   expect(store().effects[0].params.color).toBe('#000000');
 });
+
+const color = (id: string, from: number, to: number) => ({
+  id,
+  type: 'color',
+  from,
+  to,
+  params: { color: '#ffffff' },
+});
+
+const take = (startTime: number) => ({
+  id: 'take-1',
+  startTime,
+  effects: [color('t', 4, 6)],
+});
+
+const stubVideo = () => {
+  editorRefs.video = {
+    duration: 120,
+    currentTime: 30,
+    play: vi.fn(() => Promise.resolve()),
+    pause: vi.fn(),
+  } as unknown as HTMLVideoElement;
+};
+
+it('applies a remote take as one undo step', async () => {
+  stubVideo();
+  await useEditorStore.getState().initFromProject(song());
+  const store = useEditorStore.getState;
+  store().addEffect(color('a', 0, 10));
+
+  expect(store().applyRemoteTake(take(2))).toBe(true);
+  expect(store().effects.map((e) => [e.from, e.to])).toEqual([
+    [0, 4],
+    [4, 6],
+    [6, 10],
+  ]);
+  expect(store().lastTakeStart()).toBe(2);
+
+  store().undo();
+  expect(store().effects).toEqual([color('a', 0, 10)]);
+});
+
+it('undoes the last take and parks the song at its start', async () => {
+  stubVideo();
+  await useEditorStore.getState().initFromProject(song());
+  const store = useEditorStore.getState;
+  store().addEffect(color('a', 0, 10));
+  store().applyRemoteTake(take(2));
+  useEditorStore.setState({ isPlaying: true });
+
+  expect(store().undoRemoteTake()).toBe(2);
+  expect(store().effects).toEqual([color('a', 0, 10)]);
+  expect(editorRefs.video?.currentTime).toBe(2);
+  expect(store().currentTime).toBe(2);
+  expect(store().isPlaying).toBe(false);
+  expect(store().lastTakeStart()).toBeNull();
+});
+
+it('does not undo a take once another edit came after it', async () => {
+  stubVideo();
+  await useEditorStore.getState().initFromProject(song());
+  const store = useEditorStore.getState;
+  store().applyRemoteTake(take(2));
+  store().addEffect(color('b', 20, 30));
+  const before = store().effects;
+
+  expect(store().lastTakeStart()).toBeNull();
+  expect(store().undoRemoteTake()).toBeNull();
+  expect(store().effects).toBe(before);
+  expect(editorRefs.video?.currentTime).toBe(30);
+});
+
+it('refuses a remote take without an open project', () => {
+  useEditorStore.getState().resetEditor();
+  expect(useEditorStore.getState().applyRemoteTake(take(2))).toBe(false);
+  expect(useEditorStore.getState().effects).toEqual([]);
+});

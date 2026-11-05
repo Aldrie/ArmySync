@@ -18,7 +18,7 @@ beforeEach(() => {
 it('returns defaults when the settings file is missing', async () => {
   invokeMock.mockResolvedValue(null);
   const { loadSettings } = await importSettings();
-  expect(await loadSettings()).toEqual({ bleDelays: {} });
+  expect(await loadSettings()).toEqual({ bleDelays: {}, remoteLatencyMs: 0 });
 });
 
 it('clamps saved delays and ignores non-numeric entries', async () => {
@@ -29,6 +29,12 @@ it('clamps saved delays and ignores non-numeric entries', async () => {
   expect((await loadSettings()).bleDelays).toEqual({ a: 200, b: 0, d: 60 });
 });
 
+it('clamps the saved remote latency to 0-500 ms', async () => {
+  invokeMock.mockResolvedValue({ remoteLatencyMs: 900 });
+  const { loadSettings } = await importSettings();
+  expect((await loadSettings()).remoteLatencyMs).toBe(500);
+});
+
 it('merges a patch while keeping other stored keys', async () => {
   invokeMock.mockResolvedValueOnce({ theme: 'dark', bleDelays: { b: 10 } });
   const { updateSettings } = await importSettings();
@@ -36,7 +42,7 @@ it('merges a patch while keeping other stored keys', async () => {
   expect(writes()).toHaveLength(1);
   expect(writes()[0][1]).toEqual({
     name: 'settings',
-    value: { theme: 'dark', bleDelays: { a: 40 } },
+    value: { theme: 'dark', bleDelays: { a: 40 }, remoteLatencyMs: 0 },
   });
 });
 
@@ -56,15 +62,21 @@ it('serializes quick patches so the latest one is written last', async () => {
   finishFirstWrite();
   await Promise.all([first, second]);
   expect(writes().map(([, args]) => args)).toEqual([
-    { name: 'settings', value: { theme: 'dark', bleDelays: { a: 40 } } },
-    { name: 'settings', value: { theme: 'dark', bleDelays: { a: 40, b: 10 } } },
+    {
+      name: 'settings',
+      value: { theme: 'dark', bleDelays: { a: 40 }, remoteLatencyMs: 0 },
+    },
+    {
+      name: 'settings',
+      value: { theme: 'dark', bleDelays: { a: 40, b: 10 }, remoteLatencyMs: 0 },
+    },
   ]);
 });
 
 it('never writes after a failed read', async () => {
   invokeMock.mockRejectedValueOnce(new Error('disk'));
   const { loadSettings, updateSettings } = await importSettings();
-  expect(await loadSettings()).toEqual({ bleDelays: {} });
+  expect(await loadSettings()).toEqual({ bleDelays: {}, remoteLatencyMs: 0 });
   await updateSettings({ bleDelays: { a: 40 } });
   expect(writes()).toHaveLength(0);
 });
@@ -74,5 +86,8 @@ it('loadSettings reflects a previous updateSettings', async () => {
   const { loadSettings, updateSettings } = await importSettings();
   await loadSettings();
   await updateSettings({ bleDelays: { a: 40 } });
-  expect(await loadSettings()).toEqual({ bleDelays: { a: 40 } });
+  expect(await loadSettings()).toEqual({
+    bleDelays: { a: 40 },
+    remoteLatencyMs: 0,
+  });
 });

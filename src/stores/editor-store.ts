@@ -16,6 +16,8 @@ import {
   withSongMediaDuration,
 } from '../domains/project';
 import type { MediaType, Project } from '../domains/project';
+import { applyTake } from '../domains/remote';
+import type { Take } from '../domains/remote';
 import { extractWaveform } from '../lib/audio';
 
 const DEFAULT_VOLUME = 0.25;
@@ -65,6 +67,7 @@ interface EditorState {
   seekDelta: (delta: number) => void;
   seekStep: (direction: 1 | -1, fast?: boolean) => void;
   seekPercent: (percent: number) => void;
+  seek: (time: number) => void;
   tick: (time: number) => void;
 
   setVolume: (value: number) => void;
@@ -93,6 +96,10 @@ interface EditorState {
   deleteSelection: () => void;
   duplicateSelection: () => void;
 
+  applyRemoteTake: (take: Take) => boolean;
+  undoRemoteTake: () => number | null;
+  lastTakeStart: () => number | null;
+
   _past: EffectInstance[][];
   _future: EffectInstance[][];
   canUndo: boolean;
@@ -111,6 +118,8 @@ interface EditorState {
 export function generateEffectId(): string {
   return createId();
 }
+
+const takeStarts = new WeakMap<EffectInstance[], number>();
 
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 let historyBatch: { pushed: boolean } | null = null;
@@ -213,9 +222,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   play: () => {
     const el = editorRefs.video;
-    el?.play();
     set({ isPlaying: true });
-    void invoke('sync_play', { time: el?.currentTime ?? 0 });
+    void el?.play().then(() => invoke('sync_play', { time: el.currentTime }));
   },
 
   pause: () => {
@@ -247,10 +255,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   seekPercent: (percent) => {
     const el = editorRefs.video;
     if (!el) return;
-    const time = el.duration * (percent / 100);
-    el.currentTime = time;
-    get().tick(time);
-    void invoke('sync_seek', { time });
+    get().seek(el.duration * (percent / 100));
+  },
+
+  seek: (time) => {
+    const el = editorRefs.video;
+    if (!el) return;
+    const clamped = Math.max(0, Math.min(el.duration, time));
+    el.currentTime = clamped;
+    get().tick(clamped);
+    void invoke('sync_seek', { time: clamped });
   },
 
   tick: (time) => {
@@ -440,6 +454,33 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       effects: [...s.effects, ...newEffects],
       selectedEffectIds: newEffects.map((e) => e.id),
     }));
+  },
+
+  applyRemoteTake: (take) => {
+    if (!get().project) return false;
+    const before = get()._past;
+    get().pushHistory();
+    const past = get()._past;
+    if (past !== before) takeStarts.set(past[past.length - 1], take.startTime);
+    set((s) => ({
+      effects: applyTake(s.effects, take.effects, generateEffectId),
+    }));
+    return true;
+  },
+
+  undoRemoteTake: () => {
+    const start = get().lastTakeStart();
+    if (start === null) return null;
+    get().undo();
+    get().seek(start);
+    get().pause();
+    return start;
+  },
+
+  lastTakeStart: () => {
+    const past = get()._past;
+    const last = past[past.length - 1];
+    return last ? (takeStarts.get(last) ?? null) : null;
   },
 
   initFromProject: async (project) => {
