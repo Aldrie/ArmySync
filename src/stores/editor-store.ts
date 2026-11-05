@@ -19,8 +19,12 @@ import { extractWaveform } from '../lib/audio';
 
 const DEFAULT_VOLUME = 0.25;
 const FRAME_DURATION = 1 / 24;
-const MAX_HISTORY = 11;
+const MAX_HISTORY = 10;
 const AUTO_SAVE_DELAY = 2000;
+
+function cloneEffects(effects: EffectInstance[]): EffectInstance[] {
+  return effects.map((e) => ({ ...e, params: { ...e.params } }));
+}
 
 function seekStepFromZoom(zoom: number): number {
   if (zoom >= 90) return FRAME_DURATION;
@@ -87,8 +91,8 @@ interface EditorState {
   deleteSelection: () => void;
   duplicateSelection: () => void;
 
-  _history: EffectInstance[][];
-  _historyCursor: number;
+  _past: EffectInstance[][];
+  _future: EffectInstance[][];
   canUndo: boolean;
   canRedo: boolean;
   pushHistory: () => void;
@@ -132,22 +136,19 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   selectedEffectIds: [],
   clipboard: [],
 
-  _history: [[]],
-  _historyCursor: 0,
+  _past: [],
+  _future: [],
   canUndo: false,
   canRedo: false,
 
   pushHistory: () => {
-    const { effects, _history, _historyCursor } = get();
-    const snapshot = effects.map((e) => ({ ...e, params: { ...e.params } }));
-    const trimmed = _history.slice(0, _historyCursor + 1);
-    trimmed.push(snapshot);
-    if (trimmed.length > MAX_HISTORY) trimmed.shift();
-    const cursor = trimmed.length - 1;
+    const past = [...get()._past, cloneEffects(get().effects)].slice(
+      -MAX_HISTORY,
+    );
     set({
-      _history: trimmed,
-      _historyCursor: cursor,
-      canUndo: cursor > 0,
+      _past: past,
+      _future: [],
+      canUndo: true,
       canRedo: false,
       isDirty: true,
     });
@@ -155,17 +156,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   undo: () => {
-    const { _history, _historyCursor } = get();
-    if (_historyCursor <= 0) return;
-    const cursor = _historyCursor - 1;
-    const snapshot = _history[cursor].map((e) => ({
-      ...e,
-      params: { ...e.params },
-    }));
+    const { _past, _future, effects } = get();
+    const previous = _past[_past.length - 1];
+    if (!previous) return;
     set({
-      effects: snapshot,
-      _historyCursor: cursor,
-      canUndo: cursor > 0,
+      effects: previous,
+      _past: _past.slice(0, -1),
+      _future: [cloneEffects(effects), ..._future],
+      canUndo: _past.length > 1,
       canRedo: true,
       selectedEffectIds: [],
       isDirty: true,
@@ -174,18 +172,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   redo: () => {
-    const { _history, _historyCursor } = get();
-    if (_historyCursor >= _history.length - 1) return;
-    const cursor = _historyCursor + 1;
-    const snapshot = _history[cursor].map((e) => ({
-      ...e,
-      params: { ...e.params },
-    }));
+    const { _past, _future, effects } = get();
+    const next = _future[0];
+    if (!next) return;
     set({
-      effects: snapshot,
-      _historyCursor: cursor,
+      effects: next,
+      _past: [..._past, cloneEffects(effects)],
+      _future: _future.slice(1),
       canUndo: true,
-      canRedo: cursor < _history.length - 1,
+      canRedo: _future.length > 1,
       selectedEffectIds: [],
       isDirty: true,
     });
@@ -436,8 +431,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       effects,
       selectedEffectIds: [],
       clipboard: [],
-      _history: [effects.map((e) => ({ ...e, params: { ...e.params } }))],
-      _historyCursor: 0,
+      _past: [],
+      _future: [],
       canUndo: false,
       canRedo: false,
       waveform: null,
@@ -472,8 +467,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       currentTime: 0,
       selectedEffectIds: [],
       clipboard: [],
-      _history: [[]],
-      _historyCursor: 0,
+      _past: [],
+      _future: [],
       canUndo: false,
       canRedo: false,
     });

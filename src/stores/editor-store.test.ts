@@ -83,3 +83,24 @@ it('does not autosave a song after it is closed', async () => {
   expect(useEditorStore.getState().project).toBeNull();
   vi.useRealTimers();
 });
+
+it('undoes and redoes one change at a time', async () => {
+  await useEditorStore.getState().initFromProject(song());
+  const store = useEditorStore.getState;
+  const ids = () => store().effects.map((e) => e.id);
+
+  store().addEffect({ id: 'a', type: 'color', from: 0, to: 1, params: {} });
+  store().addEffect({ id: 'b', type: 'color', from: 1, to: 2, params: {} });
+
+  store().undo();
+  expect(ids()).toEqual(['a']);
+  store().undo();
+  expect(ids()).toEqual([]);
+  expect(store().canUndo).toBe(false);
+
+  store().redo();
+  expect(ids()).toEqual(['a']);
+  store().redo();
+  expect(ids()).toEqual(['a', 'b']);
+  expect(store().canRedo).toBe(false);
+});

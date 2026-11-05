@@ -63,8 +63,6 @@ export default function TimelineEffectBlock({
       e.preventDefault();
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
 
-      useEditorStore.getState().pushHistory();
-
       const hasModifier = e.shiftKey || e.ctrlKey || e.metaKey;
       let deferredSelect = false;
 
@@ -106,7 +104,10 @@ export default function TimelineEffectBlock({
       const drag = dragRef.current;
       if (!drag) return;
 
-      drag.moved = true;
+      if (!drag.moved) {
+        useEditorStore.getState().pushHistory();
+        drag.moved = true;
+      }
 
       const currentTime = getTimeFromClientX(e.clientX);
       const startTime = getTimeFromClientX(drag.startX);
