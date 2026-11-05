@@ -126,14 +126,14 @@ export default function TimelineEffectBlock({
           excludeIds,
           needle,
         );
-      const snapEdges = (
-        from: number,
-        to: number,
-        excludeIds?: Set<string>,
-      ) => {
-        const snappedFrom = snap(from, excludeIds);
-        if (snappedFrom !== from) return snappedFrom - from;
-        return snap(to, excludeIds) - to;
+      const snapOffset = (edges: number[], excludeIds?: Set<string>) => {
+        let best = 0;
+        for (const edge of edges) {
+          const offset = snap(edge, excludeIds) - edge;
+          if (offset !== 0 && (best === 0 || Math.abs(offset) < Math.abs(best)))
+            best = offset;
+        }
+        return best;
       };
 
       if (drag.mode === 'move') {
@@ -149,9 +149,11 @@ export default function TimelineEffectBlock({
           const selectedIds = new Set(drag.groupOrigins.map((g) => g.id));
           const snappedDelta =
             clampedDelta +
-            snapEdges(
-              drag.origFrom + clampedDelta,
-              drag.origTo + clampedDelta,
+            snapOffset(
+              drag.groupOrigins.flatMap((g) => [
+                g.from + clampedDelta,
+                g.to + clampedDelta,
+              ]),
               selectedIds,
             );
 
@@ -182,7 +184,7 @@ export default function TimelineEffectBlock({
             newFrom = videoDuration - duration;
           }
 
-          const shift = snapEdges(newFrom, newTo);
+          const shift = snapOffset([newFrom, newTo]);
           if (newFrom + shift >= 0 && newTo + shift <= videoDuration) {
             newFrom += shift;
             newTo += shift;
