@@ -7,7 +7,7 @@ use tauri::Manager;
 
 const VIDEO_EXTS: [&str; 3] = ["mp4", "mov", "m4v"];
 const AUDIO_EXTS: [&str; 4] = ["m4a", "mp3", "aac", "wav"];
-const APP_JSON_NAMES: [&str; 2] = ["settings", "playlists"];
+const APP_JSON_NAMES: [&str; 3] = ["settings", "playlists", "remote-profiles"];
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

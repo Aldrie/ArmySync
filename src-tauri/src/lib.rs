@@ -3,7 +3,10 @@ mod effects;
 mod fs;
 mod library;
 mod menu;
+mod remote;
 mod sync;
+
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -14,6 +17,7 @@ pub fn run() {
       menu::setup(app)?;
       sync::init(app.handle());
       ble::init(app.handle());
+      app.manage(remote::RemoteState::default());
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
@@ -36,6 +40,9 @@ pub fn run() {
       ble::ble_connect,
       ble::ble_disconnect,
       ble::ble_set_device_delay,
+      remote::remote_start,
+      remote::remote_stop,
+      remote::remote_send,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
