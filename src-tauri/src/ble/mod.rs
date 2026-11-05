@@ -260,7 +260,8 @@ async fn ble_writer_loop(
   connected: Arc<Mutex<HashMap<String, ConnectedDevice>>>,
   mut shutdown_rx: tokio::sync::watch::Receiver<bool>,
 ) {
-  let interval = Duration::from_millis(1000 / BLE_WRITE_HZ);
+  let mut ticker = tokio::time::interval(Duration::from_millis(1000 / BLE_WRITE_HZ));
+  ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
   let (service_uuid, char_uuid, write_type) = match device_type {
     DeviceType::V4 => (SERVICE_V4_COLOR, CHAR_V4_WRITE, WriteType::WithResponse),
@@ -284,7 +285,7 @@ async fn ble_writer_loop(
   loop {
     tokio::select! {
       _ = shutdown_rx.changed() => break,
-      _ = tokio::time::sleep(interval) => {}
+      _ = ticker.tick() => {}
     }
 
     // Brief std::sync::Mutex lock — acceptable since the critical section is trivial
