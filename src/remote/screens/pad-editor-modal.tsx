@@ -91,7 +91,7 @@ export default function PadEditorModal({
   };
   const current = colors[slot];
   const setColor = (hex: string) =>
-    setColors(colors.map((c, i) => (i === slot ? hex : c)));
+    setColors(colors.map((c, i) => (i === slot ? hex.toLowerCase() : c)));
   const isCustom = !PAD_SWATCHES.includes(current.toLowerCase());
 
   return (
@@ -205,7 +205,7 @@ export default function PadEditorModal({
                   <div className="flex flex-col gap-2">
                     <HexColorInput
                       color={current}
-                      onChange={setColor}
+                      onChange={(hex) => hex.length === 7 && setColor(hex)}
                       prefixed
                       aria-label="Hex color"
                       className="h-10 w-28 rounded-[9px] border border-white/12 bg-[#131313] px-2.5 font-mono text-sm uppercase outline-none select-text"
