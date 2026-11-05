@@ -1,10 +1,16 @@
 import { EyeOff, Heart, Pause, Play, RotateCcw } from 'lucide-react';
-import { type PointerEvent, useEffect, useLayoutEffect, useRef } from 'react';
+import {
+  type PointerEvent,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 
 import type { Pad } from '../../domains/remote';
 import { cn } from '../../lib/cn';
-import CountdownOverlay from '../components/countdown-overlay';
 import ModeHeader from '../components/mode-header';
+import { heldPointers } from '../held-pointers';
 import {
   edgeShadow,
   formatClock,
@@ -94,7 +100,12 @@ export default function LiveScreen() {
   const radius = useRemoteStore((s) => s.settings.screenRadius);
   const padEls = useRef(new Map<string, HTMLButtonElement>());
   const edgeEl = useRef<HTMLDivElement>(null);
-  const pointers = useRef(new Map<number, string>());
+  const [pointers] = useState(() =>
+    heldPointers(
+      (padId) => useRemoteStore.getState().press(padId),
+      (padId) => useRemoteStore.getState().release(padId),
+    ),
+  );
 
   useLayoutEffect(() => {
     const paint = () => {
@@ -124,18 +135,23 @@ export default function LiveScreen() {
     });
   }, [pads]);
 
-  const down = (e: PointerEvent<HTMLButtonElement>, padId: string) => {
-    if ([...pointers.current.values()].includes(padId)) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
-    pointers.current.set(e.pointerId, padId);
-    useRemoteStore.getState().press(padId);
-  };
+  useEffect(() => {
+    const up = (e: globalThis.PointerEvent) => pointers.up(e.pointerId);
+    const events = [
+      'pointerup',
+      'pointercancel',
+      'lostpointercapture',
+    ] as const;
+    events.forEach((type) => window.addEventListener(type, up));
+    return () => {
+      events.forEach((type) => window.removeEventListener(type, up));
+      pointers.releaseAll();
+    };
+  }, [pointers]);
 
-  const up = (e: PointerEvent) => {
-    const padId = pointers.current.get(e.pointerId);
-    if (padId === undefined) return;
-    pointers.current.delete(e.pointerId);
-    useRemoteStore.getState().release(padId);
+  const down = (e: PointerEvent<HTMLButtonElement>, padId: string) => {
+    if (pointers.down(e.pointerId, padId))
+      e.currentTarget.setPointerCapture(e.pointerId);
   };
 
   return (
@@ -160,9 +176,6 @@ export default function LiveScreen() {
               };
             }}
             onPointerDown={(e) => down(e, pad.id)}
-            onPointerUp={up}
-            onPointerCancel={up}
-            onLostPointerCapture={up}
             onContextMenu={(e) => e.preventDefault()}
             style={{ background: padBackground(pad) }}
             className="relative flex touch-none items-center justify-center overscroll-none rounded-[14px] p-0 select-none [-webkit-touch-callout:none]"
@@ -187,7 +200,6 @@ export default function LiveScreen() {
           </button>
         ))}
       </div>
-      <CountdownOverlay />
       <div
         ref={edgeEl}
         aria-hidden
