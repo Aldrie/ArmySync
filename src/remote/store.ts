@@ -62,6 +62,7 @@ export interface RemoteState {
   undoTake: () => void;
   saveProfiles: (profiles: Profile[]) => void;
   setMode: (m: Mode) => void;
+  setSettings: (patch: Partial<RemoteSettings>) => void;
   songNow: () => number;
 }
 
@@ -265,6 +266,8 @@ export function createRemoteStore(open: Open) {
             send({ type: 'profiles-save', profiles });
           },
           setMode: (mode) => set({ mode }),
+          setSettings: (patch) =>
+            set({ settings: { ...get().settings, ...patch } }),
           songNow: () =>
             songTimeAt(get().transport, performance.now() + get().offsetMs),
         };
