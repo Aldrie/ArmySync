@@ -9,7 +9,6 @@ import Slider from '../../../components/slider';
 import type { EffectInstance } from '../../../domains/effects';
 import { cn } from '../../../lib/cn';
 import * as format from '../../../lib/format';
-import { useAppStore } from '../../../stores/app-store';
 import { editorRefs } from '../../../stores/editor-refs';
 import { useEditorStore } from '../../../stores/editor-store';
 import { useTransientTime } from '../../../stores/use-transient-time';
@@ -43,8 +42,6 @@ export default function TimelinePanel({
   const effectTrackRef = useRef<HTMLDivElement>(null);
 
   const selectEffect = useEditorStore((s) => s.selectEffect);
-  const isDirty = useEditorStore((s) => s.isDirty);
-  const projectName = useAppStore((s) => s.activeProject?.name);
 
   const { ref: droppableRef, isDropTarget } = useDroppable({
     id: 'effect-track',
@@ -180,18 +177,7 @@ export default function TimelinePanel({
       onClick={() => selectEffect(null)}
     >
       <div className="grid h-11 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-4 border-b border-border px-4">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-sm font-semibold text-on-surface">
-            {projectName || 'Untitled'}
-          </span>
-          {isDirty && (
-            <span
-              title="Unsaved changes"
-              aria-label="Unsaved changes"
-              className="size-1.5 shrink-0 rounded-full bg-primary"
-            />
-          )}
-        </div>
+        <div />
 
         <span className="text-sm font-semibold text-on-surface tabular-nums">
           <span ref={timeDisplayRef}>{format.videoTime(0)}</span>

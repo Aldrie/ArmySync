@@ -12,7 +12,7 @@ pub fn setup(app: &App) -> Result<(), Box<dyn std::error::Error>> {
     .accelerator("CmdOrCtrl+S")
     .build(app)?;
 
-  let close_project = MenuItemBuilder::new("Close Project")
+  let close_project = MenuItemBuilder::new("Back to Library")
     .id("close_project")
     .accelerator("CmdOrCtrl+W")
     .build(app)?;
