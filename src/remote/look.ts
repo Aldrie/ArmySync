@@ -8,7 +8,7 @@ import {
 } from '../domains/remote';
 import { hexToRgb } from '../lib/color';
 
-const SIGNATURE_GLOW = '0 0 12px 1px rgba(165,92,255,.55)';
+export const SIGNATURE_GLOW = '0 0 12px 1px rgba(165,92,255,.55)';
 
 const rgba = (hex: string, alpha: number) => {
   const { r, g, b } = hexToRgb(hex);
