@@ -1,5 +1,6 @@
 import { type ComponentType, useEffect } from 'react';
 
+import CountdownOverlay from './components/countdown-overlay';
 import CalibrateScreen from './screens/calibrate-screen';
 import EditScreen from './screens/edit-screen';
 import LiveScreen from './screens/live-screen';
@@ -45,7 +46,10 @@ export default function App() {
           Scan the QR code again
         </div>
       ) : (
-        <Screen />
+        <>
+          <Screen />
+          <CountdownOverlay />
+        </>
       )}
       {status === 'closed' && (
         <div className="absolute inset-x-0 top-0 bg-red-600 py-1 text-center text-sm">

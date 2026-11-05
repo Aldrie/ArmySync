@@ -22,7 +22,7 @@ function Countdown({ until }: { until: number }) {
       </span>
       <div
         role="img"
-        aria-label={`${4 - lit} beats left`}
+        aria-label={`${4 - lit} seconds left`}
         className="flex items-center gap-7 py-[18px]"
       >
         {[1, 2, 3].map((dot) => (
