@@ -327,7 +327,7 @@ async fn ble_writer_loop(
       }
     }
 
-    let packet = build_packet(rgb, device_type, 0xFF);
+    let packet = build_packet(rgb, device_type, 0);
 
     if let Err(e) = peripheral.write(&characteristic, &packet, write_type).await {
       consecutive_errors += 1;

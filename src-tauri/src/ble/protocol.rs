@@ -58,8 +58,8 @@ pub const CHAR_V4_WRITE: Uuid =
 pub const CHAR_OLDER_WRITE: Uuid =
   Uuid::from_u128(0x00010203_0405_0607_0809_0a0b0c0d2b19);
 
-pub fn build_v4_packet(rgb: [u8; 3], brightness: u8) -> Vec<u8> {
-  vec![rgb[0], rgb[1], rgb[2], brightness]
+pub fn build_v4_packet(rgb: [u8; 3], transition: u8) -> Vec<u8> {
+  vec![rgb[0], rgb[1], rgb[2], transition]
 }
 
 pub fn build_older_packet(rgb: [u8; 3]) -> Vec<u8> {
@@ -69,9 +69,9 @@ pub fn build_older_packet(rgb: [u8; 3]) -> Vec<u8> {
   packet
 }
 
-pub fn build_packet(rgb: [u8; 3], device_type: DeviceType, brightness: u8) -> Vec<u8> {
+pub fn build_packet(rgb: [u8; 3], device_type: DeviceType, transition: u8) -> Vec<u8> {
   match device_type {
-    DeviceType::V4 => build_v4_packet(rgb, brightness),
+    DeviceType::V4 => build_v4_packet(rgb, transition),
     DeviceType::V3 | DeviceType::SE | DeviceType::Multi => build_older_packet(rgb),
   }
 }
