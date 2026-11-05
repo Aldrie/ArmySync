@@ -126,3 +126,22 @@ it('collects calibration clicks per run and saves the latency', () => {
   expect(store.getState().latencyMs).toBe(42);
   expect(sent).toContainEqual({ type: 'latency-save', latencyMs: 42 });
 });
+
+it('records takes with the pads of the profile switched to', () => {
+  const blue: Profile = {
+    id: 'p2',
+    projectId: 'proj',
+    name: 'Blue',
+    pads: [{ id: 'blue', kind: 'color', colors: ['#0000ff'] }],
+  };
+  store.getState().saveProfiles([profile, blue]);
+  store.getState().setActiveProfile('p2');
+  store.getState().press('blue');
+  receive(transport(true, 5));
+  receive(transport(false, 8));
+
+  const [take] = takes();
+  expect(take.type === 'take' && take.take.effects).toMatchObject([
+    { params: { color: '#0000ff' } },
+  ]);
+});

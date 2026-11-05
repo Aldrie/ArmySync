@@ -62,6 +62,7 @@ export interface RemoteState {
   nudge: (dt: number) => void;
   undoTake: () => void;
   saveProfiles: (profiles: Profile[]) => void;
+  setActiveProfile: (id: string) => void;
   setMode: (m: Mode) => void;
   setSettings: (patch: Partial<RemoteSettings>) => void;
   calibrate: (mode: 'sound' | 'image') => void;
@@ -274,6 +275,7 @@ export function createRemoteStore(open: Open) {
             set({ profiles });
             send({ type: 'profiles-save', profiles });
           },
+          setActiveProfile: (activeProfileId) => set({ activeProfileId }),
           setMode: (mode) => set({ mode }),
           setSettings: (patch) =>
             set({ settings: { ...get().settings, ...patch } }),
