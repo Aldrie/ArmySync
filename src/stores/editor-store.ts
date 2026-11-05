@@ -76,6 +76,7 @@ interface EditorState {
     id: string | null,
     mode?: 'replace' | 'toggle' | 'range',
   ) => void;
+  selectEffects: (ids: string[]) => void;
   addEffect: (effect: EffectInstance) => void;
   removeEffect: (id: string) => void;
   updateEffect: (id: string, patch: Partial<EffectInstance>) => void;
@@ -280,6 +281,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setZoomLevel: (value) => {
     set({ zoomLevel: value });
   },
+
+  selectEffects: (ids) => set({ selectedEffectIds: ids }),
 
   selectEffect: (id, mode = 'replace') => {
     if (id === null) {

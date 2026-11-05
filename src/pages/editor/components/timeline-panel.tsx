@@ -7,6 +7,7 @@ import WaveformSkeleton from './waveform-skeleton';
 import WaveformTrack from './waveform-track';
 import Slider, { type SliderRef } from '../../../components/slider';
 import type { EffectInstance } from '../../../domains/effects';
+import { effectIdsInRange } from '../../../domains/effects/services/timeline';
 import { cn } from '../../../lib/cn';
 import * as format from '../../../lib/format';
 import { editorRefs } from '../../../stores/editor-refs';
@@ -50,6 +51,7 @@ export default function TimelinePanel({
   const effectTrackRef = useRef<HTMLDivElement>(null);
 
   const selectEffect = useEditorStore((s) => s.selectEffect);
+  const selectEffects = useEditorStore((s) => s.selectEffects);
 
   const { ref: droppableRef, isDropTarget } = useDroppable({
     id: 'effect-track',
@@ -220,8 +222,73 @@ export default function TimelinePanel({
     });
   }, []);
 
+  const marqueeRef = useRef<HTMLDivElement>(null);
+  const marqueeStartRef = useRef<{ x: number; base: string[] } | null>(null);
+  const suppressClickRef = useRef(false);
+
+  const trackX = (clientX: number) => {
+    const rect = effectTrackRef.current?.getBoundingClientRect();
+    if (!rect) return 0;
+    return Math.max(0, Math.min(rect.width, clientX - rect.left));
+  };
+
+  const handleTrackPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.target !== effectTrackRef.current || e.button !== 0) return;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      const additive = e.shiftKey || e.metaKey || e.ctrlKey;
+      marqueeStartRef.current = {
+        x: trackX(e.clientX),
+        base: additive ? useEditorStore.getState().selectedEffectIds : [],
+      };
+    },
+    [],
+  );
+
+  const handleTrackPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const start = marqueeStartRef.current;
+      const marquee = marqueeRef.current;
+      const track = effectTrackRef.current;
+      if (!start || !marquee || !track || !videoDuration) return;
+
+      const x = trackX(e.clientX);
+      const isActive = !marquee.classList.contains('hidden');
+      if (!isActive && Math.abs(x - start.x) < 4) return;
+
+      const left = Math.min(x, start.x);
+      const width = Math.abs(x - start.x);
+      marquee.style.left = `${left}px`;
+      marquee.style.width = `${width}px`;
+      marquee.classList.remove('hidden');
+
+      const toTime = (px: number) => (px / track.clientWidth) * videoDuration;
+      const ids = effectIdsInRange(
+        useEditorStore.getState().effects,
+        toTime(left),
+        toTime(left + width),
+      );
+      selectEffects([...new Set([...start.base, ...ids])]);
+    },
+    [videoDuration, selectEffects],
+  );
+
+  const handleTrackPointerUp = useCallback(() => {
+    const marquee = marqueeRef.current;
+    if (marquee && !marquee.classList.contains('hidden')) {
+      marquee.classList.add('hidden');
+      suppressClickRef.current = true;
+    }
+    marqueeStartRef.current = null;
+  }, []);
+
   const handleTrackClick = useCallback(
     (e: React.MouseEvent) => {
+      if (suppressClickRef.current) {
+        suppressClickRef.current = false;
+        e.stopPropagation();
+        return;
+      }
       if (e.target !== effectTrackRef.current) return;
 
       selectEffect(null);
@@ -303,6 +370,10 @@ export default function TimelinePanel({
                 isDropTarget && 'bg-primary/5 ring-primary/50',
               )}
               onClick={handleTrackClick}
+              onPointerDown={handleTrackPointerDown}
+              onPointerMove={handleTrackPointerMove}
+              onPointerUp={handleTrackPointerUp}
+              onPointerCancel={handleTrackPointerUp}
             >
               {effects.map((effect) => (
                 <TimelineEffectBlock
@@ -319,6 +390,11 @@ export default function TimelinePanel({
                 }}
                 className="absolute h-full rounded-md border-2 border-dashed border-primary/60 pointer-events-none hidden"
                 style={{ opacity: 0.4 }}
+              />
+
+              <div
+                ref={marqueeRef}
+                className="absolute inset-y-0 z-1 rounded-md border border-primary/70 bg-primary/15 pointer-events-none hidden"
               />
             </div>
 

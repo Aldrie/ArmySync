@@ -59,6 +59,14 @@ export function findSnapTarget(
   return best;
 }
 
+export function effectIdsInRange(
+  effects: EffectInstance[],
+  from: number,
+  to: number,
+): string[] {
+  return effects.filter((e) => e.from < to && e.to > from).map((e) => e.id);
+}
+
 /**
  * Resolve overlap after a move/resize by finding the nearest non-overlapping
  * position. Returns adjusted `{ from, to }` or `null` if already valid.
