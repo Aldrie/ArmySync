@@ -9,6 +9,8 @@ import EffectsSidebar from './components/effects-sidebar';
 import LightstickPanel from './components/lightstick-panel';
 import TimelinePanel from './components/timeline-panel';
 import VideoArea from './components/video-area';
+import CalibrationOverlay from './remote/calibration-overlay';
+import { useRemoteHub } from './remote/use-remote-hub';
 import DevicesModal from '../../components/devices-modal';
 import ResizePanel from '../../components/resize-panel';
 import type { EffectInstance } from '../../domains/effects';
@@ -45,6 +47,8 @@ export default function EditorPage() {
       editorRefs.lightstick = null;
     };
   });
+
+  useRemoteHub();
 
   const activeProjectId = useAppStore((s) => s.activeProject?.id);
   const initFromProject = useEditorStore((s) => s.initFromProject);
@@ -322,6 +326,7 @@ export default function EditorPage() {
       </div>
 
       <DevicesModal />
+      <CalibrationOverlay />
     </DragDropProvider>
   );
 }

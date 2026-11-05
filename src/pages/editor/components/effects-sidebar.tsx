@@ -6,6 +6,7 @@ import IconButton from '../../../components/icon-button';
 import { modKey } from '../../../lib/keys';
 import { useAppStore } from '../../../stores/app-store';
 import { useEditorStore } from '../../../stores/editor-store';
+import RemoteModal from '../remote/remote-modal';
 
 export default function EffectsSidebar() {
   const selectedEffectIds = useEditorStore((s) => s.selectedEffectIds);
@@ -38,6 +39,7 @@ export default function EffectsSidebar() {
             className="ml-1 size-1.5 shrink-0 rounded-full bg-primary"
           />
         )}
+        <RemoteModal />
       </header>
       <section className="flex flex-col gap-3 p-4">
         <div className="flex items-baseline justify-between gap-2">
