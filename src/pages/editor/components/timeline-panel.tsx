@@ -1,11 +1,11 @@
 import { useDroppable } from '@dnd-kit/react';
 import { ZoomIn, ZoomOut } from 'lucide-react';
-import { useCallback, useRef, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useMemo, useState } from 'react';
 
 import TimelineEffectBlock from './timeline-effect-block';
 import WaveformSkeleton from './waveform-skeleton';
 import WaveformTrack from './waveform-track';
-import Slider from '../../../components/slider';
+import Slider, { type SliderRef } from '../../../components/slider';
 import type { EffectInstance } from '../../../domains/effects';
 import { cn } from '../../../lib/cn';
 import * as format from '../../../lib/format';
@@ -16,6 +16,12 @@ import { useTransientTime } from '../../../stores/use-transient-time';
 const TIMELINE_DECREASE_FACTOR = 15;
 const TIMELINE_MIN_SPOTS = 5;
 const TIMELINE_MAX_SPOTS = 120;
+const PINCH_WHEEL_SPEED = 0.5;
+const PINCH_GESTURE_SPEED = 50;
+
+interface GestureEvent extends UIEvent {
+  scale: number;
+}
 
 interface TimelinePanelProps {
   effects: EffectInstance[];
@@ -38,6 +44,8 @@ export default function TimelinePanel({
   const timelineContainerRef = useRef<HTMLDivElement>(null);
   const needleRef = useRef<HTMLSpanElement>(null);
   const timeRef = useRef<HTMLInputElement>(null);
+  const zoomSliderRef = useRef<SliderRef>(null);
+  const gestureScaleRef = useRef(1);
   const timeDisplayRef = useRef<HTMLSpanElement>(null);
   const effectTrackRef = useRef<HTMLDivElement>(null);
 
@@ -147,8 +155,46 @@ export default function TimelinePanel({
     [setZoomLevel, spotsCount, videoDuration],
   );
 
+  useEffect(() => {
+    const container = timelineContainerRef.current;
+    if (!container) return;
+
+    const zoomBy = (delta: number) => {
+      const current = useEditorStore.getState().zoomLevel;
+      const next = Math.max(0, Math.min(100, current + delta));
+      if (next === current) return;
+      zoomSliderRef.current?.setValue(next);
+      handleZoomInputChange(next);
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      zoomBy(-e.deltaY * PINCH_WHEEL_SPEED);
+    };
+    const onGestureStart = (e: Event) => {
+      e.preventDefault();
+      gestureScaleRef.current = 1;
+    };
+    const onGestureChange = (e: Event) => {
+      e.preventDefault();
+      const { scale } = e as GestureEvent;
+      zoomBy((scale - gestureScaleRef.current) * PINCH_GESTURE_SPEED);
+      gestureScaleRef.current = scale;
+    };
+
+    container.addEventListener('wheel', onWheel, { passive: false });
+    container.addEventListener('gesturestart', onGestureStart);
+    container.addEventListener('gesturechange', onGestureChange);
+    return () => {
+      container.removeEventListener('wheel', onWheel);
+      container.removeEventListener('gesturestart', onGestureStart);
+      container.removeEventListener('gesturechange', onGestureChange);
+    };
+  }, [handleZoomInputChange]);
+
   const handleTimelineWheel = useCallback((event: React.WheelEvent) => {
-    if (!timelineContainerRef.current) return;
+    if (!timelineContainerRef.current || event.ctrlKey) return;
     timelineContainerRef.current.scrollTo({
       top: 0,
       left: timelineContainerRef.current.scrollLeft + event.deltaY,
@@ -190,6 +236,7 @@ export default function TimelinePanel({
         <div className="flex items-center justify-end gap-2 text-on-surface-variant">
           <ZoomOut className="size-3.5" aria-hidden />
           <Slider
+            ref={zoomSliderRef}
             min={0}
             max={100}
             step={0.1}
