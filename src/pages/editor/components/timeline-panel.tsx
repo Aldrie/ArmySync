@@ -265,20 +265,20 @@ export default function TimelinePanel({
             onChange={(e) => handleInputTimeChange(e.target.value)}
           />
 
-          <div className="w-full pt-2 pb-3 flex flex-col flex-1 min-h-0">
+          <div className="w-full pt-2 pb-2 flex flex-col flex-1 min-h-0">
             <span
               ref={needleRef}
               className="absolute w-0.5 z-5 top-0 left-0 h-full bg-primary pointer-events-none shadow-[0_0_0_1px_rgba(0,0,0,0.25)] before:content-[''] before:block before:absolute before:top-0 before:bg-primary before:w-3 before:h-3.5 before:rounded-b-[5px] before:rounded-t-[2px] before:-translate-x-[5px]"
             />
 
-            <div className="flex justify-between w-full mb-2">
+            <div className="flex justify-between w-full mb-1.5">
               {timelineSpots}
             </div>
 
             <div
               ref={trackRefCallback}
               className={cn(
-                'w-full h-16 shrink-0 bg-surface-dim rounded-lg relative z-4 overflow-visible ring-1 ring-inset ring-border transition-[background-color,box-shadow]',
+                'w-full h-20 shrink-0 bg-surface-dim rounded-lg relative z-4 overflow-visible ring-1 ring-inset ring-border transition-[background-color,box-shadow]',
                 isDropTarget && 'bg-primary/5 ring-primary/50',
               )}
               onClick={handleTrackClick}
@@ -301,7 +301,7 @@ export default function TimelinePanel({
               />
             </div>
 
-            <div className="w-full mt-3 flex-1 min-h-10 max-h-16">
+            <div className="w-full mt-2 flex-1 min-h-8 max-h-12">
               {waveformLoading ? (
                 <WaveformSkeleton />
               ) : (
