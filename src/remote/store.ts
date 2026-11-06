@@ -55,7 +55,7 @@ export interface RemoteState {
     startTime: number;
     open: ActiveChange;
   } | null;
-  outbox: Take[];
+  outbox: { projectId: string; createdAt: number; take: Take }[];
   countdownUntil: number | null;
   settings: RemoteSettings;
   calibrationClicks: number[];
@@ -85,6 +85,7 @@ type Open = (
 
 const COUNTDOWN_MS = 3000;
 const SEEK_JUMP_S = 0.25;
+const OUTBOX_TTL_MS = 24 * 60 * 60 * 1000;
 
 const noopStorage: StateStorage = {
   getItem: () => null,
@@ -128,14 +129,20 @@ export function createRemoteStore(open: Open) {
             pads(),
             createId,
           );
-          if (!effects.length) return recording.chunk;
+          const project = get().project;
+          if (!effects.length || !project) return recording.chunk;
           const take = {
             id: recording.id,
             chunk: recording.chunk,
             startTime: recording.startTime,
             effects,
           };
-          set({ outbox: [...get().outbox, take] });
+          set({
+            outbox: [
+              ...get().outbox,
+              { projectId: project.id, createdAt: Date.now(), take },
+            ],
+          });
           send({ type: 'take', take });
           return recording.chunk + 1;
         };
@@ -200,7 +207,13 @@ export function createRemoteStore(open: Open) {
             latencyMs: clampLatency(m.latencyMs),
             effects: m.effects,
             lastTakeStart: m.lastTakeStart,
+            outbox: get().outbox.filter(
+              (entry) => Date.now() - entry.createdAt < OUTBOX_TTL_MS,
+            ),
           });
+          get()
+            .outbox.filter((entry) => entry.projectId === m.projectId)
+            .forEach(({ take }) => send({ type: 'take', take }));
         };
 
         const onMessage = (m: MacToPhone) => {
@@ -226,7 +239,7 @@ export function createRemoteStore(open: Open) {
             case 'take-applied':
               set({
                 outbox: get().outbox.filter(
-                  (t) => t.id !== m.takeId || t.chunk !== m.chunk,
+                  ({ take }) => take.id !== m.takeId || take.chunk !== m.chunk,
                 ),
                 lastTakeStart: m.lastTakeStart,
               });
@@ -254,8 +267,6 @@ export function createRemoteStore(open: Open) {
             discarding = false;
             finishTake(get().songNow());
           }
-          if (status === 'open')
-            get().outbox.forEach((take) => send({ type: 'take', take }));
         };
 
         return {
@@ -315,7 +326,9 @@ export function createRemoteStore(open: Open) {
             discarding = true;
             set({
               recording: null,
-              outbox: get().outbox.filter((t) => t.id !== recording.id),
+              outbox: get().outbox.filter(
+                ({ take }) => take.id !== recording.id,
+              ),
             });
             get().pause();
             if (recording.chunk > 0) send({ type: 'undo-take' });

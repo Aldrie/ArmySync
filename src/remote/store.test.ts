@@ -39,19 +39,22 @@ const makeStore = () => {
   });
   store.getState().start();
   setStatus('open');
+  hello();
+  receive(transport(false, 5));
+};
+
+const hello = (projectId = 'proj') =>
   receive({
     type: 'hello',
-    projectId: 'proj',
+    projectId,
     projectName: 'Song',
-    projectNames: { proj: 'Song' },
+    projectNames: { [projectId]: 'Song' },
     duration: 60,
-    profiles: [profile],
+    profiles: [{ ...profile, projectId }],
     latencyMs: 0,
     effects: [],
     lastTakeStart: null,
   });
-  receive(transport(false, 5));
-};
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -81,16 +84,18 @@ it('auto-plays on a press while paused and records that pad from the take start'
   ]);
 });
 
-it('keeps a take finished while disconnected and re-sends it on open', () => {
+it('keeps a take finished while disconnected and re-sends it on hello', () => {
   store.getState().press('red');
   receive(transport(true, 5, 2000));
   setStatus('closed');
 
   expect(store.getState().outbox).toHaveLength(1);
-  const takeId = store.getState().outbox[0].id;
+  const takeId = store.getState().outbox[0].take.id;
 
   sent = [];
   setStatus('open');
+  expect(takes()).toEqual([]);
+  hello();
   expect(takes()).toMatchObject([{ take: { id: takeId } }]);
 
   receive({ type: 'take-applied', takeId, chunk: 0, lastTakeStart: 5 });
@@ -261,7 +266,7 @@ it('removes only the acked chunk from the outbox', () => {
     chunk: 0,
     lastTakeStart: 1,
   });
-  expect(store.getState().outbox).toMatchObject([{ chunk: 1 }]);
+  expect(store.getState().outbox).toMatchObject([{ take: { chunk: 1 } }]);
 });
 
 it('persists the outbox and re-sends it after a reload', () => {
@@ -279,7 +284,7 @@ it('persists the outbox and re-sends it after a reload', () => {
   sent = [];
   makeStore();
   expect(store.getState().outbox).toEqual(queued);
-  expect(chunks()).toEqual(queued);
+  expect(chunks()).toEqual(queued.map((entry) => entry.take));
 });
 
 it('undoes the streamed take on ↺ during REC and drops its unacked chunks', () => {
@@ -295,4 +300,34 @@ it('undoes the streamed take on ↺ during REC and drops its unacked chunks', ()
   sent = [];
   setStatus('open');
   expect(takes()).toEqual([]);
+});
+
+it('replays queued chunks only into their own song', () => {
+  recordRedThenBlue();
+  now = 3000;
+  setStatus('closed');
+  sent = [];
+
+  setStatus('open');
+  hello('other');
+  expect(takes()).toEqual([]);
+  expect(store.getState().outbox).toHaveLength(2);
+
+  hello('proj');
+  expect(takes()).toHaveLength(2);
+});
+
+it('drops queued chunks older than a day', () => {
+  recordRedThenBlue();
+  setStatus('closed');
+  const [entry] = store.getState().outbox;
+  store.setState({
+    outbox: [{ ...entry, createdAt: Date.now() - 25 * 60 * 60 * 1000 }],
+  });
+  sent = [];
+
+  setStatus('open');
+  hello();
+  expect(takes()).toEqual([]);
+  expect(store.getState().outbox).toEqual([]);
 });
