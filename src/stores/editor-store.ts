@@ -7,6 +7,11 @@ import { invoke } from '@tauri-apps/api/core';
 import { editorRefs } from './editor-refs';
 import type { EffectInstance } from '../domains/effects';
 import {
+  closeJellyfinStream,
+  jellyfinWaveform,
+  openJellyfinStream,
+} from '../domains/jellyfin';
+import {
   getSongEffects,
   getSongMedia,
   isJellyfinMedia,
@@ -46,6 +51,7 @@ interface EditorState {
   isDirty: boolean;
 
   videoSrc: string;
+  mediaError: string | null;
   mediaType: MediaType | null;
   videoDuration: number;
   isPlaying: boolean;
@@ -114,6 +120,8 @@ interface EditorState {
   resetEditor: () => void;
 
   handleVideoLoad: () => Promise<void>;
+  retryMedia: () => Promise<void>;
+  setMediaError: (message: string | null) => void;
 }
 
 export function generateEffectId(): string {
@@ -141,6 +149,30 @@ export function useHistoryBatch(session: number | null) {
   }, [session]);
 }
 
+let openGeneration = 0;
+
+async function songSource(
+  project: Project,
+): Promise<{ videoSrc: string; mediaError: string | null }> {
+  const song = getSongMedia(project);
+  if (!song) return { videoSrc: '', mediaError: null };
+  if (!isJellyfinMedia(song.media)) {
+    return {
+      videoSrc: await projectFileUrl(project.id, song.media.file),
+      mediaError: null,
+    };
+  }
+  const generation = openGeneration;
+  try {
+    const { itemId, mediaSourceId } = song.media.source;
+    const videoSrc = await openJellyfinStream(itemId, mediaSourceId);
+    if (generation !== openGeneration) void closeJellyfinStream();
+    return { videoSrc, mediaError: null };
+  } catch (err) {
+    return { videoSrc: '', mediaError: String(err) };
+  }
+}
+
 function scheduleAutoSave(save: () => Promise<void>) {
   if (autoSaveTimer) clearTimeout(autoSaveTimer);
   autoSaveTimer = setTimeout(() => void save(), AUTO_SAVE_DELAY);
@@ -151,6 +183,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isDirty: false,
 
   videoSrc: '',
+  mediaError: null,
   mediaType: null,
   videoDuration: 0,
   isPlaying: false,
@@ -497,17 +530,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   initFromProject: async (project) => {
+    const generation = ++openGeneration;
+    const source = await songSource(project);
+    if (generation !== openGeneration) return;
     const song = getSongMedia(project);
-    const videoSrc =
-      song && !isJellyfinMedia(song.media)
-        ? await projectFileUrl(project.id, song.media.file)
-        : '';
     const effects = getSongEffects(project);
 
     set({
       project,
       isDirty: false,
-      videoSrc,
+      ...source,
       mediaType: song?.media.type ?? null,
       effects,
       selectedEffectIds: [],
@@ -535,10 +567,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   resetEditor: () => {
     if (autoSaveTimer) clearTimeout(autoSaveTimer);
+    openGeneration++;
+    void closeJellyfinStream();
     set({
       project: null,
       isDirty: false,
       videoSrc: '',
+      mediaError: null,
       mediaType: null,
       videoDuration: 0,
       isPlaying: false,
@@ -572,11 +607,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       );
     }
 
-    if (isJellyfinMedia(song.media)) return;
     set({ waveformLoading: true });
     try {
-      const path = await projectFilePath(project.id, song.media.file);
-      const waveform = await extractWaveform(path);
+      const waveform = isJellyfinMedia(song.media)
+        ? await jellyfinWaveform(
+            project.id,
+            song.media.source.itemId,
+            song.media.source.mediaSourceId,
+          )
+        : await extractWaveform(
+            await projectFilePath(project.id, song.media.file),
+          );
       if (get().project?.id !== project.id) return;
       set({ waveform, waveformLoading: false });
     } catch (err) {
@@ -584,6 +625,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       if (get().project?.id === project.id) set({ waveformLoading: false });
     }
   },
+
+  retryMedia: async () => {
+    const { project } = get();
+    if (!project) return;
+    const generation = openGeneration;
+    set({ isPlaying: false, mediaError: null });
+    const source = await songSource(project);
+    if (generation === openGeneration) set(source);
+  },
+
+  setMediaError: (message) => set({ mediaError: message }),
 }));
 
 async function persist(next: Project) {
