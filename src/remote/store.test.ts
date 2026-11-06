@@ -162,3 +162,17 @@ it('follows the desktop history through the effects push', () => {
   receive({ type: 'effects', effects: [], lastTakeStart: null });
   expect(store.getState().lastTakeStart).toBeNull();
 });
+
+it('discards the open take on ↺ during REC instead of undoing the last one', () => {
+  store.getState().press('red');
+  receive(stateAt(5, 1000));
+  sent = [];
+  store.getState().undoTake();
+  receive(stateAt(6, 2000));
+  receive(transport(false, 7));
+
+  expect(takes()).toEqual([]);
+  expect(sent).not.toContainEqual({ type: 'undo-take' });
+  expect(sent).toContainEqual({ type: 'pause' });
+  expect(sent).toContainEqual({ type: 'seek', time: 5 });
+});

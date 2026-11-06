@@ -91,6 +91,7 @@ const activeOf = (held: string[]) => held[held.length - 1] ?? null;
 export function createRemoteStore(open: Open) {
   let client: Client | null = null;
   let samples: { offset: number; rtt: number }[] = [];
+  let discarding = false;
 
   return create<RemoteState>()(
     persist(
@@ -159,7 +160,8 @@ export function createRemoteStore(open: Open) {
             transport,
             countdownUntil: transport.playing ? null : get().countdownUntil,
           });
-          if (transport.playing && !get().recording)
+          if (!transport.playing) discarding = false;
+          if (transport.playing && !get().recording && !discarding)
             openTake(transport.songTime);
         };
 
@@ -221,7 +223,10 @@ export function createRemoteStore(open: Open) {
 
         const onStatus = (status: ConnectionStatus) => {
           set({ status });
-          if (status === 'closed') finishTake(get().songNow());
+          if (status === 'closed') {
+            discarding = false;
+            finishTake(get().songNow());
+          }
           if (status === 'open')
             get().outbox.forEach((take) => send({ type: 'take', take }));
         };
@@ -276,7 +281,14 @@ export function createRemoteStore(open: Open) {
               time: Math.min(Math.max(t, 0), get().duration),
             }),
           nudge: (dt) => get().seek(get().songNow() + dt),
-          undoTake: () => send({ type: 'undo-take' }),
+          undoTake: () => {
+            const { recording } = get();
+            if (!recording) return send({ type: 'undo-take' });
+            discarding = true;
+            set({ recording: null });
+            get().pause();
+            get().seek(recording.startTime);
+          },
           saveProfiles: (profiles) => {
             set({ profiles });
             send({ type: 'profiles-save', profiles });
