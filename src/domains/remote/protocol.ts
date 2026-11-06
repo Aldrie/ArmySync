@@ -45,7 +45,12 @@ export type MacToPhone =
     }
   | { type: 'take-applied'; takeId: string; lastTakeStart: number | null }
   | { type: 'take-undone'; lastTakeStart: number | null }
-  | { type: 'calibration-click'; serverTime: number }
+  | {
+      type: 'calibration-click';
+      serverTime: number;
+      beat: number;
+      warmup: boolean;
+    }
   | { type: 'error'; message: string };
 
 type Json = Record<string, unknown>;

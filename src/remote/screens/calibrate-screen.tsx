@@ -2,14 +2,21 @@ import { ChevronLeft } from 'lucide-react';
 import { type PointerEvent, useEffect, useState } from 'react';
 
 import Button from '../../components/button';
-import { computeLatency } from '../../domains/remote';
+import {
+  CALIBRATION_INTERVAL_MS,
+  CALIBRATION_TAPS,
+  CALIBRATION_WARMUP,
+  computeLatency,
+} from '../../domains/remote';
 import { cn } from '../../lib/cn';
 import { useRemoteStore } from '../store';
 
 type Reference = 'sound' | 'image';
 
-const TAPS = 16;
-const RUN_MS = 1000 + TAPS * 600 + 1000;
+const RUN_MS =
+  1000 +
+  (CALIBRATION_WARMUP + CALIBRATION_TAPS) * CALIBRATION_INTERVAL_MS +
+  1000;
 const FLASH_MS = 90;
 const REFERENCES: { value: Reference; label: string; hint: string }[] = [
   {
@@ -28,6 +35,7 @@ const signed = (ms: number) => `${ms >= 0 ? '+' : '−'}${Math.abs(ms)} ms`;
 
 export default function CalibrateScreen() {
   const clicks = useRemoteStore((s) => s.calibrationClicks);
+  const beat = useRemoteStore((s) => s.calibrationBeat);
   const { calibrate, saveLatency, setMode } = useRemoteStore.getState();
 
   const [reference, setReference] = useState<Reference>('sound');
@@ -37,7 +45,8 @@ export default function CalibrateScreen() {
   const [flash, setFlash] = useState(false);
 
   // ponytail: the Mac runs overlapping calibrations in parallel, so no restart until this run is over
-  const busy = running && clicks.length < TAPS;
+  const busy = running && clicks.length < CALIBRATION_TAPS;
+  const listening = busy && beat < CALIBRATION_WARMUP - 1;
   const result = computeLatency(clicks, taps);
 
   useEffect(() => {
@@ -59,7 +68,7 @@ export default function CalibrateScreen() {
   };
 
   const tap = (e: PointerEvent<HTMLButtonElement>) => {
-    if (!run || taps.length >= TAPS) return;
+    if (!run || listening || taps.length >= CALIBRATION_TAPS) return;
     setTaps([...taps, e.timeStamp + useRemoteStore.getState().offsetMs]);
     setFlash(true);
   };
@@ -76,24 +85,44 @@ export default function CalibrateScreen() {
         )}
       >
         <span className="text-[26px] font-bold tracking-tight">
-          {run ? 'Tap anywhere to the beat' : 'Pick a reference, then Start'}
+          {!run
+            ? 'Pick a reference, then Start'
+            : listening
+              ? 'Listen… catch the rhythm'
+              : 'Tap anywhere to the beat'}
         </span>
         <span className="text-[13px] text-outline">
           {REFERENCES.find((r) => r.value === reference)?.hint}
         </span>
-        <span
-          aria-label={`${taps.length} of ${TAPS} taps`}
-          className="mt-2.5 flex gap-1.5"
-        >
-          {Array.from({ length: TAPS }, (_, i) => (
-            <span
-              key={i}
-              className={cn(
-                'size-2 rounded-full bg-surface-high',
-                i < taps.length && 'bg-primary',
-              )}
-            />
-          ))}
+        <span className="mt-2.5 flex items-center gap-4">
+          <span
+            aria-label={`Warm-up beat ${Math.min(beat + 1, CALIBRATION_WARMUP)} of ${CALIBRATION_WARMUP}`}
+            className="flex gap-1.5"
+          >
+            {Array.from({ length: CALIBRATION_WARMUP }, (_, i) => (
+              <span
+                key={i}
+                className={cn(
+                  'size-2 rounded-full ring-1 ring-outline',
+                  running && i <= beat && 'bg-on-surface ring-on-surface',
+                )}
+              />
+            ))}
+          </span>
+          <span
+            aria-label={`${taps.length} of ${CALIBRATION_TAPS} taps`}
+            className="flex gap-1.5"
+          >
+            {Array.from({ length: CALIBRATION_TAPS }, (_, i) => (
+              <span
+                key={i}
+                className={cn(
+                  'size-2 rounded-full bg-surface-high',
+                  i < taps.length && 'bg-primary',
+                )}
+              />
+            ))}
+          </span>
         </span>
       </button>
 

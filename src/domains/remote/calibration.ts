@@ -1,3 +1,7 @@
+export const CALIBRATION_WARMUP = 4;
+export const CALIBRATION_TAPS = 16;
+export const CALIBRATION_INTERVAL_MS = 600;
+
 export const clampLatency = (ms: number) => Math.max(-500, Math.min(500, ms));
 
 function median(values: number[]): number {

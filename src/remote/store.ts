@@ -54,6 +54,7 @@ export interface RemoteState {
   countdownUntil: number | null;
   settings: RemoteSettings;
   calibrationClicks: number[];
+  calibrationBeat: number;
   notice: string | null;
   start: () => void;
   press: (padId: string) => void;
@@ -216,7 +217,10 @@ export function createRemoteStore(open: Open) {
               break;
             case 'calibration-click':
               set({
-                calibrationClicks: [...get().calibrationClicks, m.serverTime],
+                calibrationBeat: m.beat,
+                calibrationClicks: m.warmup
+                  ? get().calibrationClicks
+                  : [...get().calibrationClicks, m.serverTime],
               });
               break;
             case 'error':
@@ -254,6 +258,7 @@ export function createRemoteStore(open: Open) {
           countdownUntil: null,
           settings: { autoplay: true, countdown: true, screenRadius: 36 },
           calibrationClicks: [],
+          calibrationBeat: -1,
           notice: null,
 
           start: () => {
@@ -302,7 +307,7 @@ export function createRemoteStore(open: Open) {
           setSettings: (patch) =>
             set({ settings: { ...get().settings, ...patch } }),
           calibrate: (mode) => {
-            set({ calibrationClicks: [] });
+            set({ calibrationClicks: [], calibrationBeat: -1 });
             send({ type: 'calibrate', mode });
           },
           saveLatency: (ms) => {

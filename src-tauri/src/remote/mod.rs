@@ -23,6 +23,8 @@ const PORT: u16 = 47474;
 const DEV_PORT: u16 = 1420;
 const TRANSPORT_TICK: Duration = Duration::from_millis(50);
 const DRIFT_S: f64 = 0.03;
+// keep in sync with src/domains/remote/calibration.ts
+const CALIBRATION_WARMUP: usize = 4;
 const CALIBRATION_TICKS: usize = 16;
 const CALIBRATION_DELAY: Duration = Duration::from_secs(1);
 const CALIBRATION_INTERVAL: Duration = Duration::from_millis(600);
@@ -303,11 +305,21 @@ fn on_text(ctx: &Ctx, tx: &mpsc::UnboundedSender<Message>, raw: &str) -> Option<
 async fn calibrate(app: AppHandle, tx: mpsc::UnboundedSender<Message>, mode: String) {
   let start = tokio::time::Instant::now() + CALIBRATION_DELAY;
   let mut ticks = tokio::time::interval_at(start, CALIBRATION_INTERVAL);
-  for _ in 0..CALIBRATION_TICKS {
+  let total = CALIBRATION_WARMUP + CALIBRATION_TICKS;
+  for beat in 0..total {
     ticks.tick().await;
     let server_time = server_time_ms();
-    let _ = app.emit("remote-calibration-tick", json!({ "mode": mode }));
-    let click = json!({ "type": "calibration-click", "serverTime": server_time });
+    let warmup = beat < CALIBRATION_WARMUP;
+    let _ = app.emit(
+      "remote-calibration-tick",
+      json!({ "mode": mode, "beat": beat, "total": total, "warmup": warmup }),
+    );
+    let click = json!({
+      "type": "calibration-click",
+      "serverTime": server_time,
+      "beat": beat,
+      "warmup": warmup,
+    });
     if tx.send(text(click)).is_err() {
       break;
     }
