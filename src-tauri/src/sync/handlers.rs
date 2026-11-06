@@ -25,7 +25,7 @@ fn hex_to_rgb(hex: &str) -> [u8; 3] {
   let expanded = if hex.len() <= 3 {
     hex
       .chars()
-      .flat_map(|c| std::iter::repeat(c).take(2))
+      .flat_map(|c| std::iter::repeat_n(c, 2))
       .collect::<String>()
   } else {
     hex.to_string()
