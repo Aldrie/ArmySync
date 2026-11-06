@@ -151,3 +151,14 @@ it('records takes with the pads of the profile switched to', () => {
     { params: { color: '#0000ff' } },
   ]);
 });
+
+it('keeps a Mac error as a notice', () => {
+  receive({ type: 'error', message: 'No song is open on the Mac.' });
+  expect(store.getState().notice).toBe('No song is open on the Mac.');
+});
+
+it('follows the desktop history through the effects push', () => {
+  receive({ type: 'take-applied', takeId: 'x', lastTakeStart: 5 });
+  receive({ type: 'effects', effects: [], lastTakeStart: null });
+  expect(store.getState().lastTakeStart).toBeNull();
+});

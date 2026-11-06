@@ -54,6 +54,7 @@ export interface RemoteState {
   countdownUntil: number | null;
   settings: RemoteSettings;
   calibrationClicks: number[];
+  notice: string | null;
   start: () => void;
   press: (padId: string) => void;
   release: (padId: string) => void;
@@ -196,7 +197,7 @@ export function createRemoteStore(open: Open) {
               onHello(m);
               break;
             case 'effects':
-              set({ effects: m.effects });
+              set({ effects: m.effects, lastTakeStart: m.lastTakeStart });
               break;
             case 'take-applied':
               set({
@@ -211,6 +212,9 @@ export function createRemoteStore(open: Open) {
               set({
                 calibrationClicks: [...get().calibrationClicks, m.serverTime],
               });
+              break;
+            case 'error':
+              if (m.message !== 'unauthorized') set({ notice: m.message });
               break;
           }
         };
@@ -241,6 +245,7 @@ export function createRemoteStore(open: Open) {
           countdownUntil: null,
           settings: { autoplay: true, countdown: true, screenRadius: 36 },
           calibrationClicks: [],
+          notice: null,
 
           start: () => {
             client ??= open(onMessage, onStatus);

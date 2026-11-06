@@ -146,7 +146,12 @@ export function useRemoteHub() {
       if (!connected || state.effects === prev.effects) return;
       clearTimeout(effectsTimer);
       effectsTimer = setTimeout(
-        () => void send({ type: 'effects', effects: store().effects }),
+        () =>
+          void send({
+            type: 'effects',
+            effects: store().effects,
+            lastTakeStart: store().lastTakeStart(),
+          }),
         EFFECTS_DEBOUNCE_MS,
       );
     });

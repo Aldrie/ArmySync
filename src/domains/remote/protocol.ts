@@ -38,7 +38,11 @@ export type MacToPhone =
       effects: EffectInstance[];
       lastTakeStart: number | null;
     }
-  | { type: 'effects'; effects: EffectInstance[] }
+  | {
+      type: 'effects';
+      effects: EffectInstance[];
+      lastTakeStart: number | null;
+    }
   | { type: 'take-applied'; takeId: string; lastTakeStart: number | null }
   | { type: 'take-undone'; lastTakeStart: number | null }
   | { type: 'calibration-click'; serverTime: number }

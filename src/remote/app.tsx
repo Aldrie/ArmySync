@@ -14,6 +14,8 @@ const SCREENS: Record<Mode, ComponentType> = {
   calibrate: CalibrateScreen,
 };
 
+const NOTICE_MS = 3000;
+
 type LockableOrientation = ScreenOrientation & {
   lock?: (orientation: 'landscape') => Promise<void>;
 };
@@ -28,7 +30,17 @@ const enterFullscreen = () => {
 export default function App() {
   const mode = useRemoteStore((s) => s.mode);
   const status = useRemoteStore((s) => s.status);
+  const notice = useRemoteStore((s) => s.notice);
   const Screen = SCREENS[mode];
+
+  useEffect(() => {
+    if (!notice) return;
+    const id = setTimeout(
+      () => useRemoteStore.setState({ notice: null }),
+      NOTICE_MS,
+    );
+    return () => clearTimeout(id);
+  }, [notice]);
 
   useEffect(() => {
     useRemoteStore.getState().start();
@@ -54,6 +66,14 @@ export default function App() {
       {status === 'closed' && (
         <div className="absolute inset-x-0 top-0 bg-red-600 py-1 text-center text-sm">
           Reconnecting…
+        </div>
+      )}
+      {notice && (
+        <div
+          role="status"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-50 bg-[#1c1b1b] py-1.5 text-center text-sm text-[#e5e2e1]"
+        >
+          {notice}
         </div>
       )}
     </div>
