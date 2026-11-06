@@ -25,3 +25,4 @@ btleplug = "0.12"
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }
 futures = "0.3"
 axum = { version = "0.8", features = ["ws"] }
+reqwest = { version = "0.13", features = ["json", "stream"] }

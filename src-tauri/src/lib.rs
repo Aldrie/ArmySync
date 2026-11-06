@@ -1,6 +1,7 @@
 mod ble;
 mod effects;
 mod fs;
+mod jellyfin;
 mod library;
 mod menu;
 mod remote;
@@ -18,6 +19,7 @@ pub fn run() {
       sync::init(app.handle());
       ble::init(app.handle());
       app.manage(remote::RemoteState::default());
+      app.manage(jellyfin::JellyfinState::load(app.handle())?);
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
@@ -43,6 +45,12 @@ pub fn run() {
       remote::remote_start,
       remote::remote_stop,
       remote::remote_send,
+      jellyfin::jellyfin_status,
+      jellyfin::jellyfin_probe,
+      jellyfin::jellyfin_login,
+      jellyfin::jellyfin_quick_connect_start,
+      jellyfin::jellyfin_quick_connect_poll,
+      jellyfin::jellyfin_logout,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

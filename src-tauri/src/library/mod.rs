@@ -34,7 +34,7 @@ pub(crate) fn projects_root(base: &Path) -> PathBuf {
   base.join("projects")
 }
 
-fn app_data_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+pub(crate) fn app_data_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
   app
     .path()
     .app_data_dir()
@@ -56,7 +56,7 @@ fn read_json(path: &Path) -> Result<Value, String> {
   parse_json(path, &content)
 }
 
-fn write_json_atomic(dir: &Path, file_name: &str, value: &Value) -> Result<(), String> {
+pub(crate) fn write_json_atomic(dir: &Path, file_name: &str, value: &Value) -> Result<(), String> {
   fs::create_dir_all(dir).map_err(|e| format!("Failed to create '{}': {}", dir.display(), e))?;
   let target = dir.join(file_name);
   let tmp = dir.join(format!("{}.tmp", file_name));
