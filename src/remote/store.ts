@@ -12,6 +12,7 @@ import {
   clampLatency,
   defaultProfile,
   effectsFromChanges,
+  idleBlackoutOf,
   type MacToPhone,
   type PhoneToMac,
   type Profile,
@@ -105,9 +106,8 @@ export function createRemoteStore(open: Open) {
       (set, get) => {
         const send = (m: PhoneToMac) => client?.send(m);
 
-        const pads = () =>
-          get().profiles.find((p) => p.id === get().activeProfileId)?.pads ??
-          [];
+        const activeProfile = () =>
+          get().profiles.find((p) => p.id === get().activeProfileId);
 
         const openTake = (startTime: number) =>
           set({
@@ -123,11 +123,13 @@ export function createRemoteStore(open: Open) {
           recording: NonNullable<RemoteState['recording']>,
           endTime: number,
         ) => {
+          const profile = activeProfile();
           const effects = effectsFromChanges(
             [recording.open],
             endTime,
-            pads(),
+            profile?.pads ?? [],
             createId,
+            profile ? idleBlackoutOf(profile) : false,
           );
           const project = get().project;
           if (!effects.length || !project) return recording.chunk;

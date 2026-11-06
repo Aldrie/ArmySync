@@ -91,6 +91,18 @@ it('parses profiles-save', () => {
   ).toEqual({ type: 'profiles-save', profiles });
 });
 
+it('parses a profile with idleBlackout', () => {
+  const profiles = [
+    { id: 'p', projectId: 'x', name: 'n', pads: [], idleBlackout: false },
+  ];
+  expect(
+    parsePhoneMessage(
+      JSON.stringify({ type: 'profiles-save', profiles }),
+      known,
+    ),
+  ).toEqual({ type: 'profiles-save', profiles });
+});
+
 it.each([
   ['missing field', '{"type":"seek"}'],
   ['bad json', '{"type":'],
@@ -138,6 +150,15 @@ it.each([
       kind: 'strobe',
       colors: ['#ffffff', '#000000'],
       bpm: null,
+    }),
+  ],
+  [
+    'non-boolean idleBlackout',
+    JSON.stringify({
+      type: 'profiles-save',
+      profiles: [
+        { id: 'p', projectId: 'x', name: 'n', pads: [], idleBlackout: 'yes' },
+      ],
     }),
   ],
 ])('rejects %s', (_, raw) => {

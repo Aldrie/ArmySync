@@ -18,6 +18,7 @@ const profile: Profile = {
     { id: 'red', kind: 'color', colors: ['#ff0000'] },
     { id: 'blue', kind: 'color', colors: ['#0000ff'] },
   ],
+  idleBlackout: false,
 };
 
 const transport = (
@@ -330,4 +331,33 @@ it('drops queued chunks older than a day', () => {
   hello();
   expect(takes()).toEqual([]);
   expect(store.getState().outbox).toEqual([]);
+});
+
+it('records a blackout while nothing is held with the default profile', () => {
+  receive({
+    type: 'hello',
+    projectId: 'fresh',
+    projectName: 'Song',
+    projectNames: { fresh: 'Song' },
+    duration: 60,
+    profiles: [],
+    latencyMs: 0,
+    effects: [],
+    lastTakeStart: null,
+  });
+  const [a, b] = store.getState().profiles[0].pads;
+  now = 1000;
+  store.getState().press(a.id);
+  receive(stateAt(1, 1000));
+  now = 2000;
+  store.getState().release(a.id);
+  now = 3000;
+  store.getState().press(b.id);
+  receive(transport(false, 4));
+
+  expect(chunks().map((take) => take?.effects)).toMatchObject([
+    [{ type: 'color', from: 1, to: 2 }],
+    [{ type: 'blackout', from: 2, to: 3 }],
+    [{ type: 'color', from: 3, to: 4 }],
+  ]);
 });

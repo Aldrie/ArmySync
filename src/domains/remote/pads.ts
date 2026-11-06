@@ -20,6 +20,11 @@ export interface Profile {
   projectId: string;
   name: string;
   pads: Pad[];
+  idleBlackout?: boolean;
+}
+
+export function idleBlackoutOf(profile: Profile): boolean {
+  return profile.idleBlackout ?? true;
 }
 
 export const PAD_SWATCHES: string[] = [
@@ -66,6 +71,7 @@ export function defaultProfile(
       { id: padId(), kind: 'fade', colors: ['#4d7bff', '#b45cff'] },
       { id: padId(), kind: 'blackout', colors: [] },
     ],
+    idleBlackout: true,
   };
 }
 

@@ -166,7 +166,9 @@ function isProfile(value: unknown): value is Profile {
     isString(value.projectId) &&
     isString(value.name) &&
     Array.isArray(value.pads) &&
-    value.pads.every(isPad)
+    value.pads.every(isPad) &&
+    (value.idleBlackout === undefined ||
+      typeof value.idleBlackout === 'boolean')
   );
 }
 

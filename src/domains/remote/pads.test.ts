@@ -4,6 +4,7 @@ import {
   BORAHAE,
   defaultProfile,
   displayColor,
+  idleBlackoutOf,
   isBorahae,
   type Pad,
   padToEffect,
@@ -20,6 +21,15 @@ describe('colors', () => {
     expect(displayColor('#ff0000')).toBe('#ff0000');
     expect(isBorahae('#3f00ff')).toBe(true);
     expect(isBorahae('#3f00fe')).toBe(false);
+  });
+});
+
+describe('idleBlackoutOf', () => {
+  it('defaults to on', () => {
+    const profile = defaultProfile('x', 'p', counter());
+    expect(profile.idleBlackout).toBe(true);
+    expect(idleBlackoutOf({ ...profile, idleBlackout: undefined })).toBe(true);
+    expect(idleBlackoutOf({ ...profile, idleBlackout: false })).toBe(false);
   });
 });
 

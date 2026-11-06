@@ -79,6 +79,51 @@ describe('effectsFromChanges', () => {
       ['#ff0000', 2, 5],
     ]);
   });
+
+  const gap = [
+    { padId: 'A', songTime: 1 },
+    { padId: null, songTime: 2 },
+    { padId: 'B', songTime: 3 },
+  ];
+
+  it('records a blackout while no pad is held when idleBlackout is on', () => {
+    expect(spans(effectsFromChanges(gap, 4, pads, counter(), true))).toEqual([
+      ['#ff0000', 1, 2],
+      ['blackout', 2, 3],
+      ['#00ff00', 3, 4],
+    ]);
+  });
+
+  it('leaves gaps empty when idleBlackout is off', () => {
+    expect(spans(effectsFromChanges(gap, 4, pads, counter()))).toEqual([
+      ['#ff0000', 1, 2],
+      ['#00ff00', 3, 4],
+    ]);
+  });
+
+  it('records a null-only take as one blackout', () => {
+    const changes = [
+      { padId: null, songTime: 1 },
+      { padId: null, songTime: 2 },
+    ];
+    expect(
+      spans(effectsFromChanges(changes, 3, pads, counter(), true)),
+    ).toEqual([['blackout', 1, 3]]);
+  });
+
+  it('drops a blackout gap shorter than a frame', () => {
+    const changes = [
+      { padId: 'A', songTime: 1 },
+      { padId: null, songTime: 2 },
+      { padId: 'B', songTime: 2.01 },
+    ];
+    expect(
+      spans(effectsFromChanges(changes, 3, pads, counter(), true)),
+    ).toEqual([
+      ['#ff0000', 1, 2],
+      ['#00ff00', 2.01, 3],
+    ]);
+  });
 });
 
 describe('applyTake', () => {

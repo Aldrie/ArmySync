@@ -5,6 +5,7 @@ import { effectIdsInRange } from '../effects/services/timeline';
 import type { EffectInstance } from '../effects/types';
 
 const MIN_DURATION = 1 / 30;
+const IDLE_BLACKOUT: Pad = { id: '', kind: 'blackout', colors: [] };
 
 export interface ActiveChange {
   padId: string | null;
@@ -16,12 +17,18 @@ export function effectsFromChanges(
   endTime: number,
   pads: Pad[],
   newId: () => string,
+  idleBlackout = false,
 ): EffectInstance[] {
   const padsById = new Map(pads.map((pad) => [pad.id, pad]));
   const runs: { pad: Pad; from: number; to: number }[] = [];
 
   changes.forEach((change, i) => {
-    const pad = change.padId === null ? undefined : padsById.get(change.padId);
+    const pad =
+      change.padId === null
+        ? idleBlackout
+          ? IDLE_BLACKOUT
+          : undefined
+        : padsById.get(change.padId);
     if (!pad) return;
     const to = changes[i + 1]?.songTime ?? endTime;
     const last = runs[runs.length - 1];

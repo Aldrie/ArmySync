@@ -9,9 +9,15 @@ import {
   Pencil,
   Plus,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 
-import { BORAHAE, type Pad } from '../../domains/remote';
+import Switch from '../../components/switch';
+import {
+  BORAHAE,
+  idleBlackoutOf,
+  type Pad,
+  type Profile,
+} from '../../domains/remote';
 import { isBorahaePad, padBackground, padLook } from '../look';
 import { useRemoteStore } from '../store';
 import PadEditorModal from './pad-editor-modal';
@@ -86,16 +92,18 @@ export default function EditScreen() {
   const { saveProfiles, setMode } = useRemoteStore.getState();
   const [editing, setEditing] = useState<Pad | null>(null);
   const [profilesOpen, setProfilesOpen] = useState(false);
+  const blackoutLabel = useId();
 
   const pads = profile?.pads ?? [];
-  const savePads = (next: Pad[]) => {
+  const saveProfile = (patch: Partial<Profile>) => {
     if (!profile) return;
     saveProfiles(
       useRemoteStore
         .getState()
-        .profiles.map((p) => (p.id === profile.id ? { ...p, pads: next } : p)),
+        .profiles.map((p) => (p.id === profile.id ? { ...p, ...patch } : p)),
     );
   };
+  const savePads = (next: Pad[]) => saveProfile({ pads: next });
 
   return (
     <div className="relative flex h-full flex-col gap-2 px-8 pt-3 pb-4">
@@ -104,6 +112,19 @@ export default function EditScreen() {
         <span className="flex-1 text-center text-[11px] font-medium text-[#978e99]">
           Pencil edits · handle drags to reorder
         </span>
+        {profile && (
+          <div className="flex items-center gap-1.5 text-[#cec3d0]">
+            <EyeOff className="size-3.5" />
+            <span id={blackoutLabel} className="text-[11px] font-medium">
+              Release = blackout
+            </span>
+            <Switch
+              checked={idleBlackoutOf(profile)}
+              onChange={(idleBlackout) => saveProfile({ idleBlackout })}
+              labelledBy={blackoutLabel}
+            />
+          </div>
+        )}
         {profile && (
           <button
             type="button"
