@@ -2,6 +2,16 @@ import { invoke } from '@tauri-apps/api/core';
 
 import type { MediaType } from '../project';
 
+export const JELLYFIN_SESSION_EXPIRED =
+  'Jellyfin session expired. Sign in again.';
+export const JELLYFIN_NOT_SIGNED_IN = 'Not signed in to Jellyfin';
+export const JELLYFIN_VERSION_GONE =
+  'This video version is no longer on the server';
+export const JELLYFIN_SESSION_ERRORS = [
+  JELLYFIN_SESSION_EXPIRED,
+  JELLYFIN_NOT_SIGNED_IN,
+];
+
 export interface JellyfinStatus {
   url: string;
   serverId: string;

@@ -2,14 +2,15 @@ import { Music } from 'lucide-react';
 import type { RefObject } from 'react';
 
 import Button from '../../../components/button';
+import {
+  JELLYFIN_SESSION_ERRORS,
+  JELLYFIN_VERSION_GONE,
+} from '../../../domains/jellyfin';
 import { getSongMedia, isJellyfinMedia } from '../../../domains/project';
 import { useAppStore } from '../../../stores/app-store';
 import { useEditorStore } from '../../../stores/editor-store';
 
-const SERVER_REFUSALS = [
-  'Jellyfin session expired. Sign in again.',
-  'This video version is no longer on the server',
-];
+const SERVER_REFUSALS = [...JELLYFIN_SESSION_ERRORS, JELLYFIN_VERSION_GONE];
 
 interface VideoAreaProps {
   videoRef: RefObject<HTMLVideoElement | null>;

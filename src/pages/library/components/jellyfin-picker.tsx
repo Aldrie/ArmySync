@@ -4,6 +4,7 @@ import { useEffect, useId, useState } from 'react';
 import { ErrorAlert, Field, INPUT } from './form';
 import Button from '../../../components/button';
 import {
+  JELLYFIN_SESSION_ERRORS,
   type JellyfinItem,
   type JellyfinStatus,
   logoutJellyfin,
@@ -14,11 +15,6 @@ import { errorMessage, videoTime } from '../../../lib/format';
 import { useAppStore } from '../../../stores/app-store';
 
 export type JellyfinPick = { item: JellyfinItem; mediaSourceId: string };
-
-const SESSION_ERRORS = [
-  'Jellyfin session expired. Sign in again.',
-  'Not signed in to Jellyfin',
-];
 
 const DEBOUNCE_MS = 300;
 
@@ -52,7 +48,7 @@ export default function JellyfinPicker({
         .catch((e: unknown) => {
           if (cancelled) return;
           const message = errorMessage(e);
-          if (SESSION_ERRORS.includes(message)) onSignOut();
+          if (JELLYFIN_SESSION_ERRORS.includes(message)) onSignOut();
           else setError(message);
         })
         .finally(() => {
