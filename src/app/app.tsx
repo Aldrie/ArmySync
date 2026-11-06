@@ -6,18 +6,20 @@ import './globals.css';
 import DownloadModal from '../components/download-modal';
 import EditorPage from '../pages/editor/editor-page';
 import LibraryPage from '../pages/library/library-page';
+import PlayerPage from '../pages/player/player-page';
 import { useAppStore } from '../stores/app-store';
 import { useEditorStore } from '../stores/editor-store';
 
 function useMenuListener() {
   useEffect(() => {
     const unlisten = listen<string>('menu-action', (event) => {
-      const { route, closeProject, setShowNewSongModal } =
+      const { route, closeProject, closePlayer, setShowNewSongModal } =
         useAppStore.getState();
 
       switch (event.payload) {
         case 'new_project':
           if (route === 'editor') closeProject();
+          if (route === 'player') closePlayer();
           setShowNewSongModal(true);
           break;
 
@@ -27,6 +29,7 @@ function useMenuListener() {
 
         case 'close_project':
           if (route === 'editor') closeProject();
+          if (route === 'player') closePlayer();
           break;
       }
     });
@@ -45,7 +48,13 @@ export default function App() {
 
   return (
     <>
-      {route === 'editor' ? <EditorPage /> : <LibraryPage />}
+      {route === 'editor' ? (
+        <EditorPage />
+      ) : route === 'player' ? (
+        <PlayerPage />
+      ) : (
+        <LibraryPage />
+      )}
       <DownloadModal open={downloading} />
     </>
   );

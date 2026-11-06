@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { useEditorStore } from './editor-store';
+import { usePlayerStore } from './player-store';
 import * as library from '../domains/project';
 import type {
   NewSongSource,
@@ -8,7 +9,7 @@ import type {
   ProjectSummary,
 } from '../domains/project';
 
-type Route = 'library' | 'editor';
+type Route = 'library' | 'editor' | 'player';
 
 interface AppState {
   route: Route;
@@ -19,6 +20,8 @@ interface AppState {
 
   refreshProjects: () => Promise<void>;
   openProject: (id: string) => Promise<void>;
+  openPlayer: (id: string) => Promise<void>;
+  closePlayer: () => void;
   createSong: (input: { name: string; source: NewSongSource }) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   closeProject: () => void;
@@ -43,9 +46,23 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   openProject: async (id) => {
+    if (get().route === 'player') usePlayerStore.getState().leave();
     await closing;
     const project = await library.loadProject(id);
     set({ route: 'editor', activeProject: project });
+  },
+
+  openPlayer: async (id) => {
+    await closing;
+    const project = await library.loadProject(id);
+    set({ route: 'player', activeProject: project });
+    await usePlayerStore.getState().open(project);
+  },
+
+  closePlayer: () => {
+    usePlayerStore.getState().leave();
+    set({ route: 'library', activeProject: null });
+    void get().refreshProjects();
   },
 
   createSong: async (input) => {

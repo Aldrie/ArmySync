@@ -1,4 +1,11 @@
-import { ChevronRight, ListMinus, ListPlus, Music, Trash2 } from 'lucide-react';
+import {
+  ChevronRight,
+  ListMinus,
+  ListPlus,
+  Music,
+  Play,
+  Trash2,
+} from 'lucide-react';
 
 import JellyfinIcon from '../../../assets/jellyfin.svg?react';
 import IconButton from '../../../components/icon-button';
@@ -7,6 +14,7 @@ import type { ProjectSummary } from '../../../domains/project';
 interface ProjectRowProps {
   project: ProjectSummary;
   onOpen: () => void;
+  onPlay: () => void;
   onDelete: () => void;
   onAddToPlaylist: () => void;
   onRemoveFromPlaylist?: () => void;
@@ -15,6 +23,7 @@ interface ProjectRowProps {
 export default function ProjectRow({
   project,
   onOpen,
+  onPlay,
   onDelete,
   onAddToPlaylist,
   onRemoveFromPlaylist,
@@ -22,7 +31,7 @@ export default function ProjectRow({
   const date = new Date(project.updatedAt);
 
   return (
-    <div className="group flex items-center pr-2 transition-colors hover:bg-surface-container">
+    <div className="group flex items-center pr-2 transition-colors focus-within:bg-surface-container hover:bg-surface-container">
       <button
         type="button"
         onClick={onOpen}
@@ -54,21 +63,37 @@ export default function ProjectRow({
         </time>
         <ChevronRight className="size-4 shrink-0 -translate-x-1 text-outline opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
       </button>
-      <IconButton
-        label="Add to playlist"
-        className="ml-1"
-        onClick={onAddToPlaylist}
+      <span
+        aria-hidden="true"
+        className="ml-2 flex size-7 items-center justify-center rounded-full border border-border-strong text-on-surface-variant group-focus-within:hidden group-hover:hidden"
       >
-        <ListPlus />
-      </IconButton>
-      {onRemoveFromPlaylist && (
-        <IconButton label="Remove from playlist" onClick={onRemoveFromPlaylist}>
-          <ListMinus />
+        <Play className="ml-px size-2.5 fill-current" />
+      </span>
+      <div className="ml-2 hidden items-center gap-0.5 group-focus-within:flex group-hover:flex">
+        <button
+          type="button"
+          aria-label={`Play ${project.name}`}
+          onClick={onPlay}
+          className="mr-0.5 flex h-7 cursor-pointer items-center gap-1.5 rounded-md bg-primary/10 pr-2.5 pl-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/15"
+        >
+          <Play className="size-3 fill-current" />
+          Play
+        </button>
+        <IconButton label="Add to playlist" onClick={onAddToPlaylist}>
+          <ListPlus />
         </IconButton>
-      )}
-      <IconButton label="Delete project" onClick={onDelete}>
-        <Trash2 />
-      </IconButton>
+        {onRemoveFromPlaylist && (
+          <IconButton
+            label="Remove from playlist"
+            onClick={onRemoveFromPlaylist}
+          >
+            <ListMinus />
+          </IconButton>
+        )}
+        <IconButton label="Delete project" onClick={onDelete}>
+          <Trash2 />
+        </IconButton>
+      </div>
     </div>
   );
 }

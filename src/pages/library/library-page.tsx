@@ -18,6 +18,7 @@ export default function LibraryPage() {
   const projects = useAppStore((s) => s.projects);
   const refreshProjects = useAppStore((s) => s.refreshProjects);
   const openProject = useAppStore((s) => s.openProject);
+  const openPlayer = useAppStore((s) => s.openPlayer);
   const deleteProject = useAppStore((s) => s.deleteProject);
   const modalOpen = useAppStore((s) => s.showNewSongModal);
   const setModalOpen = useAppStore((s) => s.setShowNewSongModal);
@@ -50,6 +51,12 @@ export default function LibraryPage() {
   const handleOpen = (id: string) => {
     openProject(id).catch((e: unknown) =>
       console.error('Failed to open project:', e),
+    );
+  };
+
+  const handlePlay = (id: string) => {
+    openPlayer(id).catch((e: unknown) =>
+      console.error('Failed to open the player:', e),
     );
   };
 
@@ -104,6 +111,7 @@ export default function LibraryPage() {
                       key={project.id}
                       project={project}
                       onOpen={() => handleOpen(project.id)}
+                      onPlay={() => handlePlay(project.id)}
                       onDelete={() => {
                         setPendingDelete(project);
                         setDeleteOpen(true);
