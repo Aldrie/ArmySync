@@ -62,6 +62,7 @@ export interface FollowState {
   itemId: string | null;
   versionMismatch: boolean;
   candidates: { id: string; name: string; updatedAt: number }[];
+  chosen: boolean;
 }
 
 type FollowReport = Extract<FollowEvent, { kind: 'report' }>;
@@ -228,15 +229,17 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     const candidates = summaries
       .filter((p) => p.jellyfinItemId === report.itemId)
       .map(({ id, name, updatedAt }) => ({ id, name, updatedAt }));
+    const remembered = candidates.find(
+      (c) => c.id === followChoices[report.itemId],
+    );
     patchFollow({
       itemId: report.itemId,
       title: report.title,
       candidates,
+      chosen: !!remembered,
       versionMismatch: false,
     });
-    const chosen =
-      candidates.find((c) => c.id === followChoices[report.itemId]) ??
-      candidates[0];
+    const chosen = remembered ?? candidates[0];
     const current = () => isCurrent(run, report.itemId);
     if (chosen) await loadFollowProject(chosen.id, current);
     else set({ project: null, duration: 0 });
@@ -522,6 +525,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
           itemId: null,
           versionMismatch: false,
           candidates: [],
+          chosen: false,
         },
       });
       void applyMode('lights');
@@ -570,6 +574,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       void updateSettings({
         followChoices: { ...followChoices, [itemId]: projectId },
       });
+      patchFollow({ chosen: true });
       await loadFollowProject(projectId, () => isCurrent(run, itemId));
     },
   };

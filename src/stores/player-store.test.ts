@@ -479,9 +479,11 @@ it('switches the light show when the TV changes video', async () => {
   expect(store().project?.id).toBe('p3');
   expect(lastEffects()).toEqual(effectsOf('p3'));
   expect(store().follow?.candidates.map((c) => c.id)).toEqual(['p3', 'p2']);
+  expect(store().follow?.chosen).toBe(false);
 
   await store().chooseFollowProject('p2');
   expect(updateSettings).toHaveBeenCalledWith({ followChoices: { i2: 'p2' } });
+  expect(store().follow?.chosen).toBe(true);
   expect(lastEffects()).toEqual(effectsOf('p2'));
   expect(store().isPlaying).toBe(true);
 });
@@ -610,6 +612,7 @@ it('loads the project chosen before for a video', async () => {
   shows(['p0', 'i1', 1], ['p1', 'i1', 5]);
   await follow(tv(), { followChoices: { i1: 'p0' } });
   expect(store().project?.id).toBe('p0');
+  expect(store().follow?.chosen).toBe(true);
 });
 
 it('keeps the show of the latest video when loads finish out of order', async () => {

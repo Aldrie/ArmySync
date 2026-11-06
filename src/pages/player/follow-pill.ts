@@ -12,11 +12,11 @@ export const followPill = (
   follow: FollowState,
   isPlaying: boolean,
 ): FollowPill => {
+  if (follow.status === 'lost') return 'Reconnecting';
+  if (follow.status === 'idle') return 'Nothing playing';
   if (follow.itemId !== null && follow.candidates.length === 0)
     return 'No light show';
-  if (follow.candidates.length > 1) return 'Pick a show';
-  if (follow.status === 'idle') return 'Nothing playing';
-  if (follow.status === 'lost') return 'Reconnecting';
   if (!isPlaying) return 'Paused on TV';
+  if (follow.candidates.length > 1 && !follow.chosen) return 'Pick a show';
   return 'Following';
 };

@@ -13,27 +13,42 @@ const follow = (patch: Partial<FollowState> = {}): FollowState => ({
   itemId: 'item',
   versionMismatch: false,
   candidates: [show],
+  chosen: false,
   ...patch,
 });
 
-it('reports a known item without projects as having no light show', () => {
+it('puts a lost or idle TV before anything about the video', () => {
   expect(followPill(follow({ candidates: [], status: 'lost' }), true)).toBe(
-    'No light show',
+    'Reconnecting',
+  );
+  expect(
+    followPill(follow({ candidates: [show, show], status: 'idle' }), true),
+  ).toBe('Nothing playing');
+});
+
+it('reports a known item without projects as having no light show', () => {
+  expect(followPill(follow({ candidates: [] }), false)).toBe('No light show');
+});
+
+it('shows a pause before asking to pick', () => {
+  expect(followPill(follow({ candidates: [show, show] }), false)).toBe(
+    'Paused on TV',
   );
 });
 
-it('asks to pick when several projects match', () => {
-  expect(followPill(follow({ candidates: [show, show] }), false)).toBe(
+it('asks to pick when several projects match until one is chosen', () => {
+  expect(followPill(follow({ candidates: [show, show] }), true)).toBe(
     'Pick a show',
   );
+  expect(
+    followPill(follow({ candidates: [show, show], chosen: true }), true),
+  ).toBe('Following');
 });
 
-it('falls back to the session status before the item is known', () => {
+it('follows before the item is known', () => {
   expect(followPill(follow({ itemId: null, candidates: [] }), true)).toBe(
     'Following',
   );
-  expect(followPill(follow({ status: 'idle' }), true)).toBe('Nothing playing');
-  expect(followPill(follow({ status: 'lost' }), true)).toBe('Reconnecting');
 });
 
 it('tells paused from playing', () => {
