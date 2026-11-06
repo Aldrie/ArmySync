@@ -1,6 +1,7 @@
 import { type ComponentType, useEffect } from 'react';
 
 import CountdownOverlay from './components/countdown-overlay';
+import FullscreenGate from './components/fullscreen-gate';
 import CalibrateScreen from './screens/calibrate-screen';
 import EditScreen from './screens/edit-screen';
 import LiveScreen from './screens/live-screen';
@@ -15,17 +16,6 @@ const SCREENS: Record<Mode, ComponentType> = {
 };
 
 const NOTICE_MS = 3000;
-
-type LockableOrientation = ScreenOrientation & {
-  lock?: (orientation: 'landscape') => Promise<void>;
-};
-
-const enterFullscreen = () => {
-  Promise.resolve()
-    .then(() => document.documentElement.requestFullscreen())
-    .then(() => (screen.orientation as LockableOrientation).lock?.('landscape'))
-    .catch(() => {});
-};
 
 export default function App() {
   const mode = useRemoteStore((s) => s.mode);
@@ -44,8 +34,6 @@ export default function App() {
 
   useEffect(() => {
     useRemoteStore.getState().start();
-    window.addEventListener('pointerdown', enterFullscreen, { once: true });
-    return () => window.removeEventListener('pointerdown', enterFullscreen);
   }, []);
 
   return (
@@ -76,6 +64,7 @@ export default function App() {
           {notice}
         </div>
       )}
+      <FullscreenGate />
     </div>
   );
 }
