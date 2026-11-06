@@ -18,7 +18,11 @@ beforeEach(() => {
 it('returns defaults when the settings file is missing', async () => {
   invokeMock.mockResolvedValue(null);
   const { loadSettings } = await importSettings();
-  expect(await loadSettings()).toEqual({ bleDelays: {}, remoteLatencyMs: 0 });
+  expect(await loadSettings()).toEqual({
+    bleDelays: {},
+    remoteLatencyMs: 0,
+    playerMode: 'video',
+  });
 });
 
 it('clamps saved delays and ignores non-numeric entries', async () => {
@@ -48,7 +52,12 @@ it('merges a patch while keeping other stored keys', async () => {
   expect(writes()).toHaveLength(1);
   expect(writes()[0][1]).toEqual({
     name: 'settings',
-    value: { theme: 'dark', bleDelays: { a: 40 }, remoteLatencyMs: 0 },
+    value: {
+      theme: 'dark',
+      bleDelays: { a: 40 },
+      remoteLatencyMs: 0,
+      playerMode: 'video',
+    },
   });
 });
 
@@ -70,11 +79,21 @@ it('serializes quick patches so the latest one is written last', async () => {
   expect(writes().map(([, args]) => args)).toEqual([
     {
       name: 'settings',
-      value: { theme: 'dark', bleDelays: { a: 40 }, remoteLatencyMs: 0 },
+      value: {
+        theme: 'dark',
+        bleDelays: { a: 40 },
+        remoteLatencyMs: 0,
+        playerMode: 'video',
+      },
     },
     {
       name: 'settings',
-      value: { theme: 'dark', bleDelays: { a: 40, b: 10 }, remoteLatencyMs: 0 },
+      value: {
+        theme: 'dark',
+        bleDelays: { a: 40, b: 10 },
+        remoteLatencyMs: 0,
+        playerMode: 'video',
+      },
     },
   ]);
 });
@@ -82,7 +101,11 @@ it('serializes quick patches so the latest one is written last', async () => {
 it('never writes after a failed read', async () => {
   invokeMock.mockRejectedValueOnce(new Error('disk'));
   const { loadSettings, updateSettings } = await importSettings();
-  expect(await loadSettings()).toEqual({ bleDelays: {}, remoteLatencyMs: 0 });
+  expect(await loadSettings()).toEqual({
+    bleDelays: {},
+    remoteLatencyMs: 0,
+    playerMode: 'video',
+  });
   await updateSettings({ bleDelays: { a: 40 } });
   expect(writes()).toHaveLength(0);
 });
@@ -95,5 +118,18 @@ it('loadSettings reflects a previous updateSettings', async () => {
   expect(await loadSettings()).toEqual({
     bleDelays: { a: 40 },
     remoteLatencyMs: 0,
+    playerMode: 'video',
   });
+});
+
+it('keeps a saved Lights only player mode', async () => {
+  invokeMock.mockResolvedValue({ playerMode: 'lights' });
+  const { loadSettings } = await importSettings();
+  expect((await loadSettings()).playerMode).toBe('lights');
+});
+
+it('falls back to Video for an unknown player mode', async () => {
+  invokeMock.mockResolvedValue({ playerMode: 'audio' });
+  const { loadSettings } = await importSettings();
+  expect((await loadSettings()).playerMode).toBe('video');
 });

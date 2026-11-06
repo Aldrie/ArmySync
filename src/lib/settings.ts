@@ -2,9 +2,12 @@ import { invoke } from '@tauri-apps/api/core';
 
 import { clampLatency } from '../domains/remote/calibration';
 
+export type PlayerMode = 'video' | 'lights';
+
 export interface Settings {
   bleDelays: Record<string, number>;
   remoteLatencyMs: number;
+  playerMode: PlayerMode;
 }
 
 type StoredSettings = Settings & Record<string, unknown>;
@@ -28,7 +31,14 @@ const parseDelays = (value: unknown): Record<string, number> =>
 const parseLatency = (value: unknown): number =>
   typeof value === 'number' && Number.isFinite(value) ? clampLatency(value) : 0;
 
-let stored: StoredSettings = { bleDelays: {}, remoteLatencyMs: 0 };
+const parsePlayerMode = (value: unknown): PlayerMode =>
+  value === 'lights' ? 'lights' : 'video';
+
+let stored: StoredSettings = {
+  bleDelays: {},
+  remoteLatencyMs: 0,
+  playerMode: 'video',
+};
 let writable = false;
 let loading: Promise<void> | null = null;
 let writeQueue: Promise<void> = Promise.resolve();
@@ -44,6 +54,7 @@ export const loadSettings = (): Promise<Settings> => {
           ...value,
           bleDelays: parseDelays(value.bleDelays),
           remoteLatencyMs: parseLatency(value.remoteLatencyMs),
+          playerMode: parsePlayerMode(value.playerMode),
         };
       }
       writable = true;

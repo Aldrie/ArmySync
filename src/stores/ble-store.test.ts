@@ -94,7 +94,11 @@ it('persists delays for two devices and re-applies the latest on reconnect', asy
     );
     expect(writes[writes.length - 1]?.[1]).toEqual({
       name: 'settings',
-      value: { bleDelays: { dev1: 60, dev2: 30 }, remoteLatencyMs: 0 },
+      value: {
+        bleDelays: { dev1: 60, dev2: 30 },
+        remoteLatencyMs: 0,
+        playerMode: 'video',
+      },
     });
 
     emit('ble-disconnected', { id: 'dev1' });
