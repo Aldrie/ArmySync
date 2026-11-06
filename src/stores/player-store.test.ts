@@ -204,3 +204,43 @@ it('opens the Jellyfin stream only in Video and clears up on leave', async () =>
   expect(invoke).toHaveBeenCalledWith('sync_set_effects', { effects: [] });
   expect(releaseSongSource).toHaveBeenCalledTimes(2);
 });
+
+it('stops a song of unknown length where the video ended', async () => {
+  const video = fakeVideo();
+  playerRefs.video = video;
+  await openIn('video', song(0));
+  store().play();
+  await flush();
+  video.currentTime = 42;
+  store().onVideoEnded();
+  expect(store()).toMatchObject({ isPlaying: false, currentTime: 42 });
+  store().seekDelta(-10);
+  expect(store().currentTime).toBe(32);
+});
+
+it('stops playing when the video comes back with an error', async () => {
+  await openIn('lights', jellyfinSong());
+  store().play();
+  vi.mocked(openSongSource).mockResolvedValueOnce({
+    videoSrc: '',
+    mediaError: 'Jellyfin server unreachable',
+  });
+  await store().setMode('video');
+  expect(store()).toMatchObject({
+    isPlaying: false,
+    mediaError: 'Jellyfin server unreachable',
+  });
+});
+
+it('pauses the video before releasing it for Lights only', async () => {
+  const pause = vi.fn();
+  playerRefs.video = Object.assign(fakeVideo(), { pause });
+  await openIn('video');
+  store().play();
+  await flush();
+  await store().setMode('lights');
+  expect(pause).toHaveBeenCalled();
+  expect(pause.mock.invocationCallOrder[0]).toBeLessThan(
+    vi.mocked(releaseSongSource).mock.invocationCallOrder[0],
+  );
+});

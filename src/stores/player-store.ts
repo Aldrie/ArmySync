@@ -91,10 +91,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
   };
 
   const stopAtEnd = () => {
-    const { duration } = get();
+    const end =
+      get().duration || (playerRefs.video?.currentTime ?? clockTime());
     get().pause();
-    clockSeek(duration);
-    set({ currentTime: duration });
+    clockSeek(end);
+    set({ currentTime: end });
   };
 
   return {
@@ -136,6 +137,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       if (mode === get().mode) return;
       void updateSettings({ playerMode: mode });
       if (mode === 'lights') {
+        playerRefs.video?.pause();
         releaseSongSource();
         if (get().isPlaying) {
           const time = playerRefs.video?.currentTime ?? clockTime();
@@ -153,7 +155,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       const { project } = get();
       if (!project) return;
       const source = await openSongSource(project);
-      if (source && get().project === project) set(source);
+      if (source && get().project === project)
+        set(source.mediaError ? { ...source, isPlaying: false } : source);
     },
 
     play: () => {
