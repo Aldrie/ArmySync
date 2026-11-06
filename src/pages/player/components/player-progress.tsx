@@ -14,6 +14,7 @@ export default function PlayerProgress({
   const currentTime = usePlayerStore((s) => s.currentTime);
   const duration = usePlayerStore((s) => s.duration);
   const seek = usePlayerStore((s) => s.seek);
+  const blocked = usePlayerStore((s) => !!s.mediaError);
   const sliderRef = useRef<SliderRef>(null);
 
   useEffect(() => {
@@ -28,6 +29,7 @@ export default function PlayerProgress({
       step={0.1}
       defaultValue={currentTime}
       aria-label="Seek"
+      disabled={blocked}
       className="min-w-0 flex-1"
       onChange={seek}
     />

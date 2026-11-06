@@ -12,6 +12,7 @@ interface SliderProps {
   step?: number;
   defaultValue?: number;
   'aria-label'?: string;
+  disabled?: boolean;
   className?: string;
   onChange?: (value: number) => void;
 }
@@ -23,6 +24,7 @@ const Slider = forwardRef<SliderRef, SliderProps>(function Slider(
     step = 1,
     defaultValue = 0,
     'aria-label': ariaLabel,
+    disabled,
     className = '',
     onChange,
   },
@@ -61,12 +63,13 @@ const Slider = forwardRef<SliderRef, SliderProps>(function Slider(
     <input
       ref={inputRef}
       type="range"
-      className={cn('range-fill', className)}
+      className={cn('range-fill disabled:opacity-30', className)}
       min={min}
       max={max}
       step={step}
       defaultValue={defaultValue}
       aria-label={ariaLabel}
+      disabled={disabled}
       style={{
         backgroundSize: `${((defaultValue - min) / (max - min)) * 100}% 100%`,
       }}

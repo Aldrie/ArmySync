@@ -42,13 +42,20 @@ export default function PlayerVideo() {
     () => !!document.fullscreenElement,
   );
   const toggleFullscreen = () => {
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else
-      stageRef.current
-        ?.requestFullscreen()
-        .catch((e: unknown) => console.error('Full screen refused:', e));
+    const change = document.fullscreenElement
+      ? document.exitFullscreen()
+      : stageRef.current?.requestFullscreen();
+    change?.catch((e: unknown) => console.error('Full screen refused:', e));
   };
-  useKeybind({ KeyF: toggleFullscreen }, { allowRange: true });
+  useKeybind(
+    {
+      KeyF: (e) => {
+        if (!e.repeat && !e.metaKey && !e.ctrlKey && !e.altKey)
+          toggleFullscreen();
+      },
+    },
+    { allowRange: true },
+  );
 
   const videoSrc = usePlayerStore((s) => s.videoSrc);
   const mediaError = usePlayerStore((s) => s.mediaError);

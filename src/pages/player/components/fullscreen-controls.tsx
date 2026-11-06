@@ -6,7 +6,7 @@ import {
   Volume2,
   VolumeOff,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import PlayerProgress from './player-progress';
 import SkipIcon from './skip-icon';
@@ -34,16 +34,20 @@ export default function FullscreenControls({ onExit }: { onExit: () => void }) {
 
   const [idle, setIdle] = useState(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const wake = () => {
+  const wake = useCallback(() => {
     setIdle(false);
     clearTimeout(hideTimer.current);
     hideTimer.current = setTimeout(() => setIdle(true), HIDE_AFTER_MS);
-  };
+  }, []);
 
   useEffect(() => {
     hideTimer.current = setTimeout(() => setIdle(true), HIDE_AFTER_MS);
-    return () => clearTimeout(hideTimer.current);
-  }, []);
+    window.addEventListener('keydown', wake);
+    return () => {
+      clearTimeout(hideTimer.current);
+      window.removeEventListener('keydown', wake);
+    };
+  }, [wake]);
 
   const audible = muted ? 0 : volume;
   const VolumeIcon =
@@ -58,6 +62,7 @@ export default function FullscreenControls({ onExit }: { onExit: () => void }) {
   return (
     <div
       onMouseMove={wake}
+      onFocusCapture={wake}
       className={cn('absolute inset-0', idle && 'cursor-none')}
     >
       <div
