@@ -1,4 +1,5 @@
 mod client;
+pub mod follow;
 pub mod media;
 mod proxy;
 pub mod waveform;
@@ -49,6 +50,7 @@ pub struct JellyfinState {
   dir: PathBuf,
   stored: Arc<Mutex<Stored>>,
   play_session: Mutex<Option<String>>,
+  follow: Mutex<Option<(String, tokio::task::JoinHandle<()>)>>,
   proxy_port: u16,
   proxy_nonce: String,
 }
@@ -93,6 +95,7 @@ impl JellyfinState {
       dir,
       stored: Arc::new(Mutex::new(stored)),
       play_session: Mutex::new(None),
+      follow: Mutex::new(None),
       proxy_port: 0,
       proxy_nonce: uuid::Uuid::new_v4().simple().to_string(),
     })

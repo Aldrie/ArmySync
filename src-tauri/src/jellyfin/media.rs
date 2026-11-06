@@ -7,7 +7,7 @@ use super::client::{get_json, post_json, send, JSON_TIMEOUT};
 use super::{lock, JellyfinState};
 use crate::library::validate_id;
 
-const TICKS_PER_SECOND: f64 = 1e7;
+pub(super) const TICKS_PER_SECOND: f64 = 1e7;
 const SEARCH_TYPES: &str = "Movie,Episode,MusicVideo,Video,Audio";
 
 #[derive(Serialize)]
@@ -55,7 +55,7 @@ fn search_path(user_id: &str, term: &str) -> Result<String, String> {
   with_query("/Items", &params)
 }
 
-fn string(value: &Value) -> String {
+pub(super) fn string(value: &Value) -> String {
   value.as_str().unwrap_or_default().to_string()
 }
 

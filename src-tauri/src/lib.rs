@@ -55,6 +55,10 @@ pub fn run() {
       jellyfin::media::jellyfin_open_stream,
       jellyfin::media::jellyfin_close_stream,
       jellyfin::waveform::jellyfin_waveform,
+      jellyfin::follow::jellyfin_playing_sessions,
+      jellyfin::follow::jellyfin_follow_start,
+      jellyfin::follow::jellyfin_follow_stop,
+      jellyfin::follow::jellyfin_session_command,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
