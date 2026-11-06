@@ -37,15 +37,12 @@ export default function PlayerLights() {
 
   return (
     <main className="relative flex min-h-0 flex-1 flex-col items-center gap-6.5 overflow-y-auto px-6 pb-6">
-      {stickNames && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_34%_44%_at_50%_34%,color-mix(in_srgb,var(--ls-c)_20%,transparent),transparent_72%)]"
-        />
-      )}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_34%_44%_at_50%_34%,color-mix(in_srgb,var(--ls-c)_20%,transparent),transparent_72%)]"
+      />
       <LightstickPreview
         height={360}
-        emptyOff
         onConnect={openSticksPopover}
         className="relative mt-auto"
       />

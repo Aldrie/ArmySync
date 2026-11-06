@@ -106,7 +106,7 @@ export default function PlayerVideo() {
             </p>
           </div>
         ) : (
-          audioOnly && <LightstickPreview height={300} emptyOff />
+          audioOnly && <LightstickPreview height={300} />
         )}
         {videoSrc && !mediaError && (
           <video
@@ -166,7 +166,7 @@ function NowPlayingBar({ onFullscreen }: { onFullscreen: () => void }) {
           onClick={() => void setMode('lights')}
           className="flex h-29 shrink-0 cursor-pointer items-end rounded-lg px-1"
         >
-          <LightstickPreview height={108} emptyOff />
+          <LightstickPreview height={108} />
         </button>
         <div className="flex min-w-0 flex-col gap-0.75">
           <span className="truncate text-sm font-semibold text-on-surface">
