@@ -1,13 +1,11 @@
 import { Bluetooth, BluetoothOff, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
-import type { RefObject } from 'react';
 import { useCallback, useRef, useState } from 'react';
 
 import PanelSectionHeader from './panel-section-header';
 import Slider from '../../../components/slider';
 import Switch from '../../../components/switch';
-import { Lightstick } from '../../../domains/lightstick';
-import type { LightstickRef } from '../../../domains/lightstick';
+import { LightstickPreview, useStickColor } from '../../../domains/lightstick';
 import { easeOut } from '../../../lib/animations';
 import { cn } from '../../../lib/cn';
 import { useBleStore } from '../../../stores/ble-store';
@@ -16,13 +14,8 @@ import RemoteSection from '../remote/remote-section';
 
 const FRAME_RATE = 24;
 
-interface LightstickPanelProps {
-  lightstickRef: RefObject<LightstickRef | null>;
-}
-
-export default function LightstickPanel({
-  lightstickRef,
-}: LightstickPanelProps) {
+export default function LightstickPanel() {
+  const rootRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLSpanElement>(null);
   const [openSection, setOpenSection] = useState<'preview' | 'remote'>(
     'preview',
@@ -38,6 +31,8 @@ export default function LightstickPanel({
   const deviceCount = connectedDevices.length;
   const hasDevices = deviceCount > 0;
 
+  useStickColor(rootRef);
+
   useTransientTime((time) => {
     if (frameRef.current) {
       frameRef.current.textContent = `Frame ${Math.floor(time * FRAME_RATE)}`;
@@ -50,7 +45,10 @@ export default function LightstickPanel({
   );
 
   return (
-    <div className="h-full bg-surface-low border-l border-border flex flex-col">
+    <div
+      ref={rootRef}
+      className="h-full bg-surface-low border-l border-border flex flex-col"
+    >
       <PanelSectionHeader
         title="Preview"
         open={previewOpen}
@@ -92,9 +90,7 @@ export default function LightstickPanel({
         inert={!previewOpen}
       >
         <div className="flex-1 flex items-center justify-center min-h-0 overflow-hidden">
-          <div className="shrink min-h-0 origin-center scale-60">
-            <Lightstick ref={lightstickRef} />
-          </div>
+          <LightstickPreview height={220} />
         </div>
 
         <section className="flex flex-col gap-3 w-full border-t border-border p-4">

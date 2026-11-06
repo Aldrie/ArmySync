@@ -2,8 +2,6 @@ import { DragDropProvider, DragOverlay } from '@dnd-kit/react';
 import { icons } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
-import { listen } from '@tauri-apps/api/event';
-
 import ControlsBar from './components/controls-bar';
 import EffectsSidebar from './components/effects-sidebar';
 import LightstickPanel from './components/lightstick-panel';
@@ -16,7 +14,6 @@ import ResizePanel from '../../components/resize-panel';
 import type { EffectInstance } from '../../domains/effects';
 import { getEffectDefinition } from '../../domains/effects';
 import { findSnapTarget } from '../../domains/effects/services/timeline';
-import type { LightstickRef } from '../../domains/lightstick';
 import { useKeybind } from '../../lib/use-keybind';
 import { useAppStore } from '../../stores/app-store';
 import { editorRefs } from '../../stores/editor-refs';
@@ -37,14 +34,11 @@ function snapDropTime(x: number, width: number, duration: number): number {
 
 export default function EditorPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const lightstickRef = useRef<LightstickRef>(null);
 
   useEffect(() => {
     editorRefs.video = videoRef.current;
-    editorRefs.lightstick = lightstickRef.current;
     return () => {
       editorRefs.video = null;
-      editorRefs.lightstick = null;
     };
   });
 
@@ -57,16 +51,6 @@ export default function EditorPage() {
     const project = useAppStore.getState().activeProject;
     if (project) void initFromProject(project);
   }, [activeProjectId, initFromProject]);
-
-  useEffect(() => {
-    const unlisten = listen<{ color: string }>('color-update', (event) => {
-      lightstickRef.current?.setColor(event.payload.color);
-    });
-
-    return () => {
-      void unlisten.then((fn) => fn());
-    };
-  }, []);
 
   const videoSrc = useEditorStore((s) => s.videoSrc);
   const videoDuration = useEditorStore((s) => s.videoDuration);
@@ -274,7 +258,7 @@ export default function EditorPage() {
             minWidth={240}
             maxWidth={300}
           >
-            <LightstickPanel lightstickRef={lightstickRef} />
+            <LightstickPanel />
           </ResizePanel>
         </div>
 
