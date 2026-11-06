@@ -232,6 +232,26 @@ it('stops playing when the video comes back with an error', async () => {
   });
 });
 
+it('stops everything when the video errors mid-play', async () => {
+  playerRefs.video = fakeVideo();
+  await openIn('video');
+  store().play();
+  await flush();
+  store().onVideoError();
+  expect(store()).toMatchObject({
+    isPlaying: false,
+    mediaError: 'The video stream stopped.',
+  });
+  expect(invoke).toHaveBeenCalledWith('sync_pause');
+});
+
+it('ignores a video error after the source was released', async () => {
+  await openIn('video');
+  await store().setMode('lights');
+  store().onVideoError();
+  expect(store().mediaError).toBeNull();
+});
+
 it('pauses the video before releasing it for Lights only', async () => {
   const pause = vi.fn();
   playerRefs.video = Object.assign(fakeVideo(), { pause });

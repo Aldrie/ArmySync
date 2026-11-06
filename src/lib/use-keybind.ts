@@ -4,7 +4,7 @@ type KeyCombo = string;
 type KeyHandler = (event: KeyboardEvent) => void;
 type KeyMap = Record<KeyCombo, KeyHandler>;
 
-export function useKeybind(keyMap: KeyMap) {
+export function useKeybind(keyMap: KeyMap, { allowRange = false } = {}) {
   const mapRef = useRef(keyMap);
 
   useEffect(() => {
@@ -16,7 +16,8 @@ export function useKeybind(keyMap: KeyMap) {
       const target = event.target as HTMLElement;
       if (
         target.tagName === 'TEXTAREA' ||
-        (target instanceof HTMLInputElement && target.type !== 'range')
+        (target instanceof HTMLInputElement &&
+          !(allowRange && target.type === 'range'))
       )
         return;
 
@@ -29,5 +30,5 @@ export function useKeybind(keyMap: KeyMap) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [allowRange]);
 }

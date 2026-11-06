@@ -65,6 +65,7 @@ interface PlayerState {
   onVideoTime: (time: number) => void;
   onVideoLoaded: () => void;
   onVideoEnded: () => void;
+  onVideoError: () => void;
   onVideoStalled: () => void;
   onVideoResumed: () => void;
   setVolume: (value: number) => void;
@@ -248,6 +249,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     },
 
     onVideoEnded: stopAtEnd,
+
+    onVideoError: () => {
+      // A released source can still report its error after the switch or leave.
+      if (!get().videoSrc) return;
+      get().pause();
+      set({ mediaError: 'The video stream stopped.' });
+    },
 
     onVideoStalled: () => {
       if (!get().isPlaying) return;

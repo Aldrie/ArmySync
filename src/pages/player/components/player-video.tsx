@@ -17,7 +17,7 @@ import {
   JELLYFIN_VERSION_GONE,
 } from '../../../domains/jellyfin';
 import { LightstickPreview } from '../../../domains/lightstick';
-import { getSongMedia } from '../../../domains/project';
+import { getSongMedia, isJellyfinMedia } from '../../../domains/project';
 import { playerRefs, usePlayerStore } from '../../../stores/player-store';
 
 const SERVER_REFUSALS = [...JELLYFIN_SESSION_ERRORS, JELLYFIN_VERSION_GONE];
@@ -29,26 +29,36 @@ const setVideoRef = (el: HTMLVideoElement | null) => {
 export default function PlayerVideo() {
   const videoSrc = usePlayerStore((s) => s.videoSrc);
   const mediaError = usePlayerStore((s) => s.mediaError);
-  const audioOnly = usePlayerStore(
-    (s) => !!s.project && getSongMedia(s.project)?.media.type === 'audio',
+  const media = usePlayerStore(
+    (s) => (s.project && getSongMedia(s.project)?.media) ?? null,
   );
+  const audioOnly = media?.type === 'audio';
   const {
     onVideoTime,
     onVideoLoaded,
     onVideoEnded,
+    onVideoError,
     onVideoStalled,
     onVideoResumed,
   } = usePlayerStore.getState();
+
+  const errorTitle = (error: string) => {
+    if (SERVER_REFUSALS.some((m) => error.startsWith(m)))
+      return "Can't play from Jellyfin";
+    if (media && isJellyfinMedia(media)) return 'Jellyfin server unreachable';
+    return "Can't play this video";
+  };
 
   return (
     <>
       <main className="flex min-h-0 flex-1 items-center justify-center px-6 pt-1">
         {mediaError ? (
-          <div className="flex max-w-md flex-col items-center gap-2 text-center">
+          <div
+            role="alert"
+            className="flex max-w-md flex-col items-center gap-2 text-center"
+          >
             <p className="text-sm font-medium text-on-surface">
-              {SERVER_REFUSALS.some((m) => mediaError.startsWith(m))
-                ? "Can't play from Jellyfin"
-                : 'Jellyfin server unreachable'}
+              {errorTitle(mediaError)}
             </p>
             <p className="max-w-full text-xs text-on-surface-variant">
               {mediaError}
@@ -61,7 +71,7 @@ export default function PlayerVideo() {
         ) : (
           audioOnly && <LightstickPreview height={300} />
         )}
-        {videoSrc && (
+        {videoSrc && !mediaError && (
           <video
             ref={setVideoRef}
             src={videoSrc}
@@ -73,6 +83,7 @@ export default function PlayerVideo() {
             onTimeUpdate={(e) => onVideoTime(e.currentTarget.currentTime)}
             onLoadedMetadata={onVideoLoaded}
             onEnded={onVideoEnded}
+            onError={onVideoError}
             onWaiting={onVideoStalled}
             onPlaying={onVideoResumed}
           />
@@ -88,6 +99,7 @@ function NowPlayingBar() {
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const volume = usePlayerStore((s) => s.volume);
   const muted = usePlayerStore((s) => s.muted);
+  const blocked = usePlayerStore((s) => !!s.mediaError);
   const { setMode, togglePlay, seekDelta, setVolume, toggleMute } =
     usePlayerStore.getState();
   const volumeRef = useRef<SliderRef>(null);
@@ -124,6 +136,7 @@ function NowPlayingBar() {
             label="Back 10 seconds"
             title="Back 10 s (←)"
             className={skipClass}
+            disabled={blocked}
             onClick={() => seekDelta(-10)}
           >
             <SkipIcon />
@@ -132,6 +145,7 @@ function NowPlayingBar() {
             label={isPlaying ? 'Pause' : 'Play'}
             title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
             className="size-12 rounded-full bg-on-surface text-surface shadow-[0_1px_2px_rgba(0,0,0,0.5)] hover:bg-white hover:text-surface [&_svg]:size-5"
+            disabled={blocked}
             onClick={togglePlay}
           >
             {isPlaying ? (
@@ -144,6 +158,7 @@ function NowPlayingBar() {
             label="Forward 10 seconds"
             title="Forward 10 s (→)"
             className={skipClass}
+            disabled={blocked}
             onClick={() => seekDelta(10)}
           >
             <SkipIcon forward />

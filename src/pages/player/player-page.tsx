@@ -22,11 +22,19 @@ export default function PlayerPage() {
   const ready = usePlayerStore((s) => s.ready);
   const setMode = usePlayerStore((s) => s.setMode);
 
-  useKeybind({
-    Space: () => usePlayerStore.getState().togglePlay(),
-    ArrowLeft: () => usePlayerStore.getState().seekDelta(-10),
-    ArrowRight: () => usePlayerStore.getState().seekDelta(10),
-  });
+  const transport =
+    (run: (s: ReturnType<typeof usePlayerStore.getState>) => void) => () => {
+      const s = usePlayerStore.getState();
+      if (!s.mediaError) run(s);
+    };
+  useKeybind(
+    {
+      Space: transport((s) => s.togglePlay()),
+      ArrowLeft: transport((s) => s.seekDelta(-10)),
+      ArrowRight: transport((s) => s.seekDelta(10)),
+    },
+    { allowRange: true },
+  );
 
   const handleEdit = () => {
     if (!project) return;
