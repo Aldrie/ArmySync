@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 import { invoke } from '@tauri-apps/api/core';
 
@@ -66,6 +66,11 @@ const projectWrites = () =>
 
 beforeEach(() => {
   vi.mocked(invoke).mockClear();
+});
+
+afterEach(() => {
+  vi.mocked(invoke).mockImplementation(() => Promise.resolve([]));
+  editorRefs.video = null;
 });
 
 it('keeps effects and stamped duration when saves overlap', async () => {
@@ -308,6 +313,7 @@ it('opens the song even when Jellyfin is down', async () => {
   expect(useEditorStore.getState()).toMatchObject({
     videoSrc: '',
     mediaError: 'error sending request',
+    videoDuration: 6528,
   });
   expect(useEditorStore.getState().project?.id).toBe('p1');
 });
@@ -329,4 +335,70 @@ it('loads the Jellyfin waveform', async () => {
     itemId: 'it',
     mediaSourceId: 'ms',
   });
+});
+
+it('shows the song while its stream is still opening', () => {
+  vi.mocked(invoke).mockImplementation((cmd) =>
+    cmd === 'jellyfin_open_stream'
+      ? new Promise(() => undefined)
+      : Promise.resolve([]),
+  );
+  void useEditorStore.getState().initFromProject(jellyfinSong());
+  expect(useEditorStore.getState()).toMatchObject({
+    videoSrc: '',
+    videoDuration: 6528,
+  });
+  expect(useEditorStore.getState().project?.id).toBe('p1');
+});
+
+it('keeps the newer song stream when an older open lands late', async () => {
+  const opens: Array<(url: string) => void> = [];
+  vi.mocked(invoke).mockImplementation((cmd) =>
+    cmd === 'jellyfin_open_stream'
+      ? new Promise((r) => {
+          opens.push(r);
+        })
+      : Promise.resolve([]),
+  );
+  const first = useEditorStore.getState().initFromProject(jellyfinSong());
+  const second = useEditorStore
+    .getState()
+    .initFromProject({ ...jellyfinSong(), id: 'p2' });
+  opens[1]('second');
+  await second;
+  opens[0]('first');
+  await first;
+  expect(invoke).not.toHaveBeenCalledWith('jellyfin_close_stream');
+  expect(useEditorStore.getState().videoSrc).toBe('second');
+  expect(useEditorStore.getState().project?.id).toBe('p2');
+});
+
+it('retries a stream that failed to open', async () => {
+  vi.mocked(invoke).mockImplementation((cmd) =>
+    cmd === 'jellyfin_open_stream'
+      ? // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- Tauri invoke rejects with the Rust error string
+        Promise.reject('error sending request')
+      : Promise.resolve([]),
+  );
+  await useEditorStore.getState().initFromProject(jellyfinSong());
+  streamAt('back');
+  await useEditorStore.getState().retryMedia();
+  expect(useEditorStore.getState()).toMatchObject({
+    videoSrc: 'back',
+    mediaError: null,
+  });
+});
+
+it('unmounts the stopped stream before retrying it', async () => {
+  streamAt('same');
+  await useEditorStore.getState().initFromProject(jellyfinSong());
+  useEditorStore.getState().setMediaError('The video stream stopped.');
+  const retrying = useEditorStore.getState().retryMedia();
+  expect(useEditorStore.getState()).toMatchObject({
+    videoSrc: '',
+    mediaError: null,
+    isPlaying: false,
+  });
+  await retrying;
+  expect(useEditorStore.getState().videoSrc).toBe('same');
 });

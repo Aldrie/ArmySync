@@ -150,6 +150,7 @@ export function useHistoryBatch(session: number | null) {
 }
 
 let openGeneration = 0;
+let leftGeneration = -1;
 
 async function songSource(
   project: Project,
@@ -166,7 +167,9 @@ async function songSource(
   try {
     const { itemId, mediaSourceId } = song.media.source;
     const videoSrc = await openJellyfinStream(itemId, mediaSourceId);
-    if (generation !== openGeneration) void closeJellyfinStream();
+    // A newer open already replaced this session on the server; only an editor exit leaves it orphaned.
+    if (generation !== openGeneration && openGeneration === leftGeneration)
+      void closeJellyfinStream();
     return { videoSrc, mediaError: null };
   } catch (err) {
     return { videoSrc: '', mediaError: String(err) };
@@ -531,16 +534,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   initFromProject: async (project) => {
     const generation = ++openGeneration;
-    const source = await songSource(project);
-    if (generation !== openGeneration) return;
     const song = getSongMedia(project);
     const effects = getSongEffects(project);
 
     set({
       project,
       isDirty: false,
-      ...source,
+      videoSrc: '',
+      mediaError: null,
       mediaType: song?.media.type ?? null,
+      videoDuration: song?.media.duration ?? 0,
       effects,
       selectedEffectIds: [],
       clipboard: [],
@@ -551,6 +554,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       waveform: null,
       waveformLoading: false,
     });
+
+    const source = await songSource(project);
+    if (generation === openGeneration) set(source);
   },
 
   saveEffects: async () => {
@@ -567,7 +573,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   resetEditor: () => {
     if (autoSaveTimer) clearTimeout(autoSaveTimer);
-    openGeneration++;
+    leftGeneration = ++openGeneration;
     void closeJellyfinStream();
     set({
       project: null,
@@ -630,7 +636,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const { project } = get();
     if (!project) return;
     const generation = openGeneration;
-    set({ isPlaying: false, mediaError: null });
+    set({ isPlaying: false, mediaError: null, videoSrc: '' });
     const source = await songSource(project);
     if (generation === openGeneration) set(source);
   },
