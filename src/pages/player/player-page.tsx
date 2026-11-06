@@ -54,7 +54,8 @@ export default function PlayerPage() {
       <header className="flex h-14 shrink-0 items-center gap-1 px-3.5">
         <IconButton
           size="md"
-          label={`Back to library (${modKey}W)`}
+          label="Back to library"
+          title={`Back to library (${modKey}W)`}
           onClick={closePlayer}
         >
           <ChevronLeft />

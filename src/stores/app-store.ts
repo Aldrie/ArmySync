@@ -29,6 +29,7 @@ interface AppState {
 }
 
 let closing: Promise<void> = Promise.resolve();
+let openRequest = 0;
 
 export const useAppStore = create<AppState>((set, get) => ({
   route: 'library',
@@ -46,20 +47,32 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   openProject: async (id) => {
-    if (get().route === 'player') usePlayerStore.getState().leave();
-    await closing;
-    const project = await library.loadProject(id);
-    set({ route: 'editor', activeProject: project });
+    const fromPlayer = get().route === 'player';
+    if (fromPlayer) usePlayerStore.getState().leave();
+    const request = ++openRequest;
+    try {
+      await closing;
+      const project = await library.loadProject(id);
+      if (request !== openRequest) return;
+      set({ route: 'editor', activeProject: project });
+    } catch (e) {
+      if (fromPlayer && request === openRequest)
+        set({ route: 'library', activeProject: null });
+      throw e;
+    }
   },
 
   openPlayer: async (id) => {
+    const request = ++openRequest;
     await closing;
     const project = await library.loadProject(id);
+    if (request !== openRequest) return;
     set({ route: 'player', activeProject: project });
     await usePlayerStore.getState().open(project);
   },
 
   closePlayer: () => {
+    openRequest++;
     usePlayerStore.getState().leave();
     set({ route: 'library', activeProject: null });
     void get().refreshProjects();

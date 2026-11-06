@@ -44,7 +44,7 @@ it('opens the player on the loaded project', async () => {
 
 it('leaves the player before opening the editor from it', async () => {
   useAppStore.setState({ route: 'player', activeProject: project });
-  leave.mockImplementation(() => expect(app().route).toBe('player'));
+  leave.mockImplementationOnce(() => expect(app().route).toBe('player'));
   await app().openProject('p1');
   expect(leave).toHaveBeenCalledOnce();
   expect(app().route).toBe('editor');
@@ -81,4 +81,46 @@ it('waits for a pending editor save before opening the player', async () => {
   finishSave();
   await opening;
   expect(app().route).toBe('player');
+});
+
+it('drops an open overtaken by a newer one', async () => {
+  const b = { id: 'b', name: 'B' } as Project;
+  let finishA: (p: Project) => void = () => {};
+  vi.mocked(library.loadProject)
+    .mockReturnValueOnce(new Promise<Project>((r) => (finishA = r)))
+    .mockResolvedValueOnce(b);
+
+  const playing = app().openPlayer('a');
+  await app().openProject('b');
+  finishA(project);
+  await playing;
+
+  expect(app().route).toBe('editor');
+  expect(app().activeProject).toBe(b);
+  expect(open).not.toHaveBeenCalled();
+});
+
+it('drops a player open when the player is closed first', async () => {
+  let finish: (p: Project) => void = () => {};
+  vi.mocked(library.loadProject).mockReturnValueOnce(
+    new Promise<Project>((r) => (finish = r)),
+  );
+
+  const playing = app().openPlayer('p1');
+  app().closePlayer();
+  finish(project);
+  await playing;
+
+  expect(app().route).toBe('library');
+  expect(open).not.toHaveBeenCalled();
+});
+
+it('falls back to the library when opening the editor from the player fails', async () => {
+  useAppStore.setState({ route: 'player', activeProject: project });
+  vi.mocked(library.loadProject).mockRejectedValueOnce(new Error('disk'));
+
+  await expect(app().openProject('p1')).rejects.toThrow('disk');
+  expect(leave).toHaveBeenCalledOnce();
+  expect(app().route).toBe('library');
+  expect(app().activeProject).toBeNull();
 });
