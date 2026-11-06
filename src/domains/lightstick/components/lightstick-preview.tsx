@@ -7,12 +7,14 @@ import { previewModels } from '../preview-models';
 
 interface LightstickPreviewProps {
   height: number;
+  emptyOff?: boolean;
   onConnect?: () => void;
   className?: string;
 }
 
 export default function LightstickPreview({
   height,
+  emptyOff,
   onConnect,
   className,
 }: LightstickPreviewProps) {
@@ -22,7 +24,7 @@ export default function LightstickPreview({
   if (models.length === 0) {
     return (
       <div className={cn('flex flex-col items-center gap-3', className)}>
-        <Lightstick model="se" height={height} off={!!onConnect} />
+        <Lightstick model="se" height={height} off={emptyOff} />
         {onConnect && (
           <button
             type="button"

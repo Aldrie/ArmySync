@@ -22,6 +22,7 @@ import { LightstickPreview } from '../../../domains/lightstick';
 import { getSongMedia, isJellyfinMedia } from '../../../domains/project';
 import { cn } from '../../../lib/cn';
 import { useKeybind } from '../../../lib/use-keybind';
+import { useBleStore } from '../../../stores/ble-store';
 import { playerRefs, usePlayerStore } from '../../../stores/player-store';
 
 const SERVER_REFUSALS = [...JELLYFIN_SESSION_ERRORS, JELLYFIN_VERSION_GONE];
@@ -105,7 +106,7 @@ export default function PlayerVideo() {
             </p>
           </div>
         ) : (
-          audioOnly && <LightstickPreview height={300} />
+          audioOnly && <LightstickPreview height={300} emptyOff />
         )}
         {videoSrc && !mediaError && (
           <video
@@ -139,6 +140,9 @@ function NowPlayingBar({ onFullscreen }: { onFullscreen: () => void }) {
   const volume = usePlayerStore((s) => s.volume);
   const muted = usePlayerStore((s) => s.muted);
   const blocked = usePlayerStore((s) => !!s.mediaError);
+  const stickNames = useBleStore((s) =>
+    s.connectedDevices.map((d) => d.name).join(' · '),
+  );
   const { setMode, togglePlay, seekDelta, setVolume, toggleMute } =
     usePlayerStore.getState();
   const volumeRef = useRef<SliderRef>(null);
@@ -162,11 +166,16 @@ function NowPlayingBar({ onFullscreen }: { onFullscreen: () => void }) {
           onClick={() => void setMode('lights')}
           className="flex h-29 shrink-0 cursor-pointer items-end rounded-lg px-1"
         >
-          <LightstickPreview height={108} />
+          <LightstickPreview height={108} emptyOff />
         </button>
-        <span className="truncate text-sm font-semibold text-on-surface">
-          {title}
-        </span>
+        <div className="flex min-w-0 flex-col gap-0.75">
+          <span className="truncate text-sm font-semibold text-on-surface">
+            {title}
+          </span>
+          {stickNames && (
+            <span className="truncate text-xs text-outline">{stickNames}</span>
+          )}
+        </div>
       </div>
 
       <div className="flex w-130 flex-col items-center gap-2.5">

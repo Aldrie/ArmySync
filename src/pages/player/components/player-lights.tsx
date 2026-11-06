@@ -45,6 +45,7 @@ export default function PlayerLights() {
       )}
       <LightstickPreview
         height={360}
+        emptyOff
         onConnect={openSticksPopover}
         className="relative mt-auto"
       />
