@@ -154,12 +154,18 @@ export default function TimelineScreen() {
     seek(t);
   };
 
-  const onPointerUp = (e: PointerEvent<HTMLDivElement>) => {
-    if (!drag.current) return;
-    const t = dragTime(e.clientX);
+  const endDrag = (t: number) => {
     drag.current = null;
     seek(t);
     setScrub({ time: t, shownUntil: transport });
+  };
+
+  const onPointerUp = (e: PointerEvent<HTMLDivElement>) => {
+    if (drag.current) endDrag(dragTime(e.clientX));
+  };
+
+  const onPointerCancel = () => {
+    if (drag.current && scrub) endDrag(scrub.time);
   };
 
   const counting = countdownUntil !== null;
@@ -234,7 +240,7 @@ export default function TimelineScreen() {
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
+          onPointerCancel={onPointerCancel}
           className="relative h-24 shrink-0 touch-none overflow-hidden rounded-xl border border-border bg-surface"
         >
           <div
