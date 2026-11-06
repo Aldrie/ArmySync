@@ -1,6 +1,7 @@
 import { ChevronLeft, Monitor, Pencil } from 'lucide-react';
 import { useRef } from 'react';
 
+import CastPopover from './components/cast-popover';
 import PlayerLights from './components/player-lights';
 import PlayerVideo from './components/player-video';
 import SticksPopover from './components/sticks-popover';
@@ -18,7 +19,9 @@ export default function PlayerPage() {
   const rootRef = useRef<HTMLDivElement>(null);
   useStickColor(rootRef);
 
-  const project = useAppStore((s) => s.activeProject);
+  const project = usePlayerStore((s) => s.project);
+  const followTitle = usePlayerStore((s) => s.follow?.title);
+  const following = followTitle !== undefined;
   const closePlayer = useAppStore((s) => s.closePlayer);
   const openProject = useAppStore((s) => s.openProject);
   const mode = usePlayerStore((s) => s.mode);
@@ -61,15 +64,17 @@ export default function PlayerPage() {
     value: PlayerMode,
     label: string,
     icon: React.ReactNode,
+    disabled = false,
   ) => (
     <button
       type="button"
       aria-label={label}
       title={label}
       aria-pressed={mode === value}
+      disabled={disabled}
       onClick={() => void setMode(value)}
       className={cn(
-        'flex h-7 w-8.5 cursor-pointer items-center justify-center rounded-md transition-colors [&_svg]:size-[15px]',
+        'flex h-7 w-8.5 cursor-pointer items-center justify-center rounded-md transition-colors disabled:cursor-default disabled:opacity-40 [&_svg]:size-[15px]',
         mode === value
           ? 'bg-surface-highest text-on-surface shadow-raised'
           : 'text-outline hover:text-on-surface',
@@ -91,19 +96,25 @@ export default function PlayerPage() {
           <ChevronLeft />
         </IconButton>
         <h1 className="min-w-0 flex-1 truncate text-sm font-semibold text-on-surface">
-          {project?.name}
+          {project?.name ?? followTitle}
         </h1>
         <div
           role="group"
           aria-label="View"
           className="mr-2 flex gap-0.5 rounded-lg border border-border bg-surface-low p-0.5"
         >
-          {modeButton('video', 'Video', <Monitor />)}
+          {modeButton('video', 'Video', <Monitor />, following)}
           {modeButton('lights', 'Lights only', <StickIcon />)}
         </div>
         <SticksPopover />
         <SyncPopover />
-        <IconButton size="md" label="Open in editor" onClick={handleEdit}>
+        <CastPopover />
+        <IconButton
+          size="md"
+          label="Open in editor"
+          disabled={!project}
+          onClick={handleEdit}
+        >
           <Pencil />
         </IconButton>
       </header>

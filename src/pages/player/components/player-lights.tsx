@@ -16,7 +16,8 @@ const openSticksPopover = () => {
 };
 
 export default function PlayerLights() {
-  const title = usePlayerStore((s) => s.project?.name);
+  const title = usePlayerStore((s) => s.project?.name ?? s.follow?.title);
+  const versionMismatch = usePlayerStore((s) => s.follow?.versionMismatch);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const { togglePlay, seekDelta, tickLights } = usePlayerStore.getState();
   const stickNames = useBleStore((s) =>
@@ -50,6 +51,11 @@ export default function PlayerLights() {
         <h2 className="font-display text-[26px] font-bold tracking-tight text-balance text-on-surface">
           {title}
         </h2>
+        {versionMismatch && (
+          <span className="text-[13px] text-on-surface-variant">
+            Different video version — timing may be off
+          </span>
+        )}
         {stickNames && (
           <span className="text-[13px] text-outline">{stickNames}</span>
         )}
