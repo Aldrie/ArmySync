@@ -41,7 +41,7 @@ interface DeviceRowProps {
   onDisconnect: () => void;
 }
 
-function DeviceRow({
+export function DeviceRow({
   device,
   connected,
   onConnect,

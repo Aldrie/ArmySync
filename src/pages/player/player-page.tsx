@@ -1,9 +1,12 @@
 import { ChevronLeft, Monitor, Pencil } from 'lucide-react';
 import { useRef } from 'react';
 
+import PlayerLights from './components/player-lights';
 import PlayerVideo from './components/player-video';
+import SticksPopover from './components/sticks-popover';
+import SyncPopover from './components/sync-popover';
 import IconButton from '../../components/icon-button';
-import { LightstickPreview, useStickColor } from '../../domains/lightstick';
+import { useStickColor } from '../../domains/lightstick';
 import { cn } from '../../lib/cn';
 import { modKey } from '../../lib/keys';
 import type { PlayerMode } from '../../lib/settings';
@@ -32,6 +35,10 @@ export default function PlayerPage() {
       Space: transport((s) => s.togglePlay()),
       ArrowLeft: transport((s) => s.seekDelta(-10)),
       ArrowRight: transport((s) => s.seekDelta(10)),
+      Comma: (e) =>
+        usePlayerStore.getState().nudgeOffset(e.shiftKey ? -50 : -10),
+      Period: (e) =>
+        usePlayerStore.getState().nudgeOffset(e.shiftKey ? 50 : 10),
     },
     { allowRange: true },
   );
@@ -87,19 +94,14 @@ export default function PlayerPage() {
           {modeButton('video', 'Video', <Monitor />)}
           {modeButton('lights', 'Lights only', <StickIcon />)}
         </div>
+        <SticksPopover />
+        <SyncPopover />
         <IconButton size="md" label="Open in editor" onClick={handleEdit}>
           <Pencil />
         </IconButton>
       </header>
 
-      {ready &&
-        (mode === 'video' ? (
-          <PlayerVideo />
-        ) : (
-          <main className="flex min-h-0 flex-1 items-center justify-center">
-            <LightstickPreview height={320} />
-          </main>
-        ))}
+      {ready && (mode === 'video' ? <PlayerVideo /> : <PlayerLights />)}
     </div>
   );
 }
