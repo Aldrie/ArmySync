@@ -325,6 +325,13 @@ it('stops the server stream when leaving the editor', async () => {
   expect(invoke).toHaveBeenCalledWith('jellyfin_close_stream');
 });
 
+it('pauses the lights when leaving the editor', async () => {
+  await useEditorStore.getState().initFromProject(song());
+  vi.mocked(invoke).mockClear();
+  useEditorStore.getState().resetEditor();
+  expect(invoke).toHaveBeenCalledWith('sync_pause');
+});
+
 it('loads the Jellyfin waveform', async () => {
   streamAt('u');
   editorRefs.video = { duration: 6528, volume: 1 } as HTMLVideoElement;

@@ -544,6 +544,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   resetEditor: () => {
     if (autoSaveTimer) clearTimeout(autoSaveTimer);
+    void invoke('sync_pause');
     releaseSongSource();
     set({
       project: null,

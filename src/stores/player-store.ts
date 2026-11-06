@@ -106,6 +106,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     muted: false,
 
     open: async (project) => {
+      void invoke('sync_pause');
       running = false;
       clockSeek(0);
       set({ ...session, project });

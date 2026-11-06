@@ -106,6 +106,18 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+it('pauses lights left playing before parking them at the start', async () => {
+  vi.mocked(loadSettings).mockResolvedValue({
+    bleDelays: {},
+    remoteLatencyMs: 0,
+    playerMode: 'lights',
+  });
+  await store().open(song(30));
+  const cmds = vi.mocked(invoke).mock.calls.map(([c]) => c);
+  expect(cmds).toContain('sync_pause');
+  expect(cmds.indexOf('sync_pause')).toBeLessThan(cmds.indexOf('sync_seek'));
+});
+
 it('starts the lights earlier by the offset', async () => {
   await openIn('lights');
   store().setOffset(120);
