@@ -9,6 +9,7 @@ export interface TransportSnapshot {
 
 export interface Take {
   id: string;
+  chunk: number;
   startTime: number;
   effects: EffectInstance[];
 }
@@ -43,7 +44,12 @@ export type MacToPhone =
       effects: EffectInstance[];
       lastTakeStart: number | null;
     }
-  | { type: 'take-applied'; takeId: string; lastTakeStart: number | null }
+  | {
+      type: 'take-applied';
+      takeId: string;
+      chunk: number;
+      lastTakeStart: number | null;
+    }
   | { type: 'take-undone'; lastTakeStart: number | null }
   | {
       type: 'calibration-click';
@@ -68,6 +74,10 @@ function isObject(value: unknown): value is Json {
 
 function isNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isChunk(value: unknown): value is number {
+  return isNumber(value) && Number.isInteger(value) && value >= 0;
 }
 
 function isString(value: unknown): value is string {
@@ -131,6 +141,7 @@ function isTake(value: unknown, known: ReadonlySet<string>): value is Take {
   return (
     isObject(value) &&
     isString(value.id) &&
+    isChunk(value.chunk) &&
     isNumber(value.startTime) &&
     Array.isArray(value.effects) &&
     value.effects.every((e) => isEffect(e, known))

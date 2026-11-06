@@ -49,7 +49,12 @@ export interface RemoteState {
   lastTakeStart: number | null;
   offsetMs: number;
   held: string[];
-  recording: { startTime: number; changes: ActiveChange[] } | null;
+  recording: {
+    id: string;
+    chunk: number;
+    startTime: number;
+    open: ActiveChange;
+  } | null;
   outbox: Take[];
   countdownUntil: number | null;
   settings: RemoteSettings;
@@ -106,29 +111,40 @@ export function createRemoteStore(open: Open) {
         const openTake = (startTime: number) =>
           set({
             recording: {
+              id: createId(),
+              chunk: 0,
               startTime,
-              changes: [{ padId: activeOf(get().held), songTime: startTime }],
+              open: { padId: activeOf(get().held), songTime: startTime },
             },
           });
 
-        const finishTake = (endTime: number) => {
-          const { recording } = get();
-          if (!recording) return;
-          set({ recording: null });
+        const sendRun = (
+          recording: NonNullable<RemoteState['recording']>,
+          endTime: number,
+        ) => {
           const effects = effectsFromChanges(
-            recording.changes,
+            [recording.open],
             endTime,
             pads(),
             createId,
           );
-          if (!effects.length) return;
+          if (!effects.length) return recording.chunk;
           const take = {
-            id: createId(),
+            id: recording.id,
+            chunk: recording.chunk,
             startTime: recording.startTime,
             effects,
           };
           set({ outbox: [...get().outbox, take] });
           send({ type: 'take', take });
+          return recording.chunk + 1;
+        };
+
+        const finishTake = (endTime: number) => {
+          const { recording } = get();
+          if (!recording) return;
+          set({ recording: null });
+          sendRun(recording, endTime);
         };
 
         const setHeld = (held: string[]) => {
@@ -144,7 +160,8 @@ export function createRemoteStore(open: Open) {
           set({
             recording: {
               ...recording,
-              changes: [...recording.changes, { padId: active, songTime }],
+              chunk: sendRun(recording, songTime),
+              open: { padId: active, songTime },
             },
           });
         };
@@ -208,7 +225,9 @@ export function createRemoteStore(open: Open) {
               break;
             case 'take-applied':
               set({
-                outbox: get().outbox.filter((t) => t.id !== m.takeId),
+                outbox: get().outbox.filter(
+                  (t) => t.id !== m.takeId || t.chunk !== m.chunk,
+                ),
                 lastTakeStart: m.lastTakeStart,
               });
               break;
@@ -294,9 +313,13 @@ export function createRemoteStore(open: Open) {
             const { recording } = get();
             if (!recording) return send({ type: 'undo-take' });
             discarding = true;
-            set({ recording: null });
+            set({
+              recording: null,
+              outbox: get().outbox.filter((t) => t.id !== recording.id),
+            });
             get().pause();
-            get().seek(recording.startTime);
+            if (recording.chunk > 0) send({ type: 'undo-take' });
+            else get().seek(recording.startTime);
           },
           saveProfiles: (profiles) => {
             set({ profiles });
@@ -324,7 +347,10 @@ export function createRemoteStore(open: Open) {
         storage: createJSONStorage(() =>
           typeof localStorage === 'undefined' ? noopStorage : localStorage,
         ),
-        partialize: (state) => ({ settings: state.settings }),
+        partialize: (state) => ({
+          settings: state.settings,
+          outbox: state.outbox,
+        }),
       },
     ),
   );

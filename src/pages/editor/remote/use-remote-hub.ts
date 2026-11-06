@@ -8,6 +8,7 @@ import { getAllEffectDefinitions } from '../../../domains/effects';
 import { listProjects } from '../../../domains/project';
 import {
   clampLatency,
+  dedupeTakes,
   defaultProfile,
   parsePhoneMessage,
 } from '../../../domains/remote';
@@ -60,7 +61,8 @@ async function sendHello() {
 export function useRemoteHub() {
   useEffect(() => {
     const knownTypes = new Set(getAllEffectDefinitions().map((d) => d.type));
-    const appliedTakes = new Set<string>();
+    // The phone re-sends chunks whose ack it missed; re-applying one would overwrite edits made since.
+    const applyTake = dedupeTakes((take) => store().applyRemoteTake(take));
     let connected = false;
     let countdown: ReturnType<typeof setTimeout> | undefined;
     let effectsTimer: ReturnType<typeof setTimeout> | undefined;
@@ -84,15 +86,12 @@ export function useRemoteHub() {
           break;
         case 'take': {
           const { take } = message;
-          // The phone re-sends takes whose ack it missed; applying twice would add a second undo entry.
-          const applied =
-            appliedTakes.has(take.id) || store().applyRemoteTake(take);
-          if (applied) appliedTakes.add(take.id);
           void send(
-            applied
+            applyTake(take)
               ? {
                   type: 'take-applied',
                   takeId: take.id,
+                  chunk: take.chunk,
                   lastTakeStart: store().lastTakeStart(),
                 }
               : { type: 'error', message: 'No song is open on the Mac.' },

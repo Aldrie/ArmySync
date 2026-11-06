@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Pad } from './pads';
-import { applyTake, effectsFromChanges } from './take';
+import { applyTake, dedupeTakes, effectsFromChanges } from './take';
 import { hexToRgb } from '../../lib/color';
 import type { EffectInstance } from '../effects/types';
 
@@ -144,5 +144,35 @@ describe('applyTake', () => {
       counter(),
     );
     expect(result.map((e) => e.id)).toEqual(['in']);
+  });
+});
+
+describe('dedupeTakes', () => {
+  const chunk = (id: string, n: number) => ({
+    id,
+    chunk: n,
+    startTime: 0,
+    effects: [],
+  });
+
+  it('applies each chunk once and still reports a repeat as applied', () => {
+    const seen: string[] = [];
+    const apply = dedupeTakes((t) => {
+      seen.push(`${t.id}:${t.chunk}`);
+      return true;
+    });
+    expect(apply(chunk('a', 0))).toBe(true);
+    expect(apply(chunk('a', 0))).toBe(true);
+    expect(apply(chunk('a', 1))).toBe(true);
+    expect(apply(chunk('b', 0))).toBe(true);
+    expect(seen).toEqual(['a:0', 'a:1', 'b:0']);
+  });
+
+  it('retries a chunk that failed to apply', () => {
+    let ok = false;
+    const apply = dedupeTakes(() => ok);
+    expect(apply(chunk('a', 0))).toBe(false);
+    ok = true;
+    expect(apply(chunk('a', 0))).toBe(true);
   });
 });

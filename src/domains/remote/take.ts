@@ -1,4 +1,5 @@
 import { type Pad, padToEffect } from './pads';
+import type { Take } from './protocol';
 import { fadeDefinition } from '../effects/definitions/fade';
 import { effectIdsInRange } from '../effects/services/timeline';
 import type { EffectInstance } from '../effects/types';
@@ -77,4 +78,15 @@ export function applyTake(
     );
   }
   return [...kept, ...incoming].sort((a, b) => a.from - b.from);
+}
+
+export function dedupeTakes(apply: (take: Take) => boolean) {
+  const applied = new Set<string>();
+  return (take: Take) => {
+    const key = `${take.id}:${take.chunk}`;
+    if (applied.has(key)) return true;
+    const ok = apply(take);
+    if (ok) applied.add(key);
+    return ok;
+  };
 }

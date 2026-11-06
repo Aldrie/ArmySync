@@ -134,10 +134,11 @@ const color = (id: string, from: number, to: number) => ({
   params: { color: '#ffffff' },
 });
 
-const take = (startTime: number) => ({
+const take = (startTime: number, chunk = 0, from = 4, to = 6) => ({
   id: 'take-1',
+  chunk,
   startTime,
-  effects: [color('t', 4, 6)],
+  effects: [color(`t${chunk}`, from, to)],
 });
 
 const stubVideo = () => {
@@ -195,6 +196,40 @@ it('does not undo a take once another edit came after it', async () => {
   expect(store().undoRemoteTake()).toBeNull();
   expect(store().effects).toBe(before);
   expect(editorRefs.video?.currentTime).toBe(30);
+});
+
+it('applies the chunks of one take as one undo step', async () => {
+  stubVideo();
+  await useEditorStore.getState().initFromProject(song());
+  const store = useEditorStore.getState;
+  store().addEffect(color('a', 0, 10));
+
+  store().applyRemoteTake(take(2, 0, 2, 4));
+  store().applyRemoteTake(take(2, 1, 4, 6));
+  expect(store().effects.map((e) => [e.from, e.to])).toEqual([
+    [0, 2],
+    [2, 4],
+    [4, 6],
+    [6, 10],
+  ]);
+  expect(store().lastTakeStart()).toBe(2);
+
+  store().undo();
+  expect(store().effects).toEqual([color('a', 0, 10)]);
+  expect(store().lastTakeStart()).toBeNull();
+});
+
+it('starts a new undo entry for a chunk that follows a manual edit', async () => {
+  stubVideo();
+  await useEditorStore.getState().initFromProject(song());
+  const store = useEditorStore.getState;
+  store().applyRemoteTake(take(2, 0, 2, 4));
+  store().addEffect(color('b', 20, 30));
+  store().applyRemoteTake(take(2, 1, 4, 6));
+  expect(store().lastTakeStart()).toBe(2);
+
+  store().undo();
+  expect(store().effects.map((e) => e.id)).toEqual(['t0', 'b']);
 });
 
 it('refuses a remote take without an open project', () => {

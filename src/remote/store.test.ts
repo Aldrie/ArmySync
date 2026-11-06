@@ -1,4 +1,4 @@
-import { beforeEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 import { createRemoteStore } from './store';
 import type { MacToPhone, PhoneToMac, Profile } from '../domains/remote';
@@ -14,7 +14,10 @@ const profile: Profile = {
   id: 'p1',
   projectId: 'proj',
   name: 'Default',
-  pads: [{ id: 'red', kind: 'color', colors: ['#ff0000'] }],
+  pads: [
+    { id: 'red', kind: 'color', colors: ['#ff0000'] },
+    { id: 'blue', kind: 'color', colors: ['#0000ff'] },
+  ],
 };
 
 const transport = (
@@ -26,8 +29,9 @@ const transport = (
   transport: { playing, songTime, serverTime: performance.now() - agoMs },
 });
 
-beforeEach(() => {
-  sent = [];
+let now: number;
+
+const makeStore = () => {
   store = createRemoteStore((onMessage, onStatus) => {
     receive = onMessage;
     setStatus = onStatus;
@@ -47,6 +51,18 @@ beforeEach(() => {
     lastTakeStart: null,
   });
   receive(transport(false, 5));
+};
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+beforeEach(() => {
+  sent = [];
+  now = 0;
+  vi.spyOn(performance, 'now').mockImplementation(() => now);
+  makeStore();
 });
 
 const takes = () => sent.filter((m) => m.type === 'take');
@@ -77,7 +93,7 @@ it('keeps a take finished while disconnected and re-sends it on open', () => {
   setStatus('open');
   expect(takes()).toMatchObject([{ take: { id: takeId } }]);
 
-  receive({ type: 'take-applied', takeId, lastTakeStart: 5 });
+  receive({ type: 'take-applied', takeId, chunk: 0, lastTakeStart: 5 });
   expect(store.getState().outbox).toEqual([]);
   expect(store.getState().lastTakeStart).toBe(5);
 });
@@ -163,7 +179,7 @@ it('keeps a Mac error as a notice', () => {
 });
 
 it('follows the desktop history through the effects push', () => {
-  receive({ type: 'take-applied', takeId: 'x', lastTakeStart: 5 });
+  receive({ type: 'take-applied', takeId: 'x', chunk: 0, lastTakeStart: 5 });
   receive({ type: 'effects', effects: [], lastTakeStart: null });
   expect(store.getState().lastTakeStart).toBeNull();
 });
@@ -202,4 +218,81 @@ it('keeps the chosen profile across a reconnect', () => {
 
   receive({ ...hello, projectId: 'other', profiles: [blue] });
   expect(store.getState().activeProfileId).not.toBe('p2');
+});
+
+const chunks = () => takes().map((m) => (m.type === 'take' ? m.take : null));
+
+const recordRedThenBlue = () => {
+  now = 1000;
+  store.getState().press('red');
+  receive(stateAt(1, 1000));
+  now = 2000;
+  store.getState().press('blue');
+};
+
+it('streams each closed run while recording and the open one on pause', () => {
+  recordRedThenBlue();
+  expect(chunks()).toMatchObject([
+    {
+      chunk: 0,
+      startTime: 1,
+      effects: [{ from: 1, to: 2, params: { color: '#ff0000' } }],
+    },
+  ]);
+
+  now = 3000;
+  receive(transport(false, 3));
+  const [first, last] = chunks();
+  expect(last).toMatchObject({
+    id: first?.id,
+    chunk: 1,
+    startTime: 1,
+    effects: [{ from: 2, to: 3, params: { color: '#0000ff' } }],
+  });
+});
+
+it('removes only the acked chunk from the outbox', () => {
+  recordRedThenBlue();
+  receive(transport(false, 3));
+  const [first] = chunks();
+  receive({
+    type: 'take-applied',
+    takeId: first?.id ?? '',
+    chunk: 0,
+    lastTakeStart: 1,
+  });
+  expect(store.getState().outbox).toMatchObject([{ chunk: 1 }]);
+});
+
+it('persists the outbox and re-sends it after a reload', () => {
+  const saved = new Map<string, string>();
+  vi.stubGlobal('localStorage', {
+    getItem: (k: string) => saved.get(k) ?? null,
+    setItem: (k: string, v: string) => saved.set(k, v),
+    removeItem: (k: string) => saved.delete(k),
+  });
+  makeStore();
+  recordRedThenBlue();
+  const queued = store.getState().outbox;
+  expect(queued).toHaveLength(1);
+
+  sent = [];
+  makeStore();
+  expect(store.getState().outbox).toEqual(queued);
+  expect(chunks()).toEqual(queued);
+});
+
+it('undoes the streamed take on ↺ during REC and drops its unacked chunks', () => {
+  recordRedThenBlue();
+  sent = [];
+  store.getState().undoTake();
+  now = 2500;
+  receive(stateAt(2.5, 2500));
+  receive(transport(false, 3));
+
+  expect(sent).toEqual([{ type: 'pause' }, { type: 'undo-take' }]);
+  expect(store.getState().outbox).toEqual([]);
+  sent = [];
+  setStatus('open');
+  expect(takes()).toEqual([]);
 });

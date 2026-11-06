@@ -4,12 +4,23 @@ import { parsePhoneMessage } from './protocol';
 
 const known = new Set(['color', 'fade', 'flash', 'blackout']);
 
-function take(effect: Record<string, unknown>) {
+function take(
+  effect: Record<string, unknown>,
+  fields: Record<string, unknown> = { chunk: 0 },
+) {
   return JSON.stringify({
     type: 'take',
-    take: { id: 't', startTime: 0, effects: [effect] },
+    take: { id: 't', startTime: 0, ...fields, effects: [effect] },
   });
 }
+
+const red = {
+  id: 'e',
+  type: 'color',
+  from: 1,
+  to: 2,
+  params: { color: '#ff0000' },
+};
 
 function effect(type: string, params: unknown, from = 1, to = 2) {
   return take({ id: 'e', type, from, to, params });
@@ -50,11 +61,11 @@ it('parses a valid take', () => {
   ];
   const raw = JSON.stringify({
     type: 'take',
-    take: { id: 't', startTime: 0, effects },
+    take: { id: 't', chunk: 3, startTime: 0, effects },
   });
   expect(parsePhoneMessage(raw, known)).toEqual({
     type: 'take',
-    take: { id: 't', startTime: 0, effects },
+    take: { id: 't', chunk: 3, startTime: 0, effects },
   });
 });
 
@@ -86,6 +97,9 @@ it.each([
   ['non-object', '42'],
   ['unknown type', '{"type":"explode"}'],
   ['unknown effect type', effect('laser', {})],
+  ['take without chunk', take(red, {})],
+  ['negative chunk', take(red, { chunk: -1 })],
+  ['fractional chunk', take(red, { chunk: 1.5 })],
   ['from >= to', effect('color', { color: '#ffffff' }, 2, 2)],
   ['non-object params', effect('color', undefined)],
   ['color without hex', effect('color', { color: 'red' })],

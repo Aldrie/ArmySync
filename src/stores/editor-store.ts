@@ -119,7 +119,10 @@ export function generateEffectId(): string {
   return createId();
 }
 
-const takeStarts = new WeakMap<EffectInstance[], number>();
+const takeTags = new WeakMap<
+  EffectInstance[],
+  { takeId: string; startTime: number }
+>();
 
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 let historyBatch: { pushed: boolean } | null = null;
@@ -459,9 +462,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   applyRemoteTake: (take) => {
     if (!get().project) return false;
     const before = get()._past;
-    get().pushHistory();
-    const past = get()._past;
-    if (past !== before) takeStarts.set(past[past.length - 1], take.startTime);
+    if (takeTags.get(before[before.length - 1])?.takeId !== take.id) {
+      get().pushHistory();
+      const past = get()._past;
+      if (past !== before)
+        takeTags.set(past[past.length - 1], {
+          takeId: take.id,
+          startTime: take.startTime,
+        });
+    } else {
+      set({ isDirty: true });
+      scheduleAutoSave(get().saveEffects);
+    }
     set((s) => ({
       effects: applyTake(s.effects, take.effects, generateEffectId),
     }));
@@ -480,7 +492,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   lastTakeStart: () => {
     const past = get()._past;
     const last = past[past.length - 1];
-    return last ? (takeStarts.get(last) ?? null) : null;
+    return last ? (takeTags.get(last)?.startTime ?? null) : null;
   },
 
   initFromProject: async (project) => {
