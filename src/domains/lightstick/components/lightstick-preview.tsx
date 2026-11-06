@@ -1,4 +1,4 @@
-import { Bluetooth } from 'lucide-react';
+import { Bluetooth, BluetoothOff } from 'lucide-react';
 
 import Lightstick from './lightstick';
 import { cn } from '../../../lib/cn';
@@ -22,7 +22,10 @@ export default function LightstickPreview({
   if (models.length === 0) {
     return (
       <div className={cn('flex flex-col items-center gap-3', className)}>
-        <Lightstick model="se" height={height} />
+        <div className="relative">
+          <Lightstick model="se" height={height} />
+          <NotConnectedBadge height={height} />
+        </div>
         {onConnect && (
           <button
             type="button"
@@ -46,5 +49,28 @@ export default function LightstickPreview({
         <Lightstick key={model} model={model} height={height} />
       ))}
     </div>
+  );
+}
+
+function NotConnectedBadge({ height }: { height: number }) {
+  const size = Math.round(Math.min(32, Math.max(18, height * 0.085)));
+  return (
+    <span
+      role="img"
+      aria-label="No lightstick connected"
+      title="No lightstick connected"
+      className="absolute flex items-center justify-center rounded-full border border-border-strong bg-surface-high text-on-surface-variant shadow-raised"
+      style={{
+        width: size,
+        height: size,
+        left: (height * 200) / 446 - size * 0.75,
+        top: height * 0.37,
+      }}
+    >
+      <BluetoothOff
+        aria-hidden="true"
+        style={{ width: size * 0.55, height: size * 0.55 }}
+      />
+    </span>
   );
 }
