@@ -1,12 +1,6 @@
-import {
-  ChevronRight,
-  ListMinus,
-  ListPlus,
-  Music,
-  Server,
-  Trash2,
-} from 'lucide-react';
+import { ChevronRight, ListMinus, ListPlus, Music, Trash2 } from 'lucide-react';
 
+import JellyfinIcon from '../../../assets/jellyfin.svg?react';
 import IconButton from '../../../components/icon-button';
 import type { ProjectSummary } from '../../../domains/project';
 
@@ -34,11 +28,16 @@ export default function ProjectRow({
         onClick={onOpen}
         className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 py-3 pl-3.5 text-left focus-visible:-outline-offset-2"
       >
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-high text-on-surface-variant transition-colors group-hover:text-on-surface">
+        <div
+          title={project.jellyfinItemId ? 'Streams from Jellyfin' : undefined}
+          className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-high text-on-surface-variant transition-colors group-hover:text-on-surface"
+        >
           {project.jellyfinItemId ? (
-            <Server className="size-4">
-              <title>Streams from Jellyfin</title>
-            </Server>
+            <JellyfinIcon
+              className="size-4"
+              role="img"
+              aria-label="Streams from Jellyfin"
+            />
           ) : (
             <Music className="size-4" />
           )}

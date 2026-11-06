@@ -1,11 +1,4 @@
-import {
-  Film,
-  Link as LinkIcon,
-  Loader2,
-  Download,
-  Music,
-  Server,
-} from 'lucide-react';
+import { Film, Link as LinkIcon, Loader2, Download, Music } from 'lucide-react';
 import { useCallback, useId, useState } from 'react';
 
 import { open } from '@tauri-apps/plugin-dialog';
@@ -13,6 +6,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { ErrorAlert, Field, INPUT } from './form';
 import JellyfinConnect from './jellyfin-connect';
 import JellyfinPicker, { type JellyfinPick } from './jellyfin-picker';
+import JellyfinIcon from '../../../assets/jellyfin.svg?react';
 import Button from '../../../components/button';
 import Modal from '../../../components/modal';
 import { jellyfinStatus, type JellyfinStatus } from '../../../domains/jellyfin';
@@ -185,13 +179,13 @@ export default function NewSongModal({
               active={sourceKind === 'video'}
               onClick={() => handleSourceKind('video')}
               icon={<Film className="size-4" />}
-              label="Video file"
+              label="Video"
             />
             <SourceTab
               active={sourceKind === 'audio'}
               onClick={() => handleSourceKind('audio')}
               icon={<Music className="size-4" />}
-              label="Audio file"
+              label="Audio"
             />
             <SourceTab
               active={isYoutube}
@@ -202,7 +196,7 @@ export default function NewSongModal({
             <SourceTab
               active={isJellyfin}
               onClick={() => handleSourceKind('jellyfin')}
-              icon={<Server className="size-4" />}
+              icon={<JellyfinIcon className="size-4" />}
               label="Jellyfin"
             />
           </div>
@@ -315,7 +309,7 @@ function SourceTab({
       aria-checked={active}
       onClick={onClick}
       className={cn(
-        'flex h-8 flex-1 cursor-pointer items-center justify-center gap-2 rounded-md px-3 text-sm font-medium transition-colors',
+        'flex h-8 flex-1 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-md px-2 text-sm font-medium transition-colors',
         active
           ? 'bg-surface-highest text-on-surface shadow-raised'
           : 'text-on-surface-variant hover:text-on-surface',
