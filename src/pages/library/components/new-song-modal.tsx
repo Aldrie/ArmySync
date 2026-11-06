@@ -1,22 +1,31 @@
 import {
-  AlertCircle,
   Film,
   Link as LinkIcon,
   Loader2,
   Download,
   Music,
+  Server,
 } from 'lucide-react';
-import { useId, useState } from 'react';
+import { useCallback, useId, useState } from 'react';
 
 import { open } from '@tauri-apps/plugin-dialog';
 
+import { ErrorAlert, Field, INPUT } from './form';
+import JellyfinConnect from './jellyfin-connect';
+import JellyfinPicker, { type JellyfinPick } from './jellyfin-picker';
 import Button from '../../../components/button';
 import Modal from '../../../components/modal';
-import { AUDIO_EXTENSIONS, VIDEO_EXTENSIONS } from '../../../domains/project';
+import { jellyfinStatus, type JellyfinStatus } from '../../../domains/jellyfin';
+import {
+  AUDIO_EXTENSIONS,
+  type NewSongSource,
+  VIDEO_EXTENSIONS,
+} from '../../../domains/project';
 import { cn } from '../../../lib/cn';
+import { errorMessage } from '../../../lib/format';
 import { useAppStore } from '../../../stores/app-store';
 
-type SourceKind = 'video' | 'audio' | 'youtube';
+type SourceKind = 'video' | 'audio' | 'youtube' | 'jellyfin';
 
 interface NewSongModalProps {
   open: boolean;
@@ -34,6 +43,8 @@ export default function NewSongModal({
   const [sourceKind, setSourceKind] = useState<SourceKind>('video');
   const [filePath, setFilePath] = useState('');
   const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [jellyfin, setJellyfin] = useState<JellyfinStatus | null | undefined>();
+  const [pick, setPick] = useState<JellyfinPick | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -42,6 +53,8 @@ export default function NewSongModal({
     setSourceKind('video');
     setFilePath('');
     setYoutubeUrl('');
+    setJellyfin(undefined);
+    setPick(null);
     setError('');
     setLoading(false);
   };
@@ -55,7 +68,25 @@ export default function NewSongModal({
   const handleSourceKind = (kind: SourceKind) => {
     setSourceKind(kind);
     setFilePath('');
+    if (kind !== 'jellyfin') return;
+    setJellyfin(undefined);
+    jellyfinStatus()
+      .then(setJellyfin)
+      .catch((e: unknown) => {
+        setJellyfin(null);
+        setError(errorMessage(e));
+      });
   };
+
+  const handlePick = (next: JellyfinPick | null) => {
+    setPick(next);
+    if (next && !name.trim()) setName(next.item.name);
+  };
+
+  const handleSignOut = useCallback(() => {
+    setJellyfin(null);
+    setPick(null);
+  }, []);
 
   const handlePickFile = async () => {
     const selected = await open({
@@ -69,8 +100,34 @@ export default function NewSongModal({
   };
 
   const isYoutube = sourceKind === 'youtube';
+  const isJellyfin = sourceKind === 'jellyfin';
   const canCreate =
-    name.trim() && (isYoutube ? youtubeUrl.trim() : filePath.trim());
+    name.trim() &&
+    (isJellyfin
+      ? jellyfin && pick
+      : isYoutube
+        ? youtubeUrl.trim()
+        : filePath.trim());
+
+  const songSource = (): NewSongSource => {
+    if (isYoutube) return { type: 'youtube', url: youtubeUrl.trim() };
+    if (isJellyfin && jellyfin && pick) {
+      return {
+        type: 'jellyfin',
+        media: {
+          type: pick.item.mediaType,
+          duration: pick.item.duration,
+          source: {
+            type: 'jellyfin',
+            itemId: pick.item.id,
+            mediaSourceId: pick.mediaSourceId,
+            serverId: jellyfin.serverId,
+          },
+        },
+      };
+    }
+    return { type: 'file', path: filePath };
+  };
 
   const handleCreate = async () => {
     if (!canCreate) return;
@@ -78,16 +135,11 @@ export default function NewSongModal({
     setError('');
 
     try {
-      await createSong({
-        name: name.trim(),
-        source: isYoutube
-          ? { type: 'youtube', url: youtubeUrl.trim() }
-          : { type: 'file', path: filePath },
-      });
+      await createSong({ name: name.trim(), source: songSource() });
       reset();
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errorMessage(e));
       setLoading(false);
     }
   };
@@ -147,10 +199,39 @@ export default function NewSongModal({
               icon={<Download className="size-4" />}
               label="YouTube"
             />
+            <SourceTab
+              active={isJellyfin}
+              onClick={() => handleSourceKind('jellyfin')}
+              icon={<Server className="size-4" />}
+              label="Jellyfin"
+            />
           </div>
         </Field>
 
-        {isYoutube ? (
+        {isJellyfin ? (
+          <div className="flex flex-col gap-1.5">
+            {jellyfin === undefined ? (
+              <Loader2
+                role="status"
+                aria-label="Checking Jellyfin sign-in"
+                className="size-4 animate-spin text-outline"
+              />
+            ) : jellyfin ? (
+              <JellyfinPicker
+                status={jellyfin}
+                value={pick}
+                onChange={handlePick}
+                onSignOut={handleSignOut}
+              />
+            ) : (
+              <JellyfinConnect onConnected={setJellyfin} />
+            )}
+            <p className="text-xs text-outline">
+              Nothing is downloaded. The video streams from your Jellyfin
+              server.
+            </p>
+          </div>
+        ) : isYoutube ? (
           <Field
             label="YouTube URL"
             htmlFor={`${titleId}-url`}
@@ -192,15 +273,7 @@ export default function NewSongModal({
           </Field>
         )}
 
-        {error && (
-          <div
-            role="alert"
-            className="flex items-start gap-2 rounded-lg border border-error/25 bg-error/8 px-3 py-2.5 text-xs text-error"
-          >
-            <AlertCircle className="mt-px size-3.5 shrink-0" />
-            <span className="min-w-0 break-words">{error}</span>
-          </div>
-        )}
+        {error && <ErrorAlert message={error} />}
       </div>
 
       <div className="flex justify-end gap-2 rounded-b-xl border-t border-border bg-surface-low/60 px-6 py-4">
@@ -221,34 +294,6 @@ export default function NewSongModal({
         </Button>
       </div>
     </Modal>
-  );
-}
-
-const INPUT =
-  'h-9 w-full min-w-0 rounded-lg border border-border-strong bg-surface-low px-3 text-sm text-on-surface placeholder:text-outline outline-none transition-[border-color,box-shadow] focus:border-primary/70 focus:ring-3 focus:ring-primary/15';
-
-function Field({
-  label,
-  htmlFor,
-  hint,
-  children,
-}: {
-  label: string;
-  htmlFor?: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label
-        htmlFor={htmlFor}
-        className="text-xs font-medium text-on-surface-variant"
-      >
-        {label}
-      </label>
-      {children}
-      {hint && <p className="text-xs text-outline">{hint}</p>}
-    </div>
   );
 }
 
