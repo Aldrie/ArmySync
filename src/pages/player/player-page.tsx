@@ -1,11 +1,13 @@
 import { ChevronLeft, Monitor, Pencil } from 'lucide-react';
 import { useRef } from 'react';
 
+import PlayerVideo from './components/player-video';
 import IconButton from '../../components/icon-button';
 import { LightstickPreview, useStickColor } from '../../domains/lightstick';
 import { cn } from '../../lib/cn';
 import { modKey } from '../../lib/keys';
 import type { PlayerMode } from '../../lib/settings';
+import { useKeybind } from '../../lib/use-keybind';
 import { useAppStore } from '../../stores/app-store';
 import { usePlayerStore } from '../../stores/player-store';
 
@@ -19,6 +21,12 @@ export default function PlayerPage() {
   const mode = usePlayerStore((s) => s.mode);
   const ready = usePlayerStore((s) => s.ready);
   const setMode = usePlayerStore((s) => s.setMode);
+
+  useKeybind({
+    Space: () => usePlayerStore.getState().togglePlay(),
+    ArrowLeft: () => usePlayerStore.getState().seekDelta(-10),
+    ArrowRight: () => usePlayerStore.getState().seekDelta(10),
+  });
 
   const handleEdit = () => {
     if (!project) return;
@@ -76,11 +84,14 @@ export default function PlayerPage() {
         </IconButton>
       </header>
 
-      {ready && (
-        <main className="flex min-h-0 flex-1 items-center justify-center">
-          {mode === 'lights' && <LightstickPreview height={320} />}
-        </main>
-      )}
+      {ready &&
+        (mode === 'video' ? (
+          <PlayerVideo />
+        ) : (
+          <main className="flex min-h-0 flex-1 items-center justify-center">
+            <LightstickPreview height={320} />
+          </main>
+        ))}
     </div>
   );
 }

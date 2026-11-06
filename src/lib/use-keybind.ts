@@ -14,7 +14,11 @@ export function useKeybind(keyMap: KeyMap) {
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       const target = event.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+      if (
+        target.tagName === 'TEXTAREA' ||
+        (target instanceof HTMLInputElement && target.type !== 'range')
+      )
+        return;
 
       const handler = mapRef.current[event.code];
       if (handler) {
