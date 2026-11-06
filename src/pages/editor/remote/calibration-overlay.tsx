@@ -5,6 +5,7 @@ import { listen } from '@tauri-apps/api/event';
 const FLASH_MS = 80;
 const BEEP_S = 0.03;
 const BEEP_HZ = 1000;
+const BEEP_GAIN = 0.2;
 
 export default function CalibrationOverlay() {
   const [flash, setFlash] = useState(false);
@@ -18,7 +19,9 @@ export default function CalibrationOverlay() {
       void audio.resume();
       const osc = audio.createOscillator();
       osc.frequency.value = BEEP_HZ;
-      osc.connect(audio.destination);
+      const gain = audio.createGain();
+      gain.gain.value = BEEP_GAIN;
+      osc.connect(gain).connect(audio.destination);
       osc.start();
       osc.stop(audio.currentTime + BEEP_S);
     };
