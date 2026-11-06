@@ -6,9 +6,11 @@ import {
   Volume2,
   VolumeOff,
 } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 
+import FullscreenControls from './fullscreen-controls';
 import PlayerProgress from './player-progress';
+import SkipIcon from './skip-icon';
 import IconButton from '../../../components/icon-button';
 import Slider from '../../../components/slider';
 import type { SliderRef } from '../../../components/slider';
@@ -18,6 +20,8 @@ import {
 } from '../../../domains/jellyfin';
 import { LightstickPreview } from '../../../domains/lightstick';
 import { getSongMedia, isJellyfinMedia } from '../../../domains/project';
+import { cn } from '../../../lib/cn';
+import { useKeybind } from '../../../lib/use-keybind';
 import { playerRefs, usePlayerStore } from '../../../stores/player-store';
 
 const SERVER_REFUSALS = [...JELLYFIN_SESSION_ERRORS, JELLYFIN_VERSION_GONE];
@@ -26,7 +30,26 @@ const setVideoRef = (el: HTMLVideoElement | null) => {
   playerRefs.video = el;
 };
 
+const onFullscreenChange = (cb: () => void) => {
+  document.addEventListener('fullscreenchange', cb);
+  return () => document.removeEventListener('fullscreenchange', cb);
+};
+
 export default function PlayerVideo() {
+  const stageRef = useRef<HTMLElement>(null);
+  const fullscreen = useSyncExternalStore(
+    onFullscreenChange,
+    () => !!document.fullscreenElement,
+  );
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else
+      stageRef.current
+        ?.requestFullscreen()
+        .catch((e: unknown) => console.error('Full screen refused:', e));
+  };
+  useKeybind({ KeyF: toggleFullscreen }, { allowRange: true });
+
   const videoSrc = usePlayerStore((s) => s.videoSrc);
   const mediaError = usePlayerStore((s) => s.mediaError);
   const media = usePlayerStore(
@@ -51,7 +74,13 @@ export default function PlayerVideo() {
 
   return (
     <>
-      <main className="flex min-h-0 flex-1 items-center justify-center px-6 pt-1">
+      <main
+        ref={stageRef}
+        className={cn(
+          'relative flex min-h-0 flex-1 items-center justify-center',
+          fullscreen ? 'bg-black' : 'px-6 pt-1',
+        )}
+      >
         {mediaError ? (
           <div
             role="alert"
@@ -78,7 +107,9 @@ export default function PlayerVideo() {
             className={
               audioOnly
                 ? 'hidden'
-                : 'h-full max-w-full rounded-lg bg-black ring-1 ring-border'
+                : fullscreen
+                  ? 'size-full object-contain'
+                  : 'h-full max-w-full rounded-lg bg-black ring-1 ring-border'
             }
             onTimeUpdate={(e) => onVideoTime(e.currentTarget.currentTime)}
             onLoadedMetadata={onVideoLoaded}
@@ -88,13 +119,14 @@ export default function PlayerVideo() {
             onPlaying={onVideoResumed}
           />
         )}
+        {fullscreen && <FullscreenControls onExit={toggleFullscreen} />}
       </main>
-      <NowPlayingBar />
+      <NowPlayingBar onFullscreen={toggleFullscreen} />
     </>
   );
 }
 
-function NowPlayingBar() {
+function NowPlayingBar({ onFullscreen }: { onFullscreen: () => void }) {
   const title = usePlayerStore((s) => s.project?.name);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const volume = usePlayerStore((s) => s.volume);
@@ -190,40 +222,11 @@ function NowPlayingBar() {
           label="Full screen"
           title="Full screen (F)"
           className="ml-1 [&_svg]:size-4.5"
+          onClick={onFullscreen}
         >
           <Maximize />
         </IconButton>
       </div>
     </footer>
-  );
-}
-
-function SkipIcon({ forward = false }: { forward?: boolean }) {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.8}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <g transform={forward ? 'matrix(-1 0 0 1 24 0)' : undefined}>
-        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-        <path d="M3 3v5h5" />
-      </g>
-      <text
-        x="12"
-        y="15.4"
-        textAnchor="middle"
-        fontSize="7.5"
-        fontWeight="700"
-        fill="currentColor"
-        stroke="none"
-      >
-        10
-      </text>
-    </svg>
   );
 }

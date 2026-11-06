@@ -6,7 +6,11 @@ import { cn } from '../../../lib/cn';
 import { videoTime } from '../../../lib/format';
 import { usePlayerStore } from '../../../stores/player-store';
 
-export default function PlayerProgress({ size }: { size: 'sm' | 'lg' }) {
+export default function PlayerProgress({
+  size,
+}: {
+  size: 'sm' | 'lg' | 'bar';
+}) {
   const currentTime = usePlayerStore((s) => s.currentTime);
   const duration = usePlayerStore((s) => s.duration);
   const seek = usePlayerStore((s) => s.seek);
@@ -29,6 +33,8 @@ export default function PlayerProgress({ size }: { size: 'sm' | 'lg' }) {
     />
   );
   const timeClass = 'text-xs tabular-nums';
+
+  if (size === 'bar') return <div className="flex">{slider}</div>;
 
   if (size === 'lg') {
     return (
