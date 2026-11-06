@@ -294,12 +294,6 @@ export default function TimelineScreen() {
             icon={Zap}
             label="Auto-play on first tap"
           />
-          <Toggle
-            on={settings.countdown}
-            onClick={() => setSettings({ countdown: !settings.countdown })}
-            icon={Timer}
-            label="Countdown 3 s"
-          />
           <div className="flex-1" />
           <button
             type="button"
@@ -317,9 +311,19 @@ export default function TimelineScreen() {
               </span>
             )}
           </button>
+          {!transport.playing && !counting && (
+            <button
+              type="button"
+              aria-label="Sync play: 3 s countdown"
+              onClick={() => play(true)}
+              className="flex h-11 items-center justify-center gap-1.5 rounded-[10px] border border-primary/35 bg-primary/10 px-3.5 text-sm font-bold text-primary"
+            >
+              <Timer className="size-4" />3 s
+            </button>
+          )}
           <button
             type="button"
-            onClick={transport.playing || counting ? pause : play}
+            onClick={transport.playing || counting ? pause : () => play(false)}
             className="flex h-11 w-28 items-center justify-center gap-2 rounded-[10px] bg-primary text-sm font-bold text-on-primary"
           >
             {transport.playing ? (

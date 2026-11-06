@@ -32,7 +32,6 @@ export type Mode = 'live' | 'timeline' | 'edit' | 'calibrate';
 
 export interface RemoteSettings {
   autoplay: boolean;
-  countdown: boolean;
   screenRadius: number;
 }
 
@@ -65,7 +64,7 @@ export interface RemoteState {
   start: () => void;
   press: (padId: string) => void;
   release: (padId: string) => void;
-  play: () => void;
+  play: (countdown: boolean) => void;
   pause: () => void;
   seek: (t: number) => void;
   nudge: (dt: number) => void;
@@ -290,7 +289,7 @@ export function createRemoteStore(open: Open) {
           recording: null,
           outbox: [],
           countdownUntil: null,
-          settings: { autoplay: true, countdown: true, screenRadius: 36 },
+          settings: { autoplay: true, screenRadius: 36 },
           calibrationClicks: [],
           calibrationBeat: -1,
           notice: null,
@@ -306,11 +305,10 @@ export function createRemoteStore(open: Open) {
               countdownUntil === null &&
               settings.autoplay
             )
-              get().play();
+              get().play(true);
           },
           release: (padId) => setHeld(get().held.filter((id) => id !== padId)),
-          play: () => {
-            const { countdown } = get().settings;
+          play: (countdown) => {
             send({ type: 'play', countdown });
             if (countdown) set({ countdownUntil: Date.now() + COUNTDOWN_MS });
           },

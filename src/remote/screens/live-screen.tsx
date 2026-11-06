@@ -1,4 +1,4 @@
-import { EyeOff, Heart, Pause, Play, RotateCcw } from 'lucide-react';
+import { EyeOff, Heart, Pause, Play, RotateCcw, Timer } from 'lucide-react';
 import {
   type PointerEvent,
   useEffect,
@@ -48,7 +48,7 @@ function Transport() {
   const togglePlay = () => {
     const store = useRemoteStore.getState();
     if (playing) store.pause();
-    else store.play();
+    else store.play(false);
   };
 
   return (
@@ -77,6 +77,16 @@ function Transport() {
         >
           <RotateCcw className="size-4" />
           {formatClock(lastTakeStart)}
+        </button>
+      )}
+      {!playing && (
+        <button
+          type="button"
+          aria-label="Sync play: 3 s countdown"
+          onClick={() => useRemoteStore.getState().play(true)}
+          className="flex h-9 items-center gap-1 rounded-[9px] border border-[#e1b6ff]/40 bg-[#e1b6ff]/12 px-2.5 text-xs font-semibold text-[#e1b6ff] tabular-nums"
+        >
+          <Timer className="size-4" />3
         </button>
       )}
       <button

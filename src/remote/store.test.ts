@@ -400,3 +400,12 @@ it('seeks back instead of undoing on ↺ before any press', () => {
   store.getState().undoTake();
   expect(sent).toEqual([{ type: 'pause' }, { type: 'seek', time: 1 }]);
 });
+
+it('plays at once or after the 3 s countdown', () => {
+  store.getState().play(false);
+  expect(sent).toContainEqual({ type: 'play', countdown: false });
+  expect(store.getState().countdownUntil).toBeNull();
+  store.getState().play(true);
+  expect(sent).toContainEqual({ type: 'play', countdown: true });
+  expect(store.getState().countdownUntil).not.toBeNull();
+});
