@@ -1,5 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 
+import { clampLatency } from '../domains/remote/calibration';
+
 export interface Settings {
   bleDelays: Record<string, number>;
   remoteLatencyMs: number;
@@ -8,8 +10,6 @@ export interface Settings {
 type StoredSettings = Settings & Record<string, unknown>;
 
 export const clampDelay = (ms: number) => Math.max(0, Math.min(200, ms));
-
-export const clampLatency = (ms: number) => Math.max(0, Math.min(500, ms));
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);

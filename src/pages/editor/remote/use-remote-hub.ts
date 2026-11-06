@@ -6,13 +6,13 @@ import { listen } from '@tauri-apps/api/event';
 
 import { getAllEffectDefinitions } from '../../../domains/effects';
 import { listProjects } from '../../../domains/project';
-import { defaultProfile, parsePhoneMessage } from '../../../domains/remote';
-import type { MacToPhone, PhoneToMac, Profile } from '../../../domains/remote';
 import {
   clampLatency,
-  loadSettings,
-  updateSettings,
-} from '../../../lib/settings';
+  defaultProfile,
+  parsePhoneMessage,
+} from '../../../domains/remote';
+import type { MacToPhone, PhoneToMac, Profile } from '../../../domains/remote';
+import { loadSettings, updateSettings } from '../../../lib/settings';
 import { editorRefs } from '../../../stores/editor-refs';
 import { useEditorStore } from '../../../stores/editor-store';
 

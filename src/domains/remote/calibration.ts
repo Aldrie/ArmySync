@@ -1,3 +1,5 @@
+export const clampLatency = (ms: number) => Math.max(-500, Math.min(500, ms));
+
 function median(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);

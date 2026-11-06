@@ -29,10 +29,16 @@ it('clamps saved delays and ignores non-numeric entries', async () => {
   expect((await loadSettings()).bleDelays).toEqual({ a: 200, b: 0, d: 60 });
 });
 
-it('clamps the saved remote latency to 0-500 ms', async () => {
+it('clamps the saved remote latency to ±500 ms', async () => {
   invokeMock.mockResolvedValue({ remoteLatencyMs: 900 });
   const { loadSettings } = await importSettings();
   expect((await loadSettings()).remoteLatencyMs).toBe(500);
+});
+
+it('keeps a negative remote latency', async () => {
+  invokeMock.mockResolvedValue({ remoteLatencyMs: -42 });
+  const { loadSettings } = await importSettings();
+  expect((await loadSettings()).remoteLatencyMs).toBe(-42);
 });
 
 it('merges a patch while keeping other stored keys', async () => {

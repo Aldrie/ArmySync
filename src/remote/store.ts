@@ -9,6 +9,7 @@ import {
 import type { EffectInstance } from '../domains/effects/types';
 import {
   type ActiveChange,
+  clampLatency,
   defaultProfile,
   effectsFromChanges,
   type MacToPhone,
@@ -171,7 +172,7 @@ export function createRemoteStore(open: Open) {
             duration: m.duration,
             profiles: own ? m.profiles : [...m.profiles, profile],
             activeProfileId: profile.id,
-            latencyMs: m.latencyMs,
+            latencyMs: clampLatency(m.latencyMs),
             effects: m.effects,
             lastTakeStart: m.lastTakeStart,
           });
@@ -283,7 +284,8 @@ export function createRemoteStore(open: Open) {
             set({ calibrationClicks: [] });
             send({ type: 'calibrate', mode });
           },
-          saveLatency: (latencyMs) => {
+          saveLatency: (ms) => {
+            const latencyMs = clampLatency(ms);
             set({ latencyMs });
             send({ type: 'latency-save', latencyMs });
           },

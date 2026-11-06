@@ -127,6 +127,12 @@ it('collects calibration clicks per run and saves the latency', () => {
   expect(sent).toContainEqual({ type: 'latency-save', latencyMs: 42 });
 });
 
+it('clamps the saved latency to ±500 ms', () => {
+  store.getState().saveLatency(-900);
+  expect(store.getState().latencyMs).toBe(-500);
+  expect(sent).toContainEqual({ type: 'latency-save', latencyMs: -500 });
+});
+
 it('records takes with the pads of the profile switched to', () => {
   const blue: Profile = {
     id: 'p2',

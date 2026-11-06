@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 
-import { computeLatency } from './calibration';
+import { clampLatency, computeLatency } from './calibration';
 
 const clicks = Array.from({ length: 16 }, (_, i) => 1000 + i * 600);
 const jitter = [5, -5, 3, -3, 0, 2, -2, 4, -4, 1, -1, 5, -5, 0, 3, -3];
@@ -21,4 +21,10 @@ it('needs at least 4 pairs', () => {
 it('ignores a tap half an interval off', () => {
   const result = computeLatency(clicks, [...taps, clicks[3] + 300]);
   expect(result?.count).toBe(16);
+});
+
+it('clamps latency to ±500 ms', () => {
+  expect(clampLatency(-900)).toBe(-500);
+  expect(clampLatency(-42)).toBe(-42);
+  expect(clampLatency(900)).toBe(500);
 });
