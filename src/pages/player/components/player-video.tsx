@@ -224,15 +224,22 @@ function NowPlayingBar({ onFullscreen }: { onFullscreen: () => void }) {
         >
           <VolumeIcon />
         </IconButton>
-        <Slider
-          ref={volumeRef}
-          min={0}
-          max={100}
-          defaultValue={(muted ? 0 : volume) * 100}
-          aria-label="Volume"
-          className="w-22"
-          onChange={(value) => setVolume(value / 100)}
-        />
+        <div
+          className="flex"
+          onKeyDown={(e) => {
+            if (e.code.startsWith('Arrow')) e.stopPropagation();
+          }}
+        >
+          <Slider
+            ref={volumeRef}
+            min={0}
+            max={100}
+            defaultValue={(muted ? 0 : volume) * 100}
+            aria-label="Volume"
+            className="w-22"
+            onChange={(value) => setVolume(value / 100)}
+          />
+        </div>
         <IconButton
           size="md"
           label="Full screen"

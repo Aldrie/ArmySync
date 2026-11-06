@@ -25,20 +25,27 @@ export default function PlayerPage() {
   const ready = usePlayerStore((s) => s.ready);
   const setMode = usePlayerStore((s) => s.setMode);
 
-  const transport =
-    (run: (s: ReturnType<typeof usePlayerStore.getState>) => void) => () => {
+  const plain = (run: (e: KeyboardEvent) => void) => (e: KeyboardEvent) => {
+    if (!e.metaKey && !e.ctrlKey && !e.altKey) run(e);
+  };
+  const transport = (
+    run: (s: ReturnType<typeof usePlayerStore.getState>) => void,
+  ) =>
+    plain(() => {
       const s = usePlayerStore.getState();
       if (!s.mediaError) run(s);
-    };
+    });
   useKeybind(
     {
       Space: transport((s) => s.togglePlay()),
       ArrowLeft: transport((s) => s.seekDelta(-10)),
       ArrowRight: transport((s) => s.seekDelta(10)),
-      Comma: (e) =>
+      Comma: plain((e) =>
         usePlayerStore.getState().nudgeOffset(e.shiftKey ? -50 : -10),
-      Period: (e) =>
+      ),
+      Period: plain((e) =>
         usePlayerStore.getState().nudgeOffset(e.shiftKey ? 50 : 10),
+      ),
     },
     { allowRange: true },
   );

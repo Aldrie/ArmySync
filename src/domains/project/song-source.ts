@@ -17,13 +17,12 @@ async function resolveSource(
 ): Promise<SongSource> {
   const song = getSongMedia(project);
   if (!song) return { videoSrc: '', mediaError: null };
-  if (!isJellyfinMedia(song.media)) {
-    return {
-      videoSrc: await projectFileUrl(project.id, song.media.file),
-      mediaError: null,
-    };
-  }
   try {
+    if (!isJellyfinMedia(song.media))
+      return {
+        videoSrc: await projectFileUrl(project.id, song.media.file),
+        mediaError: null,
+      };
     const { itemId, mediaSourceId } = song.media.source;
     const videoSrc = await openJellyfinStream(itemId, mediaSourceId);
     // A newer open already replaced this session on the server; only a release leaves it orphaned.

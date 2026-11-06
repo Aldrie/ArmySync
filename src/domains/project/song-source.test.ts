@@ -1,5 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 
+import { projectFileUrl } from './library';
 import { createSongProject } from './model';
 import { openSongSource, releaseSongSource } from './song-source';
 import { closeJellyfinStream, openJellyfinStream } from '../jellyfin/api';
@@ -61,4 +62,24 @@ it('closes the stream an open finished after a release', async () => {
   opens[0]('late');
   expect(await opening).toBeNull();
   expect(closeJellyfinStream).toHaveBeenCalledTimes(2);
+});
+
+it('reports a local file that cannot be resolved as a media error', async () => {
+  vi.mocked(projectFileUrl).mockRejectedValueOnce(new Error('no app dir'));
+  const project = createSongProject({
+    id: 'p1',
+    name: 'Song',
+    mediaId: 'm1',
+    now: 0,
+    media: {
+      file: 'media/m1.mp4',
+      type: 'video',
+      duration: 60,
+      source: { type: 'file', originalName: 'song.mp4' },
+    },
+  });
+  expect(await openSongSource(project)).toEqual({
+    videoSrc: '',
+    mediaError: 'Error: no app dir',
+  });
 });
