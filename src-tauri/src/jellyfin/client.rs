@@ -1,14 +1,14 @@
 use std::time::Duration;
 
 use reqwest::header::AUTHORIZATION;
-use reqwest::{Method, Response, Url};
+use reqwest::{Method, RequestBuilder, Response, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::{lock, save, JellyfinState};
 
 pub(crate) const JSON_TIMEOUT: Duration = Duration::from_secs(15);
-const NOT_SIGNED_IN: &str = "Not signed in to Jellyfin";
+pub(crate) const NOT_SIGNED_IN: &str = "Not signed in to Jellyfin";
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -127,6 +127,18 @@ pub(crate) fn status_error(code: u16) -> String {
   format!("Jellyfin returned HTTP {code}")
 }
 
+pub(crate) fn request(
+  state: &JellyfinState,
+  method: Method,
+  url: &str,
+  token: Option<&str>,
+) -> RequestBuilder {
+  state
+    .http
+    .request(method, url)
+    .header(AUTHORIZATION, auth_header(&state.device_id(), token))
+}
+
 pub(crate) async fn call(
   state: &JellyfinState,
   method: Method,
@@ -135,10 +147,7 @@ pub(crate) async fn call(
   body: Option<&Value>,
   timeout: Option<Duration>,
 ) -> Result<Response, String> {
-  let mut req = state
-    .http
-    .request(method, url)
-    .header(AUTHORIZATION, auth_header(&state.device_id(), token));
+  let mut req = request(state, method, url, token);
   if let Some(body) = body {
     req = req.json(body);
   }
@@ -161,7 +170,17 @@ pub(crate) async fn ok_json(res: Response) -> Result<Value, String> {
     .map_err(|e| format!("Unexpected Jellyfin response: {e}"))
 }
 
-// ponytail: an in-flight 401 from a session that was already replaced still signs out the new one; compare tokens if that ever bites
+pub(crate) fn check_status(state: &JellyfinState, token: &str, code: u16) -> Result<(), String> {
+  let mut stored = lock(&state.stored);
+  let result = stored.apply_status(code, token);
+  if code == 401 {
+    if let Err(e) = save(&state.dir, &stored) {
+      eprintln!("[jellyfin] {e}");
+    }
+  }
+  result
+}
+
 pub(crate) async fn send(
   state: &JellyfinState,
   method: Method,
@@ -169,28 +188,18 @@ pub(crate) async fn send(
   body: Option<&Value>,
   timeout: Option<Duration>,
 ) -> Result<Response, String> {
-  let (url, token) = {
-    let stored = lock(&state.stored);
-    let session = stored.session.as_ref().ok_or(NOT_SIGNED_IN)?;
-    (format!("{}{path}", session.url), session.token.clone())
-  };
-  let res = call(state, method, &url, Some(&token), body, timeout).await?;
-  let code = res.status().as_u16();
-  let mut stored = lock(&state.stored);
-  let result = stored.apply_status(code);
-  if code == 401 {
-    save(&state.dir, &stored)?;
-  }
-  result.map(|_| res)
+  let session = state.session().ok_or(NOT_SIGNED_IN)?;
+  let url = format!("{}{path}", session.url);
+  let res = call(state, method, &url, Some(&session.token), body, timeout).await?;
+  check_status(state, &session.token, res.status().as_u16())?;
+  Ok(res)
 }
 
-#[allow(dead_code)]
 pub(crate) async fn get_json(state: &JellyfinState, path: &str) -> Result<Value, String> {
   let res = send(state, Method::GET, path, None, Some(JSON_TIMEOUT)).await?;
   ok_json(res).await
 }
 
-#[allow(dead_code)]
 pub(crate) async fn post_json(
   state: &JellyfinState,
   path: &str,

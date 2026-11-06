@@ -51,6 +51,9 @@ pub fn run() {
       jellyfin::jellyfin_quick_connect_start,
       jellyfin::jellyfin_quick_connect_poll,
       jellyfin::jellyfin_logout,
+      jellyfin::media::jellyfin_search,
+      jellyfin::media::jellyfin_open_stream,
+      jellyfin::media::jellyfin_close_stream,
       jellyfin::waveform::jellyfin_waveform,
     ])
     .run(tauri::generate_context!())

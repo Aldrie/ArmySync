@@ -1,4 +1,6 @@
 mod client;
+pub mod media;
+mod proxy;
 pub mod waveform;
 
 use std::fs;
@@ -13,8 +15,8 @@ use tauri::{AppHandle, State};
 
 use crate::library::{app_data_dir, write_json_atomic};
 use client::{
-  call, is_supported_version, normalize_url, ok_json, send, session_from_auth, status_error, text,
-  QuickConnectCode, ServerInfo, Session, Status, JSON_TIMEOUT,
+  call, is_supported_version, normalize_url, ok_json, request, session_from_auth, status_error,
+  text, QuickConnectCode, ServerInfo, Session, Status, JSON_TIMEOUT, NOT_SIGNED_IN,
 };
 
 const FILE: &str = "jellyfin.json";
@@ -28,11 +30,13 @@ struct Stored {
 }
 
 impl Stored {
-  fn apply_status(&mut self, code: u16) -> Result<(), String> {
+  fn apply_status(&mut self, code: u16, token: &str) -> Result<(), String> {
     match code {
       200..=299 => Ok(()),
       401 => {
-        self.session = None;
+        if self.session.as_ref().is_some_and(|s| s.token == token) {
+          self.session = None;
+        }
         Err(EXPIRED.into())
       }
       _ => Err(status_error(code)),
@@ -44,10 +48,13 @@ pub struct JellyfinState {
   http: reqwest::Client,
   dir: PathBuf,
   stored: Arc<Mutex<Stored>>,
+  play_session: Mutex<Option<String>>,
+  proxy_port: u16,
+  proxy_nonce: String,
 }
 
-fn lock(stored: &Mutex<Stored>) -> MutexGuard<'_, Stored> {
-  stored.lock().unwrap_or_else(PoisonError::into_inner)
+fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+  mutex.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 fn save(dir: &Path, stored: &Stored) -> Result<(), String> {
@@ -57,7 +64,9 @@ fn save(dir: &Path, stored: &Stored) -> Result<(), String> {
 
 impl JellyfinState {
   pub fn load(app: &AppHandle) -> Result<Self, String> {
-    Self::load_in(app_data_dir(app)?)
+    let mut state = Self::load_in(app_data_dir(app)?)?;
+    state.proxy_port = proxy::start(app.clone(), state.proxy_nonce.clone())?;
+    Ok(state)
   }
 
   fn load_in(dir: PathBuf) -> Result<Self, String> {
@@ -83,11 +92,25 @@ impl JellyfinState {
       http,
       dir,
       stored: Arc::new(Mutex::new(stored)),
+      play_session: Mutex::new(None),
+      proxy_port: 0,
+      proxy_nonce: uuid::Uuid::new_v4().simple().to_string(),
     })
   }
 
   fn device_id(&self) -> String {
     lock(&self.stored).device_id.clone()
+  }
+
+  fn session(&self) -> Option<Session> {
+    lock(&self.stored).session.clone()
+  }
+
+  fn user_id(&self) -> Result<String, String> {
+    self
+      .session()
+      .map(|s| s.user_id)
+      .ok_or(NOT_SIGNED_IN.into())
   }
 
   fn set_session(&self, session: Option<Session>) -> Result<(), String> {
@@ -218,15 +241,21 @@ pub async fn jellyfin_quick_connect_poll(
 
 #[tauri::command]
 pub async fn jellyfin_logout(state: State<'_, JellyfinState>) -> Result<(), String> {
-  let _ = send(
-    &state,
-    Method::POST,
-    "/Sessions/Logout",
-    None,
-    Some(JSON_TIMEOUT),
-  )
-  .await;
-  state.set_session(None)
+  let previous = state.session();
+  let saved = state.set_session(None);
+  if let Some(s) = previous {
+    let logout = request(
+      &state,
+      Method::POST,
+      &format!("{}/Sessions/Logout", s.url),
+      Some(&s.token),
+    )
+    .timeout(JSON_TIMEOUT);
+    tauri::async_runtime::spawn(async move {
+      let _ = logout.send().await;
+    });
+  }
+  saved
 }
 
 #[cfg(test)]
@@ -250,14 +279,38 @@ mod tests {
       device_id: "d".into(),
       session: Some(sample_session()),
     };
-    assert!(stored.apply_status(401).is_err());
+    assert!(stored.apply_status(401, "tok").is_err());
     assert!(stored.session.is_none());
     let mut ok = Stored {
       device_id: "d".into(),
       session: Some(sample_session()),
     };
-    assert!(ok.apply_status(200).is_ok());
+    assert!(ok.apply_status(200, "tok").is_ok());
     assert!(ok.session.is_some());
+  }
+
+  #[test]
+  fn a_stale_401_keeps_the_newer_session() {
+    let mut stored = Stored {
+      device_id: "d".into(),
+      session: Some(sample_session()),
+    };
+    assert!(stored.apply_status(401, "old").is_err());
+    assert!(stored.session.is_some());
+  }
+
+  #[test]
+  fn reports_expiry_even_if_saving_fails() {
+    let dir = std::env::temp_dir().join(format!("armysync-jf-{}", uuid::Uuid::new_v4().simple()));
+    let mut state = JellyfinState::load_in(dir.clone()).unwrap();
+    let _ = fs::remove_dir_all(&dir);
+    state.dir = PathBuf::from("/dev/null/armysync");
+    lock(&state.stored).session = Some(sample_session());
+    assert_eq!(
+      client::check_status(&state, "tok", 401).unwrap_err(),
+      EXPIRED
+    );
+    assert!(state.session().is_none());
   }
 
   #[test]
