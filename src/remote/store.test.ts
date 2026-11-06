@@ -333,7 +333,7 @@ it('drops queued chunks older than a day', () => {
   expect(store.getState().outbox).toEqual([]);
 });
 
-it('records a blackout while nothing is held with the default profile', () => {
+const helloWithDefaultProfile = () => {
   receive({
     type: 'hello',
     projectId: 'fresh',
@@ -345,7 +345,11 @@ it('records a blackout while nothing is held with the default profile', () => {
     effects: [],
     lastTakeStart: null,
   });
-  const [a, b] = store.getState().profiles[0].pads;
+  return store.getState().profiles[0].pads;
+};
+
+it('records a blackout while nothing is held with the default profile', () => {
+  const [a, b] = helloWithDefaultProfile();
   now = 1000;
   store.getState().press(a.id);
   receive(stateAt(1, 1000));
@@ -360,4 +364,39 @@ it('records a blackout while nothing is held with the default profile', () => {
     [{ type: 'blackout', from: 2, to: 3 }],
     [{ type: 'color', from: 3, to: 4 }],
   ]);
+});
+
+it('records nothing when playing without touching a pad', () => {
+  helloWithDefaultProfile();
+  receive(stateAt(1, 1000));
+  receive(stateAt(5, 2000));
+  receive(transport(false, 6));
+  expect(takes()).toEqual([]);
+});
+
+it('starts idle blackout only after the first press of the take', () => {
+  const [a] = helloWithDefaultProfile();
+  now = 1000;
+  receive(stateAt(1, 1000));
+  now = 3000;
+  store.getState().press(a.id);
+  now = 4000;
+  store.getState().release(a.id);
+  now = 6000;
+  receive(transport(false, 6));
+
+  expect(chunks().map((take) => take?.effects)).toMatchObject([
+    [{ type: 'color', from: 3, to: 4 }],
+    [{ type: 'blackout', from: 4, to: 6 }],
+  ]);
+});
+
+it('seeks back instead of undoing on ↺ before any press', () => {
+  helloWithDefaultProfile();
+  now = 1000;
+  receive(stateAt(1, 1000));
+  sent = [];
+  now = 3000;
+  store.getState().undoTake();
+  expect(sent).toEqual([{ type: 'pause' }, { type: 'seek', time: 1 }]);
 });

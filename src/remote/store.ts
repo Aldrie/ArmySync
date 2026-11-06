@@ -54,7 +54,7 @@ export interface RemoteState {
     id: string;
     chunk: number;
     startTime: number;
-    open: ActiveChange;
+    open: ActiveChange | null;
   } | null;
   outbox: { projectId: string; createdAt: number; take: Take }[];
   countdownUntil: number | null;
@@ -109,15 +109,17 @@ export function createRemoteStore(open: Open) {
         const activeProfile = () =>
           get().profiles.find((p) => p.id === get().activeProfileId);
 
-        const openTake = (startTime: number) =>
+        const openTake = (startTime: number) => {
+          const padId = activeOf(get().held);
           set({
             recording: {
               id: createId(),
               chunk: 0,
               startTime,
-              open: { padId: activeOf(get().held), songTime: startTime },
+              open: padId === null ? null : { padId, songTime: startTime },
             },
           });
+        };
 
         const sendRun = (
           recording: NonNullable<RemoteState['recording']>,
@@ -125,7 +127,7 @@ export function createRemoteStore(open: Open) {
         ) => {
           const profile = activeProfile();
           const effects = effectsFromChanges(
-            [recording.open],
+            recording.open ? [recording.open] : [],
             endTime,
             profile?.pads ?? [],
             createId,
