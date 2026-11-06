@@ -33,7 +33,7 @@ export default function CalibrateScreen() {
   const [reference, setReference] = useState<Reference>('sound');
   const [taps, setTaps] = useState<number[]>([]);
   const [run, setRun] = useState(0);
-  const [running, setRunning] = useState(true);
+  const [running, setRunning] = useState(false);
   const [flash, setFlash] = useState(false);
 
   // ponytail: the Mac runs overlapping calibrations in parallel, so no restart until this run is over
@@ -52,7 +52,6 @@ export default function CalibrateScreen() {
   }, [flash]);
 
   const start = (value: Reference) => {
-    setReference(value);
     setTaps([]);
     setRunning(true);
     setRun(run + 1);
@@ -60,7 +59,7 @@ export default function CalibrateScreen() {
   };
 
   const tap = (e: PointerEvent<HTMLButtonElement>) => {
-    if (taps.length >= TAPS) return;
+    if (!run || taps.length >= TAPS) return;
     setTaps([...taps, e.timeStamp + useRemoteStore.getState().offsetMs]);
     setFlash(true);
   };
@@ -77,7 +76,7 @@ export default function CalibrateScreen() {
         )}
       >
         <span className="text-[26px] font-bold tracking-tight">
-          Tap anywhere to the beat
+          {run ? 'Tap anywhere to the beat' : 'Pick a reference, then Start'}
         </span>
         <span className="text-[13px] text-outline">
           {REFERENCES.find((r) => r.value === reference)?.hint}
@@ -120,7 +119,7 @@ export default function CalibrateScreen() {
               type="button"
               aria-pressed={reference === r.value}
               disabled={busy}
-              onClick={() => start(r.value)}
+              onClick={() => setReference(r.value)}
               className={cn(
                 'h-7 rounded-md px-2.5 text-[11px] font-semibold text-on-surface-variant disabled:opacity-40',
                 reference === r.value && 'bg-surface-high text-primary',
@@ -147,7 +146,7 @@ export default function CalibrateScreen() {
           onClick={() => start(reference)}
           className="pointer-events-auto"
         >
-          Restart
+          {run ? 'Restart' : 'Start'}
         </Button>
         <Button
           size="lg"
