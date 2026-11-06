@@ -77,10 +77,11 @@ let followQueue: Promise<void> = Promise.resolve();
 let followCommands: Promise<unknown> = Promise.resolve();
 let unlistenFollow: UnlistenFn | null = null;
 let reportedSourceId: string | null = null;
-let beforeFollow: { mode: PlayerMode; offsetMs: number } = {
-  mode: 'video',
-  offsetMs: 0,
-};
+let beforeFollow: {
+  mode: PlayerMode;
+  offsetMs: number;
+  project: Project | null;
+} = { mode: 'video', offsetMs: 0, project: null };
 
 const logFollowError = (e: unknown) =>
   console.error('Failed to follow the TV:', e);
@@ -241,8 +242,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     });
     const chosen = remembered ?? candidates[0];
     const current = () => isCurrent(run, report.itemId);
-    if (chosen) await loadFollowProject(chosen.id, current);
-    else set({ project: null, duration: 0 });
+    set({ project: null, duration: 0 });
+    if (chosen)
+      await loadFollowProject(chosen.id, current).catch(logFollowError);
     return current();
   };
 
@@ -306,7 +308,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     unlistenFollow = null;
     pending = null;
     get().pause();
-    const { project } = get();
+    const project = get().project ?? beforeFollow.project;
+    if (project && !get().project)
+      set({ project, duration: getSongMedia(project)?.media.duration ?? 0 });
     syncEffectsToRust(project ? getSongEffects(project) : []);
     set({ follow: null, offsetMs: beforeFollow.offsetMs });
   };
@@ -516,7 +520,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
 
     startFollow: async (playing) => {
       if (get().follow) endFollow();
-      else beforeFollow = { mode: get().mode, offsetMs: get().offsetMs };
+      else {
+        const { mode, offsetMs, project } = get();
+        beforeFollow = { mode, offsetMs, project };
+      }
       const run = ++followRun;
       const { sessionId, deviceId, deviceName, title } = playing;
       set({

@@ -534,7 +534,15 @@ it('keeps following a video with no light show', async () => {
   expect(sessionCommand).toHaveBeenCalledWith('s1', 'Pause');
 });
 
-it('puts the open project back on the lights when following stops', async () => {
+it('keeps the followed show on the lights when following stops', async () => {
+  shows(['p1', 'i1', 1]);
+  await follow();
+  store().stopFollow();
+  expect(store().project?.id).toBe('p1');
+  expect(lastEffects()).toEqual(effectsOf('p1'));
+});
+
+it('drops to no light show when the matching project fails to load', async () => {
   shows(['p1', 'i1', 1]);
   await follow();
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -549,16 +557,22 @@ it('puts the open project back on the lights when following stops', async () => 
   ]);
   await emit(report({ itemId: 'i2' }));
   expect(lastEffects()).toEqual({ effects: [] });
-  store().stopFollow();
-  expect(lastEffects()).toEqual(effectsOf('p1'));
+  expect(store()).toMatchObject({
+    project: null,
+    duration: 0,
+    isPlaying: true,
+  });
 });
 
-it('leaves the lights dark after stopping on a video with no show', async () => {
+it('brings back the opened project after following a video with no show', async () => {
   shows(['p1', 'i1', 1]);
-  await follow();
+  await openIn('video', tvSong('p0', 'i0', 0));
+  await store().startFollow(tv({ itemId: 'i3' }));
   await emit(report({ itemId: 'i3' }));
+  expect(store().project).toBeNull();
   store().stopFollow();
-  expect(lastEffects()).toEqual({ effects: [] });
+  expect(store()).toMatchObject({ project: { id: 'p0' }, duration: 300 });
+  expect(lastEffects()).toEqual(effectsOf('p0'));
 });
 
 it('keeps the chosen show over a slower load of the newest one', async () => {
