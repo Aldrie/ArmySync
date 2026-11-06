@@ -51,6 +51,7 @@ pub fn run() {
       jellyfin::jellyfin_quick_connect_start,
       jellyfin::jellyfin_quick_connect_poll,
       jellyfin::jellyfin_logout,
+      jellyfin::waveform::jellyfin_waveform,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

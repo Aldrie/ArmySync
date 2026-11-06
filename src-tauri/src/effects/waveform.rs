@@ -3,19 +3,26 @@ use std::fs::File;
 use symphonia::core::audio::SampleBuffer;
 use symphonia::core::codecs::DecoderOptions;
 use symphonia::core::formats::FormatOptions;
-use symphonia::core::io::MediaSourceStream;
+use symphonia::core::io::{MediaSource, MediaSourceStream};
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
 
 pub fn extract(path: &str, bar_count: u32) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
-  let file = File::open(path)?;
-  let mss = MediaSourceStream::new(Box::new(file), Default::default());
+  let ext = std::path::Path::new(path)
+    .extension()
+    .and_then(|e| e.to_str());
+  extract_from(Box::new(File::open(path)?), ext, bar_count)
+}
+
+pub fn extract_from(
+  source: Box<dyn MediaSource>,
+  ext: Option<&str>,
+  bar_count: u32,
+) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
+  let mss = MediaSourceStream::new(source, Default::default());
 
   let mut hint = Hint::new();
-  if let Some(ext) = std::path::Path::new(path)
-    .extension()
-    .and_then(|e| e.to_str())
-  {
+  if let Some(ext) = ext {
     hint.with_extension(ext);
   }
 
@@ -108,4 +115,46 @@ pub fn extract(path: &str, bar_count: u32) -> Result<Vec<f32>, Box<dyn std::erro
   }
 
   Ok(waveform)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use std::io::Cursor;
+
+  fn wav(samples: &[i16]) -> Vec<u8> {
+    let data_len = (samples.len() * 2) as u32;
+    let mut out = Vec::new();
+    out.extend_from_slice(b"RIFF");
+    out.extend_from_slice(&(36 + data_len).to_le_bytes());
+    out.extend_from_slice(b"WAVEfmt ");
+    out.extend_from_slice(&16u32.to_le_bytes());
+    out.extend_from_slice(&1u16.to_le_bytes());
+    out.extend_from_slice(&1u16.to_le_bytes());
+    out.extend_from_slice(&8000u32.to_le_bytes());
+    out.extend_from_slice(&16000u32.to_le_bytes());
+    out.extend_from_slice(&2u16.to_le_bytes());
+    out.extend_from_slice(&16u16.to_le_bytes());
+    out.extend_from_slice(b"data");
+    out.extend_from_slice(&data_len.to_le_bytes());
+    for s in samples {
+      out.extend_from_slice(&s.to_le_bytes());
+    }
+    out
+  }
+
+  #[test]
+  fn extracts_from_memory() {
+    let samples: Vec<i16> = (0..8000)
+      .map(|i| match i {
+        0..4000 => 0,
+        _ if i % 2 == 0 => 20000,
+        _ => -20000,
+      })
+      .collect();
+    let v = extract_from(Box::new(Cursor::new(wav(&samples))), Some("wav"), 4).unwrap();
+    assert_eq!(v.len(), 4);
+    assert_eq!(v.iter().cloned().fold(0.0_f32, f32::max), 1.0);
+    assert!(v[0] < v[3]);
+  }
 }

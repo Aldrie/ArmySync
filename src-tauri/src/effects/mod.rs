@@ -1,4 +1,4 @@
-mod waveform;
+pub(crate) mod waveform;
 
 #[tauri::command]
 pub async fn extract_waveform(path: String, bar_count: Option<u32>) -> Result<Vec<f32>, String> {

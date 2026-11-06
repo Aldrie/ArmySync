@@ -1,4 +1,5 @@
 mod client;
+pub mod waveform;
 
 use std::fs;
 use std::path::{Path, PathBuf};

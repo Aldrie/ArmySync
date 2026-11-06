@@ -16,6 +16,16 @@ pub struct ProjectSummary {
   kind: String,
   name: String,
   updated_at: i64,
+  #[serde(skip_deserializing)]
+  jellyfin_item_id: Option<String>,
+}
+
+fn jellyfin_item_id(project: &Value) -> Option<String> {
+  let media = project["media"].as_object()?.values();
+  let jellyfin = media
+    .map(|m| &m["source"])
+    .find(|s| s["type"] == "jellyfin")?;
+  jellyfin["itemId"].as_str().map(str::to_string)
 }
 
 pub(crate) fn validate_id(id: &str) -> Result<(), String> {
@@ -82,7 +92,10 @@ fn list_projects_in(base: &Path) -> Result<Vec<ProjectSummary>, String> {
       .flatten()
       .filter_map(|entry| {
         let content = fs::read_to_string(entry.path().join("project.json")).ok()?;
-        serde_json::from_str(&content).ok()
+        let project: Value = serde_json::from_str(&content).ok()?;
+        let mut summary = ProjectSummary::deserialize(&project).ok()?;
+        summary.jellyfin_item_id = jellyfin_item_id(&project);
+        Some(summary)
       })
       .collect(),
   )
@@ -266,8 +279,22 @@ mod tests {
     assert_eq!(list.len(), 1);
     assert_eq!(
       serde_json::to_value(&list[0]).unwrap(),
-      json!({ "id": "good", "kind": "song", "name": "Dynamite", "updatedAt": 1700000000000_i64 })
+      json!({ "id": "good", "kind": "song", "name": "Dynamite", "updatedAt": 1700000000000_i64, "jellyfinItemId": null })
     );
+  }
+
+  #[test]
+  fn summarizes_the_jellyfin_item() {
+    let t = TempBase::new();
+    let base = t.base();
+    write_project_in(&base, "p1", &json!({"id":"p1","kind":"song","name":"A","updatedAt":1,
+      "media":{"m":{"type":"video","duration":1,"source":{"type":"jellyfin","itemId":"it1","mediaSourceId":"ms","serverId":"s"}}},"tracks":[]})).unwrap();
+    write_project_in(&base, "p2", &json!({"id":"p2","kind":"song","name":"B","updatedAt":2,
+      "media":{"m":{"file":"media/m.mp4","type":"video","duration":1,"source":{"type":"file","originalName":"a.mp4"}}},"tracks":[]})).unwrap();
+    let mut list = list_projects_in(&base).unwrap();
+    list.sort_by_key(|p| p.updated_at);
+    assert_eq!(list[0].jellyfin_item_id.as_deref(), Some("it1"));
+    assert_eq!(list[1].jellyfin_item_id, None);
   }
 
   #[test]
