@@ -59,11 +59,13 @@ export default function JellyfinConnect({
   const handleProbe = () =>
     run(async () => setServer(await probeJellyfin(base)));
 
-  const handleQuickConnect = () =>
-    run(async () => setQuick(await startQuickConnect(base)));
+  const handleQuickConnect = (serverUrl: string) =>
+    run(async () => setQuick(await startQuickConnect(serverUrl)));
 
-  const handleLogin = () =>
-    run(async () => onConnected(await loginJellyfin(base, username, password)));
+  const handleLogin = (serverUrl: string) =>
+    run(async () =>
+      onConnected(await loginJellyfin(serverUrl, username, password)),
+    );
 
   const handleUsePassword = () => {
     setUsePassword(true);
@@ -71,13 +73,15 @@ export default function JellyfinConnect({
     setError('');
   };
 
+  const serverUrl = server?.url;
+
   useEffect(() => {
-    if (!quick) return;
+    if (!quick || !serverUrl) return;
     let cancelled = false;
     let timer = 0;
     const tick = async () => {
       try {
-        const status = await pollQuickConnect(base, quick.secret);
+        const status = await pollQuickConnect(serverUrl, quick.secret);
         if (cancelled) return;
         if (status) onConnected(status);
         else timer = window.setTimeout(() => void tick(), POLL_MS);
@@ -90,7 +94,7 @@ export default function JellyfinConnect({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [quick, base, onConnected]);
+  }, [quick, serverUrl, onConnected]);
 
   const showPassword = server && (!server.quickConnect || usePassword);
 
@@ -106,7 +110,8 @@ export default function JellyfinConnect({
           <div className="flex gap-2">
             <input
               id={`${id}-url`}
-              type="url"
+              type="text"
+              inputMode="url"
               value={url}
               onChange={(e) => handleUrl(e.target.value)}
               placeholder="http://192.168.1.10:8096"
@@ -147,7 +152,9 @@ export default function JellyfinConnect({
               <div className="flex items-center gap-3">
                 <Button
                   size="sm"
-                  onClick={() => void openUrl(`${base}/web/#/quickconnect`)}
+                  onClick={() =>
+                    void openUrl(`${server.url}/web/#/quickconnect`)
+                  }
                 >
                   <ExternalLink />
                   Open Jellyfin
@@ -156,7 +163,7 @@ export default function JellyfinConnect({
                   <Button
                     size="sm"
                     intent="tonal"
-                    onClick={() => void handleQuickConnect()}
+                    onClick={() => void handleQuickConnect(server.url)}
                     disabled={busy}
                   >
                     Try again
@@ -175,7 +182,7 @@ export default function JellyfinConnect({
           ) : (
             <Button
               intent="primary"
-              onClick={() => void handleQuickConnect()}
+              onClick={() => void handleQuickConnect(server.url)}
               disabled={busy}
             >
               {busy && <Loader2 className="animate-spin" />}
@@ -197,7 +204,7 @@ export default function JellyfinConnect({
           className="flex flex-col gap-4"
           onSubmit={(e) => {
             e.preventDefault();
-            void handleLogin();
+            void handleLogin(server.url);
           }}
         >
           <Field label="Username" htmlFor={`${id}-user`}>

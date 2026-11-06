@@ -44,6 +44,7 @@ impl From<&Session> for Status {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ServerInfo {
+  pub url: String,
   pub name: String,
   pub version: String,
   pub id: String,
@@ -219,6 +220,10 @@ mod tests {
     assert_eq!(
       normalize_url("homelab:8096").unwrap(),
       "http://homelab:8096"
+    );
+    assert_eq!(
+      normalize_url("192.168.1.10:8096").unwrap(),
+      "http://192.168.1.10:8096"
     );
     assert_eq!(
       normalize_url(" http://homelab:8096/web/#/home ").unwrap(),

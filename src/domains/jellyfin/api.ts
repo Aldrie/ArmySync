@@ -20,6 +20,7 @@ export interface JellyfinStatus {
 }
 
 export interface JellyfinServerInfo {
+  url: string;
   name: string;
   version: string;
   id: string;

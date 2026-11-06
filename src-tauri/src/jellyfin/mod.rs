@@ -168,6 +168,7 @@ pub async fn jellyfin_probe(
     version,
     id: text(&info, "Id")?,
     quick_connect,
+    url,
   })
 }
 
