@@ -696,6 +696,21 @@ it('pauses the lights while the TV is lost and resumes on its next report', asyn
   expect(store().follow?.status).toBe('live');
 });
 
+it('only commands the TV while it is not live', async () => {
+  shows(['p1', 'i1', 1]);
+  await follow();
+  await emit({ kind: 'lost', sessionId: 's1' });
+  vi.clearAllMocks();
+  store().togglePlay();
+  store().seekDelta(10);
+  expect(sessionCommand).toHaveBeenCalledWith('s1', 'Unpause');
+  expect(sessionCommand).toHaveBeenCalledWith('s1', 'Seek', 110);
+  expect(invoke).not.toHaveBeenCalled();
+  expect(store()).toMatchObject({ isPlaying: false, currentTime: 100 });
+  await emit(report({ positionS: 100.2 }));
+  expect(argsOf('sync_play')).toEqual([{ time: expect.closeTo(100.2, 5) }]);
+});
+
 it('ignores events from another session', async () => {
   shows(['p1', 'i1', 1]);
   await follow();

@@ -394,6 +394,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
           follow.sessionId,
           isPlaying ? 'Pause' : 'Unpause',
         ).catch(logFollowError);
+        if (follow.status !== 'live') return;
         pending = {
           kind: isPlaying ? 'pause' : 'play',
           until: now() + COMMAND_WINDOW,
@@ -407,26 +408,27 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     },
 
     seek: (time) => {
-      const { duration, mode } = get();
+      const { duration, mode, follow } = get();
       const clamped = Math.max(
         0,
         duration > 0 ? Math.min(duration, time) : time,
       );
+      if (follow) {
+        void sessionCommand(follow.sessionId, 'Seek', clamped).catch(
+          logFollowError,
+        );
+        if (follow.status !== 'live') return;
+        pending = {
+          kind: 'seek',
+          positionS: clamped,
+          until: now() + SEEK_WINDOW,
+        };
+      }
       clockSeek(clamped);
       if (mode === 'video' && playerRefs.video)
         playerRefs.video.currentTime = clamped;
       set({ currentTime: clamped });
       void invoke('sync_seek', { time: engineTime(clamped) });
-      const { follow } = get();
-      if (!follow) return;
-      pending = {
-        kind: 'seek',
-        positionS: clamped,
-        until: now() + SEEK_WINDOW,
-      };
-      void sessionCommand(follow.sessionId, 'Seek', clamped).catch(
-        logFollowError,
-      );
     },
 
     seekDelta: (delta) => {
