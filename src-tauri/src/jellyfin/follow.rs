@@ -5,7 +5,7 @@ use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use super::client::{ok_json, send, status_error, JSON_TIMEOUT};
+use super::client::{ok_json, send, JSON_TIMEOUT};
 use super::media::{string, TICKS_PER_SECOND};
 use super::{lock, JellyfinState};
 use crate::library::validate_id;
@@ -342,10 +342,7 @@ pub async fn jellyfin_session_command(
 ) -> Result<(), String> {
   validate_id(&session_id)?;
   let path = command_path(&session_id, &command, position_s)?;
-  let res = send(&state, Method::POST, &path, None, Some(JSON_TIMEOUT)).await?;
-  if !res.status().is_success() {
-    return Err(status_error(res.status().as_u16()));
-  }
+  send(&state, Method::POST, &path, None, Some(JSON_TIMEOUT)).await?;
   Ok(())
 }
 
