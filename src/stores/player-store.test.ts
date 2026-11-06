@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import type { EventCallback } from '@tauri-apps/api/event';
 
 import { playerRefs, usePlayerStore } from './player-store';
 import {
@@ -137,8 +138,8 @@ beforeEach(() => {
   vi.spyOn(performance, 'now').mockImplementation(() => nowMs);
   vi.clearAllMocks();
   vi.mocked(listen).mockImplementation((event, handler) => {
-    emitFollow = (payload) =>
-      handler({ event, id: 0, payload: payload as never });
+    const onFollow = handler as EventCallback<FollowEvent>;
+    emitFollow = (payload) => onFollow({ event, id: 0, payload });
     return Promise.resolve(unlisten);
   });
 });
@@ -471,7 +472,7 @@ it('switches the light show when the TV changes video', async () => {
   shows(['p1', 'i1', 1], ['p2', 'i2', 5], ['p3', 'i2', 9]);
   await emit(report({ itemId: 'i3', title: 'Butter' }));
   expect(lastEffects()).toEqual({ effects: [] });
-  expect(store().isPlaying).toBe(false);
+  expect(store()).toMatchObject({ project: null, duration: 0 });
   expect(store().follow).toMatchObject({ itemId: 'i3', candidates: [] });
 
   await emit(report({ itemId: 'i2' }));
@@ -483,6 +484,126 @@ it('switches the light show when the TV changes video', async () => {
   expect(updateSettings).toHaveBeenCalledWith({ followChoices: { i2: 'p2' } });
   expect(lastEffects()).toEqual(effectsOf('p2'));
   expect(store().isPlaying).toBe(true);
+});
+
+it('keeps following a video with no light show', async () => {
+  shows(['p1', 'i1', 1]);
+  await follow();
+  await emit(report({ itemId: 'i3', positionS: 40 }));
+  expect(store()).toMatchObject({
+    isPlaying: true,
+    follow: { status: 'live' },
+  });
+  store().togglePlay();
+  expect(sessionCommand).toHaveBeenCalledWith('s1', 'Pause');
+});
+
+it('puts the open project back on the lights when following stops', async () => {
+  shows(['p1', 'i1', 1]);
+  await follow();
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  vi.mocked(listProjects).mockResolvedValue([
+    {
+      id: 'gone',
+      kind: 'song',
+      name: 'gone',
+      updatedAt: 3,
+      jellyfinItemId: 'i2',
+    },
+  ]);
+  await emit(report({ itemId: 'i2' }));
+  expect(lastEffects()).toEqual({ effects: [] });
+  store().stopFollow();
+  expect(lastEffects()).toEqual(effectsOf('p1'));
+});
+
+it('leaves the lights dark after stopping on a video with no show', async () => {
+  shows(['p1', 'i1', 1]);
+  await follow();
+  await emit(report({ itemId: 'i3' }));
+  store().stopFollow();
+  expect(lastEffects()).toEqual({ effects: [] });
+});
+
+it('keeps the chosen show over a slower load of the newest one', async () => {
+  shows(['p1', 'i1', 1]);
+  await follow();
+  shows(['p1', 'i1', 1], ['p2', 'i2', 5], ['p3', 'i2', 9]);
+  let resolveNewest: () => void = () => undefined;
+  vi.mocked(loadProject).mockImplementationOnce(
+    () =>
+      new Promise<Project>((resolve) => {
+        resolveNewest = () => resolve(tvSong('p3', 'i2', 9));
+      }),
+  );
+  emitFollow(report({ itemId: 'i2' }));
+  await flush();
+  await store().chooseFollowProject('p2');
+  resolveNewest();
+  await flush();
+  expect(store().project?.id).toBe('p2');
+  expect(lastEffects()).toEqual(effectsOf('p2'));
+});
+
+it('flags a different video version only when the TV names one', async () => {
+  shows(['p1', 'i1', 1]);
+  await follow(tv({ mediaSourceId: 'ms2' }));
+  expect(store().follow?.versionMismatch).toBe(true);
+  await emit(report({ mediaSourceId: null }));
+  expect(store().follow?.versionMismatch).toBe(false);
+});
+
+it('seeks the TV when the scrubber moves', async () => {
+  shows(['p1', 'i1', 1]);
+  await follow();
+  store().seek(42);
+  expect(sessionCommand).toHaveBeenCalledWith('s1', 'Seek', 42);
+  vi.mocked(invoke).mockClear();
+  advance(0.5);
+  await emit(report({ positionS: 100.5 }));
+  expect(argsOf('sync_seek')).toEqual([]);
+});
+
+it('stops the Rust follow only after its start went through', async () => {
+  shows(['p1', 'i1', 1]);
+  await openIn('video');
+  let started: () => void = () => undefined;
+  vi.mocked(followStart).mockImplementationOnce(
+    () =>
+      new Promise<void>((resolve) => {
+        started = resolve;
+      }),
+  );
+  const following = store().startFollow(tv());
+  await flush();
+  store().stopFollow();
+  await flush();
+  expect(followStop).not.toHaveBeenCalled();
+  started();
+  await following;
+  await flush();
+  expect(followStop).toHaveBeenCalledWith('s1');
+  expect(vi.mocked(followStop).mock.invocationCallOrder[0]).toBeGreaterThan(
+    vi.mocked(followStart).mock.invocationCallOrder[0],
+  );
+});
+
+it('keeps Lights only while following', async () => {
+  shows(['p1', 'i1', 1]);
+  await follow();
+  await store().setMode('video');
+  expect(store().mode).toBe('lights');
+  expect(updateSettings).not.toHaveBeenCalled();
+  expect(openSongSource).not.toHaveBeenCalled();
+});
+
+it('stops following before opening another project', async () => {
+  shows(['p1', 'i1', 1]);
+  await follow();
+  await store().open(song(30));
+  expect(followStop).toHaveBeenCalledWith('s1');
+  expect(unlisten).toHaveBeenCalled();
+  expect(store().follow).toBeNull();
 });
 
 it('loads the project chosen before for a video', async () => {
@@ -543,6 +664,7 @@ it('keeps an offset per TV and restores the old one when following stops', async
   await flush();
   expect(updateSettings).toHaveBeenCalledWith({ followOffsets: { tv1: 350 } });
   store().stopFollow();
+  await flush();
   expect(followStop).toHaveBeenCalledWith('s1');
   expect(unlisten).toHaveBeenCalled();
   expect(store()).toMatchObject({ offsetMs: 120, mode: 'video', follow: null });
@@ -552,6 +674,7 @@ it('stops following on leave without loading the video', async () => {
   shows(['p1', 'i1', 1]);
   await follow();
   store().leave();
+  await flush();
   expect(followStop).toHaveBeenCalledWith('s1');
   expect(openSongSource).not.toHaveBeenCalled();
   expect(store().follow).toBeNull();

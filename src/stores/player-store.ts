@@ -71,7 +71,9 @@ let pending:
   | { kind: 'seek'; positionS: number; until: number }
   | null = null;
 let followRun = 0;
+let followLoad = 0;
 let followQueue: Promise<void> = Promise.resolve();
+let followCommands: Promise<unknown> = Promise.resolve();
 let unlistenFollow: UnlistenFn | null = null;
 let reportedSourceId: string | null = null;
 let beforeFollow: { mode: PlayerMode; offsetMs: number } = {
@@ -81,6 +83,13 @@ let beforeFollow: { mode: PlayerMode; offsetMs: number } = {
 
 const logFollowError = (e: unknown) =>
   console.error('Failed to follow the TV:', e);
+
+// Start and stop share a session id in Rust, so a stop must not overtake an earlier start.
+const queueFollowCommand = (task: () => Promise<void>) => {
+  const run = followCommands.then(task);
+  followCommands = run.catch(() => undefined);
+  return run;
+};
 
 const settles = (report: FollowReport) =>
   !pending ||
@@ -199,12 +208,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
   };
 
   const loadFollowProject = async (id: string, current: () => boolean) => {
+    const load = ++followLoad;
     const project = await loadProject(id);
-    if (!current()) return false;
+    if (load !== followLoad || !current()) return;
     set({ project, duration: getSongMedia(project)?.media.duration ?? 0 });
     syncEffectsToRust(getSongEffects(project));
     patchFollow({ versionMismatch: versionMismatch(project) });
-    return true;
   };
 
   const switchItem = async (report: FollowReport, run: number) => {
@@ -228,8 +237,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     const chosen =
       candidates.find((c) => c.id === followChoices[report.itemId]) ??
       candidates[0];
-    if (!chosen) return false;
-    return loadFollowProject(chosen.id, () => isCurrent(run, report.itemId));
+    const current = () => isCurrent(run, report.itemId);
+    if (chosen) await loadFollowProject(chosen.id, current);
+    else set({ project: null, duration: 0 });
+    return current();
   };
 
   const applyReport = (report: FollowReport) => {
@@ -267,8 +278,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     reportedSourceId = event.mediaSourceId;
     if (event.itemId !== follow.itemId && !(await switchItem(event, followRun)))
       return;
-    // No matching project keeps the lights off until the TV changes video.
-    if (get().follow?.candidates.length) applyReport(event);
+    applyReport(event);
   };
 
   const enqueueFollow = (event: FollowEvent) => {
@@ -282,11 +292,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     const { follow } = get();
     if (!follow) return;
     followRun++;
-    void followStop(follow.sessionId).catch(logFollowError);
+    void queueFollowCommand(() => followStop(follow.sessionId)).catch(
+      logFollowError,
+    );
     unlistenFollow?.();
     unlistenFollow = null;
     pending = null;
     get().pause();
+    const { project } = get();
+    syncEffectsToRust(project ? getSongEffects(project) : []);
     set({ follow: null, offsetMs: beforeFollow.offsetMs });
   };
 
@@ -297,6 +311,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     muted: false,
 
     open: async (project) => {
+      endFollow();
       void invoke('sync_pause');
       running = false;
       clockSeek(0);
@@ -331,7 +346,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     },
 
     setMode: async (mode) => {
-      if (mode === get().mode) return;
+      if (mode === get().mode || get().follow) return;
       void updateSettings({ playerMode: mode });
       await applyMode(mode);
     },
@@ -391,20 +406,20 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         playerRefs.video.currentTime = clamped;
       set({ currentTime: clamped });
       void invoke('sync_seek', { time: engineTime(clamped) });
+      const { follow } = get();
+      if (!follow) return;
+      pending = {
+        kind: 'seek',
+        positionS: clamped,
+        until: now() + SEEK_WINDOW,
+      };
+      void sessionCommand(follow.sessionId, 'Seek', clamped).catch(
+        logFollowError,
+      );
     },
 
     seekDelta: (delta) => {
       get().seek(clockTime() + delta);
-      const { follow, currentTime } = get();
-      if (!follow) return;
-      pending = {
-        kind: 'seek',
-        positionS: currentTime,
-        until: now() + SEEK_WINDOW,
-      };
-      void sessionCommand(follow.sessionId, 'Seek', currentTime).catch(
-        logFollowError,
-      );
     },
 
     setOffset: (ms) => {
@@ -523,7 +538,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         }
         unlistenFollow = unlisten;
         set({ offsetMs: followOffsets[deviceId] ?? 0 });
-        await followStart(sessionId);
+        await queueFollowCommand(() => followStart(sessionId));
       } catch (e) {
         if (run === followRun) get().stopFollow();
         throw e;
