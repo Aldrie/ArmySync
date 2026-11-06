@@ -176,3 +176,25 @@ it('discards the open take on ↺ during REC instead of undoing the last one', (
   expect(sent).toContainEqual({ type: 'pause' });
   expect(sent).toContainEqual({ type: 'seek', time: 5 });
 });
+
+it('keeps the chosen profile across a reconnect', () => {
+  const blue: Profile = { ...profile, id: 'p2', name: 'Blue' };
+  const hello: MacToPhone = {
+    type: 'hello',
+    projectId: 'proj',
+    projectName: 'Song',
+    projectNames: { proj: 'Song' },
+    duration: 60,
+    profiles: [profile, blue],
+    latencyMs: 0,
+    effects: [],
+    lastTakeStart: null,
+  };
+  receive(hello);
+  store.getState().setActiveProfile('p2');
+  receive(hello);
+  expect(store.getState().activeProfileId).toBe('p2');
+
+  receive({ ...hello, projectId: 'other', profiles: [blue] });
+  expect(store.getState().activeProfileId).not.toBe('p2');
+});

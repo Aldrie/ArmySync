@@ -169,12 +169,16 @@ export function createRemoteStore(open: Open) {
           const own = m.profiles.find((p) => p.projectId === m.projectId);
           const profile =
             own ?? defaultProfile(m.projectId, createId(), createId);
+          const keep = m.profiles.find(
+            (p) =>
+              p.id === get().activeProfileId && p.projectId === m.projectId,
+          );
           set({
             project: { id: m.projectId, name: m.projectName },
             projectNames: m.projectNames,
             duration: m.duration,
             profiles: own ? m.profiles : [...m.profiles, profile],
-            activeProfileId: profile.id,
+            activeProfileId: (keep ?? profile).id,
             latencyMs: clampLatency(m.latencyMs),
             effects: m.effects,
             lastTakeStart: m.lastTakeStart,
