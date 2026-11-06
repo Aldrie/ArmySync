@@ -22,6 +22,8 @@ it('returns defaults when the settings file is missing', async () => {
     bleDelays: {},
     remoteLatencyMs: 0,
     playerMode: 'video',
+    followOffsets: {},
+    followChoices: {},
   });
 });
 
@@ -57,6 +59,8 @@ it('merges a patch while keeping other stored keys', async () => {
       bleDelays: { a: 40 },
       remoteLatencyMs: 0,
       playerMode: 'video',
+      followOffsets: {},
+      followChoices: {},
     },
   });
 });
@@ -84,6 +88,8 @@ it('serializes quick patches so the latest one is written last', async () => {
         bleDelays: { a: 40 },
         remoteLatencyMs: 0,
         playerMode: 'video',
+        followOffsets: {},
+        followChoices: {},
       },
     },
     {
@@ -93,6 +99,8 @@ it('serializes quick patches so the latest one is written last', async () => {
         bleDelays: { a: 40, b: 10 },
         remoteLatencyMs: 0,
         playerMode: 'video',
+        followOffsets: {},
+        followChoices: {},
       },
     },
   ]);
@@ -105,6 +113,8 @@ it('never writes after a failed read', async () => {
     bleDelays: {},
     remoteLatencyMs: 0,
     playerMode: 'video',
+    followOffsets: {},
+    followChoices: {},
   });
   await updateSettings({ bleDelays: { a: 40 } });
   expect(writes()).toHaveLength(0);
@@ -119,6 +129,8 @@ it('loadSettings reflects a previous updateSettings', async () => {
     bleDelays: { a: 40 },
     remoteLatencyMs: 0,
     playerMode: 'video',
+    followOffsets: {},
+    followChoices: {},
   });
 });
 
@@ -132,4 +144,33 @@ it('falls back to Video for an unknown player mode', async () => {
   invokeMock.mockResolvedValue({ playerMode: 'audio' });
   const { loadSettings } = await importSettings();
   expect((await loadSettings()).playerMode).toBe('video');
+});
+
+it('clamps offsets to ±1000 ms in 10 ms steps', async () => {
+  const { clampOffset } = await importSettings();
+  expect([1500, -1500, 344, 346, 0].map(clampOffset)).toEqual([
+    1000, -1000, 340, 350, 0,
+  ]);
+});
+
+it('clamps saved follow offsets and drops invalid ones', async () => {
+  invokeMock.mockResolvedValue({
+    followOffsets: { tv1: 1500, tv2: 'x', tv3: 343 },
+    followChoices: { i1: 'p1', i2: 5 },
+  });
+  const { loadSettings } = await importSettings();
+  expect(await loadSettings()).toMatchObject({
+    followOffsets: { tv1: 1000, tv3: 340 },
+    followChoices: { i1: 'p1' },
+  });
+});
+
+it('falls back to empty follow maps when they are not records', async () => {
+  invokeMock.mockResolvedValue({ followOffsets: [1], followChoices: 'x' });
+  const { loadSettings } = await importSettings();
+  const { followOffsets, followChoices } = await loadSettings();
+  expect({ followOffsets, followChoices }).toEqual({
+    followOffsets: {},
+    followChoices: {},
+  });
 });

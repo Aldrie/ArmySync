@@ -1,16 +1,28 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 
 import { playerRefs, usePlayerStore } from './player-store';
-import { createSongProject } from '../domains/project';
-import type { MediaEntry } from '../domains/project';
+import {
+  followStart,
+  followStop,
+  sessionCommand,
+} from '../domains/jellyfin/api';
+import type { FollowEvent, PlayingSession } from '../domains/jellyfin/api';
+import {
+  createSongProject,
+  listProjects,
+  loadProject,
+  withSongEffects,
+} from '../domains/project';
+import type { MediaEntry, Project } from '../domains/project';
 import {
   openSongSource,
   releaseSongSource,
 } from '../domains/project/song-source';
-import { loadSettings } from '../lib/settings';
-import type { PlayerMode } from '../lib/settings';
+import { loadSettings, updateSettings } from '../lib/settings';
+import type { PlayerMode, Settings } from '../lib/settings';
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(() => Promise.resolve([])),
@@ -29,7 +41,22 @@ vi.mock('../domains/project/song-source', () => ({
   releaseSongSource: vi.fn(),
 }));
 
-vi.mock('../lib/settings', () => ({
+vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn() }));
+
+vi.mock('../domains/jellyfin/api', () => ({
+  followStart: vi.fn(() => Promise.resolve()),
+  followStop: vi.fn(() => Promise.resolve()),
+  sessionCommand: vi.fn(() => Promise.resolve()),
+}));
+
+vi.mock('../domains/project', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../domains/project')>()),
+  listProjects: vi.fn(),
+  loadProject: vi.fn(),
+}));
+
+vi.mock('../lib/settings', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/settings')>()),
   loadSettings: vi.fn(),
   updateSettings: vi.fn(() => Promise.resolve()),
 }));
@@ -64,12 +91,21 @@ const advance = (seconds: number) => {
 
 const store = usePlayerStore.getState;
 
-const openIn = async (playerMode: PlayerMode, project = song(30)) => {
-  vi.mocked(loadSettings).mockResolvedValue({
-    bleDelays: {},
-    remoteLatencyMs: 0,
-    playerMode,
-  });
+const settings = (patch: Partial<Settings> = {}): Settings => ({
+  bleDelays: {},
+  remoteLatencyMs: 0,
+  playerMode: 'video',
+  followOffsets: {},
+  followChoices: {},
+  ...patch,
+});
+
+const openIn = async (
+  playerMode: PlayerMode,
+  project = song(30),
+  patch: Partial<Settings> = {},
+) => {
+  vi.mocked(loadSettings).mockResolvedValue(settings({ playerMode, ...patch }));
   await store().open(project);
   vi.mocked(invoke).mockClear();
 };
@@ -92,12 +128,19 @@ const fakeVideo = () =>
     pause: vi.fn(),
   }) as unknown as HTMLVideoElement;
 
+const unlisten = vi.fn();
+
+let emitFollow: (payload: FollowEvent) => void = () => undefined;
+
 beforeEach(() => {
   nowMs = 1000;
   vi.spyOn(performance, 'now').mockImplementation(() => nowMs);
-  vi.mocked(invoke).mockClear();
-  vi.mocked(openSongSource).mockClear();
-  vi.mocked(releaseSongSource).mockClear();
+  vi.clearAllMocks();
+  vi.mocked(listen).mockImplementation((event, handler) => {
+    emitFollow = (payload) =>
+      handler({ event, id: 0, payload: payload as never });
+    return Promise.resolve(unlisten);
+  });
 });
 
 afterEach(() => {
@@ -107,11 +150,7 @@ afterEach(() => {
 });
 
 it('pauses lights left playing before parking them at the start', async () => {
-  vi.mocked(loadSettings).mockResolvedValue({
-    bleDelays: {},
-    remoteLatencyMs: 0,
-    playerMode: 'lights',
-  });
+  vi.mocked(loadSettings).mockResolvedValue(settings({ playerMode: 'lights' }));
   await store().open(song(30));
   const cmds = vi.mocked(invoke).mock.calls.map(([c]) => c);
   expect(cmds).toContain('sync_pause');
@@ -275,4 +314,273 @@ it('pauses the video before releasing it for Lights only', async () => {
   expect(pause.mock.invocationCallOrder[0]).toBeLessThan(
     vi.mocked(releaseSongSource).mock.invocationCallOrder[0],
   );
+});
+
+const tvSong = (id: string, itemId: string, updatedAt: number): Project =>
+  withSongEffects(
+    createSongProject({
+      id,
+      name: id,
+      mediaId: 'm1',
+      now: updatedAt,
+      media: {
+        type: 'video',
+        duration: 300,
+        source: {
+          type: 'jellyfin',
+          itemId,
+          mediaSourceId: 'ms1',
+          serverId: 'srv',
+        },
+      },
+    }),
+    [{ id: `e-${id}`, type: 'solid', from: 0, to: 10, params: { tag: id } }],
+  );
+
+const effectsOf = (id: string) => ({
+  effects: [{ from: 0, to: 10, type: 'solid', params: { tag: id } }],
+});
+
+const shows = (...entries: [string, string, number][]) => {
+  vi.mocked(listProjects).mockResolvedValue(
+    entries
+      .map(([id, itemId, updatedAt]) => ({
+        id,
+        kind: 'song' as const,
+        name: id,
+        updatedAt,
+        jellyfinItemId: itemId,
+      }))
+      .sort((a, b) => b.updatedAt - a.updatedAt),
+  );
+  vi.mocked(loadProject).mockImplementation((id) => {
+    const entry = entries.find(([projectId]) => projectId === id);
+    return entry
+      ? Promise.resolve(tvSong(...entry))
+      : Promise.reject(new Error(id));
+  });
+};
+
+const tv = (patch: Partial<PlayingSession> = {}): PlayingSession => ({
+  sessionId: 's1',
+  deviceId: 'tv1',
+  deviceName: 'Living room TV',
+  itemId: 'i1',
+  mediaSourceId: 'ms1',
+  title: 'Dynamite',
+  positionS: 100,
+  paused: false,
+  ...patch,
+});
+
+const report = (
+  patch: Partial<Extract<FollowEvent, { kind: 'report' }>> = {},
+): FollowEvent => ({
+  kind: 'report',
+  sessionId: 's1',
+  itemId: 'i1',
+  mediaSourceId: 'ms1',
+  title: 'Dynamite',
+  positionS: 100,
+  paused: false,
+  ...patch,
+});
+
+const lastEffects = () => argsOf('sync_set_effects').slice(-1)[0];
+
+const follow = async (session = tv(), patch: Partial<Settings> = {}) => {
+  await openIn('video', song(30), patch);
+  await store().startFollow(session);
+  vi.clearAllMocks();
+};
+
+const emit = async (event: FollowEvent) => {
+  emitFollow(event);
+  await flush();
+};
+
+it('follows a playing TV in Lights only without saving the mode', async () => {
+  shows(['p1', 'i1', 1]);
+  await openIn('video', song(30), { followOffsets: { tv1: 200 } });
+  await store().startFollow(tv());
+  expect(store().mode).toBe('lights');
+  expect(updateSettings).not.toHaveBeenCalledWith({ playerMode: 'lights' });
+  expect(followStart).toHaveBeenCalledWith('s1');
+  expect(lastEffects()).toEqual(effectsOf('p1'));
+  expect(argsOf('sync_play')).toEqual([{ time: expect.closeTo(99.8, 5) }]);
+  expect(store()).toMatchObject({
+    isPlaying: true,
+    project: { id: 'p1' },
+    follow: { status: 'live', title: 'Dynamite', itemId: 'i1' },
+  });
+});
+
+it('realigns the lights only when the TV is off by more than 0.1 s', async () => {
+  shows(['p1', 'i1', 1]);
+  await follow();
+  advance(3);
+  await emit(report({ positionS: 103.05 }));
+  expect(argsOf('sync_seek')).toEqual([]);
+  await emit(report({ positionS: 103.3 }));
+  expect(argsOf('sync_seek')).toEqual([{ time: expect.closeTo(103.3, 5) }]);
+});
+
+it('pauses and plays with the TV at the reported position', async () => {
+  shows(['p1', 'i1', 1]);
+  await follow();
+  await emit(report({ positionS: 120, paused: true }));
+  expect(invoke).toHaveBeenCalledWith('sync_pause');
+  expect(argsOf('sync_seek')).toEqual([{ time: 120 }]);
+  expect(store().isPlaying).toBe(false);
+  await emit(report({ positionS: 120 }));
+  expect(argsOf('sync_play')).toEqual([{ time: expect.closeTo(120, 5) }]);
+  expect(store().isPlaying).toBe(true);
+});
+
+it('pauses the TV from the Mac and ignores its stale playing report', async () => {
+  shows(['p1', 'i1', 1]);
+  await follow();
+  store().togglePlay();
+  expect(sessionCommand).toHaveBeenCalledWith('s1', 'Pause');
+  expect(invoke).toHaveBeenCalledWith('sync_pause');
+  advance(0.25);
+  await emit(report({ positionS: 100.25 }));
+  expect(argsOf('sync_play')).toEqual([]);
+  expect(store().isPlaying).toBe(false);
+  await emit(report({ positionS: 100.3, paused: true }));
+  expect(argsOf('sync_seek')).toEqual([{ time: expect.closeTo(100.3, 5) }]);
+  expect(store().currentTime).toBeCloseTo(100.3);
+});
+
+it('seeks the TV from the Mac and waits for it to land', async () => {
+  shows(['p1', 'i1', 1]);
+  await follow(tv({ positionS: 50 }));
+  store().seekDelta(10);
+  expect(sessionCommand).toHaveBeenCalledWith('s1', 'Seek', 60);
+  vi.mocked(invoke).mockClear();
+  advance(0.5);
+  await emit(report({ positionS: 51 }));
+  expect(argsOf('sync_seek')).toEqual([]);
+  await emit(report({ positionS: 60.2 }));
+  expect(argsOf('sync_seek')).toEqual([{ time: expect.closeTo(60.2, 5) }]);
+});
+
+it('switches the light show when the TV changes video', async () => {
+  shows(['p1', 'i1', 1]);
+  await follow();
+  shows(['p1', 'i1', 1], ['p2', 'i2', 5], ['p3', 'i2', 9]);
+  await emit(report({ itemId: 'i3', title: 'Butter' }));
+  expect(lastEffects()).toEqual({ effects: [] });
+  expect(store().isPlaying).toBe(false);
+  expect(store().follow).toMatchObject({ itemId: 'i3', candidates: [] });
+
+  await emit(report({ itemId: 'i2' }));
+  expect(store().project?.id).toBe('p3');
+  expect(lastEffects()).toEqual(effectsOf('p3'));
+  expect(store().follow?.candidates.map((c) => c.id)).toEqual(['p3', 'p2']);
+
+  await store().chooseFollowProject('p2');
+  expect(updateSettings).toHaveBeenCalledWith({ followChoices: { i2: 'p2' } });
+  expect(lastEffects()).toEqual(effectsOf('p2'));
+  expect(store().isPlaying).toBe(true);
+});
+
+it('loads the project chosen before for a video', async () => {
+  shows(['p0', 'i1', 1], ['p1', 'i1', 5]);
+  await follow(tv(), { followChoices: { i1: 'p0' } });
+  expect(store().project?.id).toBe('p0');
+});
+
+it('keeps the show of the latest video when loads finish out of order', async () => {
+  shows(['p1', 'i1', 1]);
+  await follow();
+  shows(['p1', 'i1', 1], ['pa', 'ia', 1], ['pb', 'ib', 2]);
+  const pa = tvSong('pa', 'ia', 1);
+  let resolveA: () => void = () => undefined;
+  vi.mocked(loadProject).mockImplementationOnce(
+    () =>
+      new Promise<Project>((resolve) => {
+        resolveA = () => resolve(pa);
+      }),
+  );
+  emitFollow(report({ itemId: 'ia' }));
+  emitFollow(report({ itemId: 'ib' }));
+  await flush();
+  resolveA();
+  await flush();
+  expect(lastEffects()).toEqual(effectsOf('pb'));
+  expect(store().project?.id).toBe('pb');
+});
+
+it('pauses the lights while the TV is lost and resumes on its next report', async () => {
+  shows(['p1', 'i1', 1]);
+  await follow();
+  await emit({ kind: 'lost', sessionId: 's1' });
+  expect(invoke).toHaveBeenCalledWith('sync_pause');
+  expect(store().follow?.status).toBe('lost');
+  advance(5);
+  await emit(report({ positionS: 106 }));
+  expect(argsOf('sync_play')).toEqual([{ time: expect.closeTo(106, 5) }]);
+  expect(store().follow?.status).toBe('live');
+});
+
+it('ignores events from another session', async () => {
+  shows(['p1', 'i1', 1]);
+  await follow();
+  await emit(report({ sessionId: 's2', positionS: 150, paused: true }));
+  await emit({ kind: 'lost', sessionId: 's2' });
+  expect(invoke).not.toHaveBeenCalled();
+  expect(store().follow?.status).toBe('live');
+});
+
+it('keeps an offset per TV and restores the old one when following stops', async () => {
+  shows(['p1', 'i1', 1]);
+  await openIn('video', song(30), { followOffsets: { tv1: 340 } });
+  store().setOffset(120);
+  await store().startFollow(tv());
+  expect(store().offsetMs).toBe(340);
+  store().nudgeOffset(10);
+  await flush();
+  expect(updateSettings).toHaveBeenCalledWith({ followOffsets: { tv1: 350 } });
+  store().stopFollow();
+  expect(followStop).toHaveBeenCalledWith('s1');
+  expect(unlisten).toHaveBeenCalled();
+  expect(store()).toMatchObject({ offsetMs: 120, mode: 'video', follow: null });
+});
+
+it('stops following on leave without loading the video', async () => {
+  shows(['p1', 'i1', 1]);
+  await follow();
+  store().leave();
+  expect(followStop).toHaveBeenCalledWith('s1');
+  expect(openSongSource).not.toHaveBeenCalled();
+  expect(store().follow).toBeNull();
+});
+
+it('drops the listener when following stops before it is ready', async () => {
+  shows(['p1', 'i1', 1]);
+  await openIn('video');
+  let ready: () => void = () => undefined;
+  vi.mocked(listen).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        ready = () => resolve(unlisten);
+      }),
+  );
+  const started = store().startFollow(tv());
+  store().stopFollow();
+  await flush();
+  ready();
+  await started;
+  expect(unlisten).toHaveBeenCalled();
+  expect(followStart).not.toHaveBeenCalled();
+});
+
+it('keeps playing past the end of the project while following', async () => {
+  shows(['p1', 'i1', 1]);
+  await follow(tv({ positionS: 295 }));
+  advance(10);
+  store().tickLights();
+  expect(store().isPlaying).toBe(true);
+  expect(invoke).not.toHaveBeenCalledWith('sync_pause');
 });

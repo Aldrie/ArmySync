@@ -1,21 +1,36 @@
 import { create } from 'zustand';
 
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
+import type { UnlistenFn } from '@tauri-apps/api/event';
 
 import { syncEffectsToRust } from './editor-store';
-import { getSongEffects, getSongMedia } from '../domains/project';
+import {
+  followStart,
+  followStop,
+  sessionCommand,
+} from '../domains/jellyfin/api';
+import type { FollowEvent, PlayingSession } from '../domains/jellyfin/api';
+import {
+  getSongEffects,
+  getSongMedia,
+  isJellyfinMedia,
+  listProjects,
+  loadProject,
+} from '../domains/project';
 import type { Project } from '../domains/project';
 import {
   openSongSource,
   releaseSongSource,
 } from '../domains/project/song-source';
-import { loadSettings, updateSettings } from '../lib/settings';
+import { clampOffset, loadSettings, updateSettings } from '../lib/settings';
 import type { PlayerMode } from '../lib/settings';
 
 const DEFAULT_VOLUME = 0.25;
-const MAX_OFFSET_MS = 1000;
-const OFFSET_STEP_MS = 10;
 const RESYNC_THRESHOLD = 0.04;
+const REALIGN_THRESHOLD = 0.1;
+const COMMAND_WINDOW = 1;
+const SEEK_WINDOW = 3.5;
 
 export const playerRefs: { video: HTMLVideoElement | null } = { video: null };
 
@@ -38,6 +53,42 @@ const clockPause = () => {
   running = false;
 };
 
+export interface FollowState {
+  sessionId: string;
+  deviceId: string;
+  deviceName: string;
+  status: 'live' | 'idle' | 'lost';
+  title: string;
+  itemId: string | null;
+  versionMismatch: boolean;
+  candidates: { id: string; name: string; updatedAt: number }[];
+}
+
+type FollowReport = Extract<FollowEvent, { kind: 'report' }>;
+
+let pending:
+  | { kind: 'pause' | 'play'; until: number }
+  | { kind: 'seek'; positionS: number; until: number }
+  | null = null;
+let followRun = 0;
+let followQueue: Promise<void> = Promise.resolve();
+let unlistenFollow: UnlistenFn | null = null;
+let reportedSourceId: string | null = null;
+let beforeFollow: { mode: PlayerMode; offsetMs: number } = {
+  mode: 'video',
+  offsetMs: 0,
+};
+
+const logFollowError = (e: unknown) =>
+  console.error('Failed to follow the TV:', e);
+
+const settles = (report: FollowReport) =>
+  !pending ||
+  now() > pending.until ||
+  (pending.kind === 'seek'
+    ? Math.abs(report.positionS - pending.positionS) < 1
+    : report.paused === (pending.kind === 'pause'));
+
 interface PlayerState {
   project: Project | null;
   mode: PlayerMode;
@@ -50,6 +101,7 @@ interface PlayerState {
   mediaError: string | null;
   volume: number;
   muted: boolean;
+  follow: FollowState | null;
 
   open: (project: Project) => Promise<void>;
   leave: () => void;
@@ -70,6 +122,9 @@ interface PlayerState {
   onVideoResumed: () => void;
   setVolume: (value: number) => void;
   toggleMute: () => void;
+  startFollow: (session: PlayingSession) => Promise<void>;
+  stopFollow: () => void;
+  chooseFollowProject: (projectId: string) => Promise<void>;
 }
 
 const session = {
@@ -81,6 +136,7 @@ const session = {
   offsetMs: 0,
   videoSrc: '',
   mediaError: null,
+  follow: null,
 };
 
 export const usePlayerStore = create<PlayerState>((set, get) => {
@@ -97,6 +153,141 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     get().pause();
     clockSeek(end);
     set({ currentTime: end });
+  };
+
+  const applyMode = async (mode: PlayerMode) => {
+    if (mode === get().mode) return;
+    if (mode === 'lights') {
+      playerRefs.video?.pause();
+      releaseSongSource();
+      if (get().isPlaying) {
+        const time = playerRefs.video?.currentTime ?? clockTime();
+        if (running) clockSeek(time);
+        else startClock(time);
+      }
+      set({ mode, videoSrc: '', mediaError: null });
+      return;
+    }
+    if (get().isPlaying) {
+      clockPause();
+      void invoke('sync_pause');
+    }
+    set({ mode, currentTime: clockTime() });
+    const { project } = get();
+    if (!project) return;
+    const source = await openSongSource(project);
+    if (source && get().project === project)
+      set(source.mediaError ? { ...source, isPlaying: false } : source);
+  };
+
+  const patchFollow = (patch: Partial<FollowState>) => {
+    const { follow } = get();
+    if (follow) set({ follow: { ...follow, ...patch } });
+  };
+
+  const isCurrent = (run: number, itemId: string) =>
+    run === followRun && get().follow?.itemId === itemId;
+
+  const versionMismatch = (project: Project | null) => {
+    const media = project && getSongMedia(project)?.media;
+    return (
+      !!media &&
+      isJellyfinMedia(media) &&
+      reportedSourceId !== null &&
+      media.source.mediaSourceId !== reportedSourceId
+    );
+  };
+
+  const loadFollowProject = async (id: string, current: () => boolean) => {
+    const project = await loadProject(id);
+    if (!current()) return false;
+    set({ project, duration: getSongMedia(project)?.media.duration ?? 0 });
+    syncEffectsToRust(getSongEffects(project));
+    patchFollow({ versionMismatch: versionMismatch(project) });
+    return true;
+  };
+
+  const switchItem = async (report: FollowReport, run: number) => {
+    pending = null;
+    get().pause();
+    syncEffectsToRust([]);
+    const [summaries, { followChoices }] = await Promise.all([
+      listProjects(),
+      loadSettings(),
+    ]);
+    if (run !== followRun) return false;
+    const candidates = summaries
+      .filter((p) => p.jellyfinItemId === report.itemId)
+      .map(({ id, name, updatedAt }) => ({ id, name, updatedAt }));
+    patchFollow({
+      itemId: report.itemId,
+      title: report.title,
+      candidates,
+      versionMismatch: false,
+    });
+    const chosen =
+      candidates.find((c) => c.id === followChoices[report.itemId]) ??
+      candidates[0];
+    if (!chosen) return false;
+    return loadFollowProject(chosen.id, () => isCurrent(run, report.itemId));
+  };
+
+  const applyReport = (report: FollowReport) => {
+    if (!settles(report)) return;
+    pending = null;
+    const { positionS } = report;
+    if (report.paused) {
+      running = false;
+      clockSeek(positionS);
+      void invoke('sync_pause');
+      void invoke('sync_seek', { time: engineTime(positionS) });
+    } else if (!running) {
+      startClock(positionS);
+    } else if (Math.abs(clockTime() - positionS) > REALIGN_THRESHOLD) {
+      clockSeek(positionS);
+      void invoke('sync_seek', { time: engineTime(positionS) });
+    }
+    set({ isPlaying: !report.paused, currentTime: clockTime() });
+    patchFollow({
+      status: 'live',
+      title: report.title,
+      versionMismatch: versionMismatch(get().project),
+    });
+  };
+
+  const handleFollowEvent = async (event: FollowEvent) => {
+    const { follow } = get();
+    if (!follow || event.sessionId !== follow.sessionId) return;
+    if (event.kind !== 'report') {
+      pending = null;
+      get().pause();
+      patchFollow({ status: event.kind });
+      return;
+    }
+    reportedSourceId = event.mediaSourceId;
+    if (event.itemId !== follow.itemId && !(await switchItem(event, followRun)))
+      return;
+    // No matching project keeps the lights off until the TV changes video.
+    if (get().follow?.candidates.length) applyReport(event);
+  };
+
+  const enqueueFollow = (event: FollowEvent) => {
+    followQueue = followQueue
+      .then(() => handleFollowEvent(event))
+      .catch(logFollowError);
+    return followQueue;
+  };
+
+  const endFollow = () => {
+    const { follow } = get();
+    if (!follow) return;
+    followRun++;
+    void followStop(follow.sessionId).catch(logFollowError);
+    unlistenFollow?.();
+    unlistenFollow = null;
+    pending = null;
+    get().pause();
+    set({ follow: null, offsetMs: beforeFollow.offsetMs });
   };
 
   return {
@@ -127,6 +318,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     },
 
     leave: () => {
+      if (get().follow) {
+        endFollow();
+        set({ mode: beforeFollow.mode });
+      }
       void invoke('sync_pause');
       syncEffectsToRust([]);
       releaseSongSource();
@@ -138,27 +333,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     setMode: async (mode) => {
       if (mode === get().mode) return;
       void updateSettings({ playerMode: mode });
-      if (mode === 'lights') {
-        playerRefs.video?.pause();
-        releaseSongSource();
-        if (get().isPlaying) {
-          const time = playerRefs.video?.currentTime ?? clockTime();
-          if (running) clockSeek(time);
-          else startClock(time);
-        }
-        set({ mode, videoSrc: '', mediaError: null });
-        return;
-      }
-      if (get().isPlaying) {
-        clockPause();
-        void invoke('sync_pause');
-      }
-      set({ mode, currentTime: clockTime() });
-      const { project } = get();
-      if (!project) return;
-      const source = await openSongSource(project);
-      if (source && get().project === project)
-        set(source.mediaError ? { ...source, isPlaying: false } : source);
+      await applyMode(mode);
     },
 
     play: () => {
@@ -187,8 +362,22 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     },
 
     togglePlay: () => {
-      if (get().isPlaying) get().pause();
-      else get().play();
+      const { follow, isPlaying } = get();
+      if (follow) {
+        void sessionCommand(
+          follow.sessionId,
+          isPlaying ? 'Pause' : 'Unpause',
+        ).catch(logFollowError);
+        pending = {
+          kind: isPlaying ? 'pause' : 'play',
+          until: now() + COMMAND_WINDOW,
+        };
+      }
+      if (isPlaying) get().pause();
+      else if (follow) {
+        startClock(clockTime());
+        set({ isPlaying: true });
+      } else get().play();
     },
 
     seek: (time) => {
@@ -206,13 +395,30 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
 
     seekDelta: (delta) => {
       get().seek(clockTime() + delta);
+      const { follow, currentTime } = get();
+      if (!follow) return;
+      pending = {
+        kind: 'seek',
+        positionS: currentTime,
+        until: now() + SEEK_WINDOW,
+      };
+      void sessionCommand(follow.sessionId, 'Seek', currentTime).catch(
+        logFollowError,
+      );
     },
 
     setOffset: (ms) => {
-      const clamped = Math.max(-MAX_OFFSET_MS, Math.min(MAX_OFFSET_MS, ms));
-      set({ offsetMs: Math.round(clamped / OFFSET_STEP_MS) * OFFSET_STEP_MS });
+      const offsetMs = clampOffset(ms);
+      set({ offsetMs });
       if (get().isPlaying)
         void invoke('sync_seek', { time: engineTime(clockTime()) });
+      const { follow } = get();
+      if (follow)
+        void loadSettings().then(({ followOffsets }) =>
+          updateSettings({
+            followOffsets: { ...followOffsets, [follow.deviceId]: offsetMs },
+          }),
+        );
     },
 
     nudgeOffset: (deltaMs) => {
@@ -222,7 +428,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     tickLights: () => {
       const { duration, currentTime } = get();
       const time = clockTime();
-      if (duration > 0 && time >= duration) {
+      if (duration > 0 && time >= duration && !get().follow) {
         stopAtEnd();
         return;
       }
@@ -284,6 +490,72 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       const muted = !get().muted;
       set({ muted });
       if (playerRefs.video) playerRefs.video.muted = muted;
+    },
+
+    startFollow: async (playing) => {
+      if (get().follow) endFollow();
+      else beforeFollow = { mode: get().mode, offsetMs: get().offsetMs };
+      const run = ++followRun;
+      const { sessionId, deviceId, deviceName, title } = playing;
+      set({
+        follow: {
+          sessionId,
+          deviceId,
+          deviceName,
+          status: 'live',
+          title,
+          itemId: null,
+          versionMismatch: false,
+          candidates: [],
+        },
+      });
+      void applyMode('lights');
+      try {
+        const [unlisten, { followOffsets }] = await Promise.all([
+          listen<FollowEvent>('jellyfin-follow', (e) => {
+            void enqueueFollow(e.payload);
+          }),
+          loadSettings(),
+        ]);
+        if (run !== followRun) {
+          unlisten();
+          return;
+        }
+        unlistenFollow = unlisten;
+        set({ offsetMs: followOffsets[deviceId] ?? 0 });
+        await followStart(sessionId);
+      } catch (e) {
+        if (run === followRun) get().stopFollow();
+        throw e;
+      }
+      if (run !== followRun) return;
+      await enqueueFollow({
+        kind: 'report',
+        sessionId,
+        itemId: playing.itemId,
+        mediaSourceId: playing.mediaSourceId,
+        title,
+        positionS: playing.positionS,
+        paused: playing.paused,
+      });
+    },
+
+    stopFollow: () => {
+      if (!get().follow) return;
+      endFollow();
+      void get().setMode(beforeFollow.mode);
+    },
+
+    chooseFollowProject: async (projectId) => {
+      const itemId = get().follow?.itemId;
+      if (!itemId) return;
+      const run = followRun;
+      const { followChoices } = await loadSettings();
+      if (!isCurrent(run, itemId)) return;
+      void updateSettings({
+        followChoices: { ...followChoices, [itemId]: projectId },
+      });
+      await loadFollowProject(projectId, () => isCurrent(run, itemId));
     },
   };
 });

@@ -98,6 +98,8 @@ it('persists delays for two devices and re-applies the latest on reconnect', asy
         bleDelays: { dev1: 60, dev2: 30 },
         remoteLatencyMs: 0,
         playerMode: 'video',
+        followOffsets: {},
+        followChoices: {},
       },
     });
 
