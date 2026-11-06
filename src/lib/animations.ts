@@ -6,3 +6,8 @@ export const spring: Transition = {
   damping: 30,
   mass: 0.6,
 };
+
+export const easeOut: Transition = {
+  duration: 0.22,
+  ease: [0.22, 1, 0.36, 1],
+};

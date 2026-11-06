@@ -1,4 +1,5 @@
 import { Bluetooth, BluetoothOff, ChevronRight } from 'lucide-react';
+import { motion } from 'motion/react';
 import type { RefObject } from 'react';
 import { useCallback, useRef, useState } from 'react';
 
@@ -7,6 +8,7 @@ import Slider from '../../../components/slider';
 import Switch from '../../../components/switch';
 import { Lightstick } from '../../../domains/lightstick';
 import type { LightstickRef } from '../../../domains/lightstick';
+import { easeOut } from '../../../lib/animations';
 import { cn } from '../../../lib/cn';
 import { useBleStore } from '../../../stores/ble-store';
 import { useTransientTime } from '../../../stores/use-transient-time';
@@ -78,12 +80,16 @@ export default function LightstickPanel({
         )}
       </PanelSectionHeader>
 
-      <div
+      <motion.div
         id="preview-section"
-        className={cn(
-          'flex-1 min-h-0 flex-col',
-          previewOpen ? 'flex' : 'hidden',
-        )}
+        className="flex min-h-0 basis-0 flex-col overflow-hidden"
+        initial={false}
+        animate={{
+          flexGrow: previewOpen ? 1 : 0,
+          opacity: previewOpen ? 1 : 0,
+        }}
+        transition={easeOut}
+        inert={!previewOpen}
       >
         <div className="flex-1 flex items-center justify-center min-h-0 overflow-hidden">
           <div className="shrink min-h-0 origin-center scale-60">
@@ -168,7 +174,7 @@ export default function LightstickPanel({
             </span>
           )}
         </section>
-      </div>
+      </motion.div>
 
       {previewOpen && <div className="border-t border-border" />}
       <RemoteSection
