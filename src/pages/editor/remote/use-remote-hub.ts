@@ -94,7 +94,7 @@ export function useRemoteHub() {
                   chunk: take.chunk,
                   lastTakeStart: store().lastTakeStart(),
                 }
-              : { type: 'error', message: 'No song is open on the Mac.' },
+              : { type: 'error', message: 'No project is open on the Mac.' },
           );
           break;
         }

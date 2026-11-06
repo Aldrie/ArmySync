@@ -158,7 +158,7 @@ export default function NewSongModal({
           id={titleId}
           className="font-display text-lg font-bold tracking-tight text-on-surface"
         >
-          New Song
+          New Project
         </h2>
       </div>
 
@@ -290,7 +290,7 @@ export default function NewSongModal({
             ? isYoutube
               ? 'Downloading...'
               : 'Creating...'
-            : 'Create Song'}
+            : 'Create Project'}
         </Button>
       </div>
     </Modal>

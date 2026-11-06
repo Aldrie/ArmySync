@@ -67,7 +67,7 @@ export default function ProjectRow({
           <ListMinus />
         </IconButton>
       )}
-      <IconButton label="Delete song" onClick={onDelete}>
+      <IconButton label="Delete project" onClick={onDelete}>
         <Trash2 />
       </IconButton>
     </div>

@@ -49,14 +49,14 @@ export default function LibraryPage() {
 
   const handleOpen = (id: string) => {
     openProject(id).catch((e: unknown) =>
-      console.error('Failed to open song:', e),
+      console.error('Failed to open project:', e),
     );
   };
 
   const handleConfirmDelete = () => {
     if (!pendingDelete) return;
     deleteProject(pendingDelete.id).catch((e: unknown) =>
-      console.error('Failed to delete song:', e),
+      console.error('Failed to delete project:', e),
     );
     setDeleteOpen(false);
   };
@@ -82,7 +82,7 @@ export default function LibraryPage() {
         <div className="mb-12 flex items-center justify-center">
           <Button intent="primary" size="lg" onClick={() => setModalOpen(true)}>
             <Plus />
-            New Song
+            New Project
             <Kbd>{modKey}N</Kbd>
           </Button>
         </div>
@@ -96,7 +96,7 @@ export default function LibraryPage() {
             {visibleSongs.length > 0 ? (
               <>
                 <h2 className="mb-2.5 truncate px-1 text-xs font-semibold text-on-surface-variant">
-                  {selectedPlaylist?.name ?? 'Songs'}
+                  {selectedPlaylist?.name ?? 'Projects'}
                 </h2>
                 <div className="flex flex-col divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface-low shadow-raised">
                   {visibleSongs.map((project) => (
@@ -124,14 +124,14 @@ export default function LibraryPage() {
             ) : selectedPlaylist ? (
               <EmptyState
                 icon={<ListMusic className="size-5" />}
-                title="No songs in this playlist"
-                body="Add songs with the playlist button on any song"
+                title="No projects in this playlist"
+                body="Add projects with the playlist button on any project"
               />
             ) : (
               <EmptyState
                 icon={<Music className="size-5" />}
-                title="No songs yet"
-                body="Create a song from a video, an audio file or a YouTube link"
+                title="No projects yet"
+                body="Create a project from a video, an audio file, YouTube or Jellyfin"
               />
             )}
           </section>

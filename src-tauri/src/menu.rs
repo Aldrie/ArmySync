@@ -2,7 +2,7 @@ use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::{App, Emitter};
 
 pub fn setup(app: &App) -> Result<(), Box<dyn std::error::Error>> {
-  let new_project = MenuItemBuilder::new("New Song")
+  let new_project = MenuItemBuilder::new("New Project")
     .id("new_project")
     .accelerator("CmdOrCtrl+N")
     .build(app)?;

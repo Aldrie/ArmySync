@@ -47,7 +47,7 @@ export default function ProfilesDialog({ onClose }: { onClose: () => void }) {
 
   const own = profiles.filter((p) => p.projectId === project.id);
   const groups = new Map<string, Profile[]>([
-    [`${project.name} · this song`, own],
+    [`${project.name} · this project`, own],
   ]);
   if (tab === 'all')
     for (const p of profiles) {
@@ -93,7 +93,7 @@ export default function ProfilesDialog({ onClose }: { onClose: () => void }) {
           >
             {(
               [
-                ['song', 'This song'],
+                ['song', 'This project'],
                 ['all', 'All'],
               ] as const
             ).map(([id, label]) => (
@@ -152,7 +152,7 @@ export default function ProfilesDialog({ onClose }: { onClose: () => void }) {
                       </span>
                       <span className="text-[11px] text-[#978e99]">
                         {p.pads.length} pads
-                        {other && ' · using it makes a copy in this song'}
+                        {other && ' · using it makes a copy in this project'}
                       </span>
                     </span>
                     {on && (

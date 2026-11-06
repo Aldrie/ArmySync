@@ -29,7 +29,7 @@ export default function PlaylistSidebar() {
         selected={selectedId === null}
         onSelect={() => select(null)}
       >
-        All songs
+        All projects
       </SidebarItem>
 
       <div className="mt-5 mb-1 flex items-center justify-between pr-1 pl-2.5">
@@ -110,7 +110,7 @@ export default function PlaylistSidebar() {
             Delete playlist “{pendingDelete?.name}”?
           </h2>
           <p className="mt-2 text-sm text-on-surface-variant">
-            Songs stay in your library.
+            Projects stay in your library.
           </p>
         </div>
         <div className="flex justify-end gap-2 rounded-b-xl border-t border-border bg-surface-low/60 px-6 py-4">
