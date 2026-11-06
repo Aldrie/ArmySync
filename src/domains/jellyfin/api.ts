@@ -88,15 +88,19 @@ export const jellyfinWaveform = async (
     }),
   );
 
-export interface PlayingSession {
-  sessionId: string;
-  deviceId: string;
-  deviceName: string;
+export interface NowPlaying {
   itemId: string;
   mediaSourceId: string | null;
   title: string;
   positionS: number;
   paused: boolean;
+}
+
+export interface CastDevice {
+  sessionId: string;
+  deviceId: string;
+  deviceName: string;
+  nowPlaying: NowPlaying | null;
 }
 
 export type FollowEvent =
@@ -114,8 +118,8 @@ export type FollowEvent =
 
 export type SessionCommand = 'Pause' | 'Unpause' | 'Seek';
 
-export const playingSessions = (): Promise<PlayingSession[]> =>
-  invoke('jellyfin_playing_sessions');
+export const castDevices = (): Promise<CastDevice[]> =>
+  invoke('jellyfin_cast_devices');
 
 export const followStart = (sessionId: string): Promise<void> =>
   invoke('jellyfin_follow_start', { sessionId });
@@ -129,3 +133,11 @@ export const sessionCommand = (
   positionS?: number,
 ): Promise<void> =>
   invoke('jellyfin_session_command', { sessionId, command, positionS });
+
+export const playOnSession = (
+  sessionId: string,
+  itemId: string,
+  mediaSourceId: string,
+  startS: number,
+): Promise<void> =>
+  invoke('jellyfin_session_play', { sessionId, itemId, mediaSourceId, startS });

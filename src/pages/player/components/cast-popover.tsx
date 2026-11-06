@@ -3,12 +3,12 @@ import { useEffect, useState } from 'react';
 
 import PlayerPopover from './player-popover';
 import Button from '../../../components/button';
-import { jellyfinStatus, playingSessions } from '../../../domains/jellyfin/api';
-import type { PlayingSession } from '../../../domains/jellyfin/api';
+import { castDevices, jellyfinStatus } from '../../../domains/jellyfin/api';
+import type { CastDevice } from '../../../domains/jellyfin/api';
 import { cn } from '../../../lib/cn';
 import { errorMessage, formatTimeAgo } from '../../../lib/format';
 import { useAppStore } from '../../../stores/app-store';
-import { usePlayerStore } from '../../../stores/player-store';
+import { jellyfinSourceOf, usePlayerStore } from '../../../stores/player-store';
 import type { FollowState } from '../../../stores/player-store';
 import { followPill } from '../follow-pill';
 import type { FollowPill } from '../follow-pill';
@@ -17,6 +17,7 @@ const PILL_TONE: Record<FollowPill, string> = {
   Following: 'bg-primary/12 text-primary',
   'Pick a show': 'bg-primary/12 text-primary',
   'Paused on TV': 'bg-surface-high text-on-surface-variant',
+  'Starting on TV': 'bg-surface-high text-on-surface-variant',
   'Nothing playing': 'bg-surface-high text-on-surface-variant',
   'No light show': 'bg-surface-high text-on-surface-variant',
   Reconnecting: 'bg-[#ffc46e]/12 text-[#ffcf8a]',
@@ -24,8 +25,9 @@ const PILL_TONE: Record<FollowPill, string> = {
 
 export default function CastPopover() {
   const follow = usePlayerStore((s) => s.follow);
+  const canPlay = usePlayerStore((s) => !!jellyfinSourceOf(s.project));
   const [signedIn, setSignedIn] = useState(false);
-  const [sessions, setSessions] = useState<PlayingSession[] | null>(null);
+  const [devices, setDevices] = useState<CastDevice[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -43,10 +45,10 @@ export default function CastPopover() {
   if (!signedIn && !follow) return null;
 
   const loadSessions = () => {
-    setSessions(null);
+    setDevices(null);
     setError(null);
-    playingSessions()
-      .then(setSessions)
+    castDevices()
+      .then(setDevices)
       .catch((e: unknown) => setError(errorMessage(e)));
   };
 
@@ -59,11 +61,11 @@ export default function CastPopover() {
     loadSessions();
   };
 
-  const handlePick = (session: PlayingSession) => {
+  const handlePick = (device: CastDevice) => {
     setError(null);
     usePlayerStore
       .getState()
-      .startFollow(session)
+      .startFollow(device)
       .catch((e: unknown) => setError(errorMessage(e)));
   };
 
@@ -93,42 +95,83 @@ export default function CastPopover() {
             <p role="alert" className="px-2 py-1.5 text-xs text-error">
               {error}
             </p>
-          ) : sessions?.length === 0 ? (
+          ) : devices?.length === 0 ? (
             <p className="px-2 py-1.5 text-xs text-on-surface-variant">
-              Nothing is playing on your Jellyfin devices.
+              No Jellyfin devices are online.
             </p>
           ) : (
-            sessions?.map((s) => (
-              <button
-                key={s.sessionId}
-                type="button"
-                onClick={() => handlePick(s)}
-                className="flex w-full cursor-pointer items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-surface-high"
-              >
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-high text-on-surface-variant">
-                  <Tv aria-hidden="true" className="size-4" />
-                </span>
-                <span className="flex min-w-0 flex-1 flex-col gap-px">
-                  <span className="truncate text-[13px] font-medium">
-                    {s.deviceName}
-                  </span>
-                  <span className="truncate text-[11px] text-outline">
-                    Playing · {s.title}
-                  </span>
-                </span>
-                <ChevronRight
-                  aria-hidden="true"
-                  className="size-4 shrink-0 text-outline"
+            devices && (
+              <>
+                <DeviceSection
+                  title="Playing now"
+                  devices={devices.filter((d) => d.nowPlaying)}
+                  onPick={handlePick}
                 />
-              </button>
-            ))
+                <DeviceSection
+                  title="Available"
+                  devices={devices.filter((d) => !d.nowPlaying)}
+                  disabled={!canPlay}
+                  onPick={handlePick}
+                />
+              </>
+            )
           )}
           <p className="px-2 pt-1.5 pb-1 text-[11px] text-outline">
-            Only devices playing right now show up here.
+            Devices show up while the Jellyfin app is open.
           </p>
         </div>
       )}
     </PlayerPopover>
+  );
+}
+
+function DeviceSection({
+  title,
+  devices,
+  disabled = false,
+  onPick,
+}: {
+  title: string;
+  devices: CastDevice[];
+  disabled?: boolean;
+  onPick: (device: CastDevice) => void;
+}) {
+  if (devices.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-1">
+      <h3 className="px-2 pt-1.5 text-[11px] font-semibold text-outline">
+        {title}
+      </h3>
+      {devices.map((d) => (
+        <button
+          key={d.sessionId}
+          type="button"
+          disabled={disabled}
+          onClick={() => onPick(d)}
+          className="flex w-full cursor-pointer items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-surface-high disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+        >
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-high text-on-surface-variant">
+            <Tv aria-hidden="true" className="size-4" />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col gap-px">
+            <span className="truncate text-[13px] font-medium">
+              {d.deviceName}
+            </span>
+            <span className="truncate text-[11px] text-outline">
+              {d.nowPlaying
+                ? `Playing · ${d.nowPlaying.title}`
+                : disabled
+                  ? 'Open a project with a Jellyfin video to play it on a device'
+                  : 'Play this show here'}
+            </span>
+          </span>
+          <ChevronRight
+            aria-hidden="true"
+            className="size-4 shrink-0 text-outline"
+          />
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -148,6 +191,8 @@ function Following({
   const message: Record<FollowPill, string> = {
     Following: `Light show: ${project?.name ?? follow.title}`,
     'Paused on TV': 'The lights wait and pick up when the TV plays again.',
+    'Starting on TV':
+      'Asked the TV to play this show. The lights start with it.',
     Reconnecting:
       'Lost contact with the TV. The lights are paused until it is back.',
     'Nothing playing': 'Nothing is playing on the TV right now.',

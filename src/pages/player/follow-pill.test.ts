@@ -55,3 +55,9 @@ it('tells paused from playing', () => {
   expect(followPill(follow(), false)).toBe('Paused on TV');
   expect(followPill(follow(), true)).toBe('Following');
 });
+
+it('shows a TV asked to play as starting until it reports', () => {
+  expect(followPill(follow({ status: 'starting', itemId: null }), false)).toBe(
+    'Starting on TV',
+  );
+});

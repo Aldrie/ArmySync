@@ -6,6 +6,7 @@ export type FollowPill =
   | 'Nothing playing'
   | 'Reconnecting'
   | 'Paused on TV'
+  | 'Starting on TV'
   | 'Following';
 
 export const followPill = (
@@ -13,6 +14,7 @@ export const followPill = (
   isPlaying: boolean,
 ): FollowPill => {
   if (follow.status === 'lost') return 'Reconnecting';
+  if (follow.status === 'starting') return 'Starting on TV';
   if (follow.status === 'idle') return 'Nothing playing';
   if (follow.itemId !== null && follow.candidates.length === 0)
     return 'No light show';

@@ -8,9 +8,14 @@ import { playerRefs, usePlayerStore } from './player-store';
 import {
   followStart,
   followStop,
+  playOnSession,
   sessionCommand,
 } from '../domains/jellyfin/api';
-import type { FollowEvent, PlayingSession } from '../domains/jellyfin/api';
+import type {
+  CastDevice,
+  FollowEvent,
+  NowPlaying,
+} from '../domains/jellyfin/api';
 import {
   createSongProject,
   listProjects,
@@ -47,6 +52,7 @@ vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn() }));
 vi.mock('../domains/jellyfin/api', () => ({
   followStart: vi.fn(() => Promise.resolve()),
   followStop: vi.fn(() => Promise.resolve()),
+  playOnSession: vi.fn(() => Promise.resolve()),
   sessionCommand: vi.fn(() => Promise.resolve()),
 }));
 
@@ -362,17 +368,21 @@ const shows = (...entries: [string, string, number][]) => {
   });
 };
 
-const tv = (patch: Partial<PlayingSession> = {}): PlayingSession => ({
+const tv = (patch: Partial<NowPlaying> = {}): CastDevice => ({
   sessionId: 's1',
   deviceId: 'tv1',
   deviceName: 'Living room TV',
-  itemId: 'i1',
-  mediaSourceId: 'ms1',
-  title: 'Dynamite',
-  positionS: 100,
-  paused: false,
-  ...patch,
+  nowPlaying: {
+    itemId: 'i1',
+    mediaSourceId: 'ms1',
+    title: 'Dynamite',
+    positionS: 100,
+    paused: false,
+    ...patch,
+  },
 });
+
+const idleTv = (): CastDevice => ({ ...tv(), nowPlaying: null });
 
 const report = (
   patch: Partial<Extract<FollowEvent, { kind: 'report' }>> = {},
@@ -397,8 +407,7 @@ const emit = async (event: FollowEvent) => {
 const follow = async (session = tv(), patch: Partial<Settings> = {}) => {
   await openIn('video', song(30), patch);
   await store().startFollow(session);
-  const { itemId, mediaSourceId, title, positionS, paused } = session;
-  await emit(report({ itemId, mediaSourceId, title, positionS, paused }));
+  if (session.nowPlaying) await emit(report(session.nowPlaying));
   vi.clearAllMocks();
 };
 
@@ -772,4 +781,48 @@ it('keeps playing past the end of the project while following', async () => {
   store().tickLights();
   expect(store().isPlaying).toBe(true);
   expect(invoke).not.toHaveBeenCalledWith('sync_pause');
+});
+
+it('asks an idle TV to play the opened show and follows it', async () => {
+  shows(['p2', 'i1', 5], ['p1', 'i1', 1]);
+  await openIn('lights', tvSong('p1', 'i1', 1));
+  store().seek(42);
+  const timers = vi.spyOn(globalThis, 'setTimeout');
+  await store().startFollow(idleTv());
+  expect(followStart).toHaveBeenCalledWith('s1');
+  expect(playOnSession).toHaveBeenCalledWith('s1', 'i1', 'ms1', 42);
+  expect(store()).toMatchObject({
+    isPlaying: false,
+    follow: { status: 'starting', title: 'p1' },
+  });
+  await emit({ kind: 'idle', sessionId: 's1' });
+  expect(store().follow?.status).toBe('starting');
+  await emit(report({ positionS: 42 }));
+  expect(store()).toMatchObject({
+    isPlaying: true,
+    project: { id: 'p1' },
+    follow: { status: 'live', chosen: true },
+  });
+  const giveUp = timers.mock.calls.find(([, ms]) => ms === 10_000)?.[0];
+  (giveUp as () => void)();
+  expect(store().follow?.status).toBe('live');
+});
+
+it('stops waiting for an idle TV that never starts', async () => {
+  await openIn('lights', tvSong('p1', 'i1', 1));
+  const timers = vi.spyOn(globalThis, 'setTimeout');
+  await store().startFollow(idleTv());
+  await emit({ kind: 'idle', sessionId: 's1' });
+  const giveUp = timers.mock.calls.find(([, ms]) => ms === 10_000)?.[0];
+  (giveUp as () => void)();
+  expect(store().follow?.status).toBe('idle');
+});
+
+it('refuses to play on an idle TV without a Jellyfin video', async () => {
+  await openIn('lights', song(30));
+  await expect(store().startFollow(idleTv())).rejects.toThrow(
+    'Open a project with a Jellyfin video',
+  );
+  expect(followStart).not.toHaveBeenCalled();
+  expect(store().follow).toBeNull();
 });

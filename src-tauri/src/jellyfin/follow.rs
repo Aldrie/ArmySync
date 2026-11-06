@@ -18,15 +18,21 @@ const WHOLE_SECOND: i64 = TICKS_PER_SECOND as i64;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PlayingSession {
-  session_id: String,
-  device_id: String,
-  device_name: String,
+pub struct NowPlaying {
   item_id: String,
   media_source_id: Option<String>,
   title: String,
   position_s: f64,
   paused: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CastDevice {
+  session_id: String,
+  device_id: String,
+  device_name: String,
+  now_playing: Option<NowPlaying>,
 }
 
 #[derive(Debug, PartialEq, Serialize)]
@@ -112,29 +118,43 @@ fn sample(session: &Value) -> Sample {
   }
 }
 
-fn parse_sessions(res: &Value, own_device_id: &str) -> Vec<PlayingSession> {
+fn plays_video_on_command(session: &Value) -> bool {
+  let mut types = session["PlayableMediaTypes"]
+    .as_array()
+    .into_iter()
+    .flatten();
+  session["SupportsRemoteControl"] == true && types.any(|t| t == "Video")
+}
+
+fn parse_devices(res: &Value, own_device_id: &str) -> Vec<CastDevice> {
   let sessions = res.as_array().into_iter().flatten();
   sessions
     .filter(|s| s["DeviceId"] != own_device_id)
-    .filter_map(|s| match sample(s) {
-      Sample::Found {
-        item_id,
-        media_source_id,
-        title,
-        position_ticks,
-        paused,
-        ..
-      } => Some(PlayingSession {
+    .filter_map(|s| {
+      let now_playing = match sample(s) {
+        Sample::Found {
+          item_id,
+          media_source_id,
+          title,
+          position_ticks,
+          paused,
+          ..
+        } => Some(NowPlaying {
+          item_id,
+          media_source_id,
+          title,
+          position_s: position_ticks / TICKS_PER_SECOND,
+          paused,
+        }),
+        _ if plays_video_on_command(s) => None,
+        _ => return None,
+      };
+      Some(CastDevice {
         session_id: string(&s["Id"]),
         device_id: string(&s["DeviceId"]),
         device_name: string(&s["DeviceName"]),
-        item_id,
-        media_source_id,
-        title,
-        position_s: position_ticks / TICKS_PER_SECOND,
-        paused,
-      }),
-      _ => None,
+        now_playing,
+      })
     })
     .collect()
 }
@@ -264,6 +284,22 @@ fn command_path(
   }
 }
 
+fn play_path(
+  session_id: &str,
+  item_id: &str,
+  media_source_id: Option<&str>,
+  start_s: f64,
+) -> String {
+  let ticks = (start_s.max(0.0) * TICKS_PER_SECOND).round() as i64;
+  let mut path = format!(
+    "/Sessions/{session_id}/Playing?playCommand=PlayNow&itemIds={item_id}&startPositionTicks={ticks}"
+  );
+  if let Some(id) = media_source_id {
+    path.push_str(&format!("&mediaSourceId={id}"));
+  }
+  path
+}
+
 async fn poll_sample(state: &JellyfinState, session_id: &str) -> Sample {
   let res = send(state, Method::GET, "/Sessions", None, Some(POLL_TIMEOUT)).await;
   match res {
@@ -295,12 +331,12 @@ async fn poll(app: AppHandle, session_id: String) {
 }
 
 #[tauri::command]
-pub async fn jellyfin_playing_sessions(
+pub async fn jellyfin_cast_devices(
   state: State<'_, JellyfinState>,
-) -> Result<Vec<PlayingSession>, String> {
+) -> Result<Vec<CastDevice>, String> {
   let path = "/Sessions?activeWithinSeconds=120";
   let res = send(&state, Method::GET, path, None, Some(JSON_TIMEOUT)).await?;
-  Ok(parse_sessions(&ok_json(res).await?, &state.device_id()))
+  Ok(parse_devices(&ok_json(res).await?, &state.device_id()))
 }
 
 #[tauri::command]
@@ -346,6 +382,24 @@ pub async fn jellyfin_session_command(
   Ok(())
 }
 
+#[tauri::command]
+pub async fn jellyfin_session_play(
+  session_id: String,
+  item_id: String,
+  media_source_id: Option<String>,
+  start_s: f64,
+  state: State<'_, JellyfinState>,
+) -> Result<(), String> {
+  validate_id(&session_id)?;
+  validate_id(&item_id)?;
+  if let Some(id) = &media_source_id {
+    validate_id(id)?;
+  }
+  let path = play_path(&session_id, &item_id, media_source_id.as_deref(), start_s);
+  send(&state, Method::POST, &path, None, Some(JSON_TIMEOUT)).await?;
+  Ok(())
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -357,7 +411,12 @@ mod tests {
        "LastPlaybackCheckIn":"2026-11-06T20:00:03.0000000Z",
        "NowPlayingItem":{"Id":"it","Name":"Yet To Come"},
        "PlayState":{"PositionTicks":123450000_i64,"IsPaused":false,"MediaSourceId":"ms"}},
-      {"Id":"web","DeviceId":"webdev","DeviceName":"Firefox","PlayState":{}},
+      {"Id":"web","DeviceId":"webdev","DeviceName":"Firefox","PlayState":{},
+       "SupportsRemoteControl":true,"PlayableMediaTypes":["Audio","Video"]},
+      {"Id":"app","DeviceId":"appdev","DeviceName":"Phone","PlayState":{},
+       "SupportsRemoteControl":false,"PlayableMediaTypes":["Video"]},
+      {"Id":"music","DeviceId":"musicdev","DeviceName":"Speaker","PlayState":{},
+       "SupportsRemoteControl":true,"PlayableMediaTypes":["Audio"]},
       {"Id":"me","DeviceId":"mine","DeviceName":"Mac",
        "NowPlayingItem":{"Id":"it","Name":"Yet To Come"},
        "PlayState":{"PositionTicks":0,"IsPaused":true}}
@@ -403,23 +462,23 @@ mod tests {
   }
 
   #[test]
-  fn the_picker_lists_only_other_devices_that_play() {
-    let list = parse_sessions(&sessions(), "mine");
-    assert_eq!(list.len(), 1);
+  fn the_picker_lists_playing_devices_and_idle_ones_that_take_video_commands() {
+    let list = parse_devices(&sessions(), "mine");
+    let ids: Vec<_> = list.iter().map(|d| d.session_id.as_str()).collect();
+    assert_eq!(ids, ["tv", "web"]);
     let tv = &list[0];
+    let playing = tv.now_playing.as_ref().unwrap();
     assert_eq!(
       (
-        tv.session_id.as_str(),
         tv.device_id.as_str(),
         tv.device_name.as_str(),
-        tv.item_id.as_str(),
-        tv.media_source_id.as_deref(),
-        tv.title.as_str(),
-        tv.position_s,
-        tv.paused
+        playing.item_id.as_str(),
+        playing.media_source_id.as_deref(),
+        playing.title.as_str(),
+        playing.position_s,
+        playing.paused
       ),
       (
-        "tv",
         "tvdev",
         "Android TV",
         "it",
@@ -428,6 +487,19 @@ mod tests {
         12.345,
         false
       )
+    );
+    assert!(list[1].now_playing.is_none());
+  }
+
+  #[test]
+  fn builds_the_play_now_path() {
+    assert_eq!(
+      play_path("abc", "it", Some("ms"), 12.5),
+      "/Sessions/abc/Playing?playCommand=PlayNow&itemIds=it&startPositionTicks=125000000&mediaSourceId=ms"
+    );
+    assert_eq!(
+      play_path("abc", "it", None, -1.0),
+      "/Sessions/abc/Playing?playCommand=PlayNow&itemIds=it&startPositionTicks=0"
     );
   }
 

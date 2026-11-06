@@ -8,9 +8,10 @@ import { syncEffectsToRust } from './editor-store';
 import {
   followStart,
   followStop,
+  playOnSession,
   sessionCommand,
 } from '../domains/jellyfin/api';
-import type { FollowEvent, PlayingSession } from '../domains/jellyfin/api';
+import type { CastDevice, FollowEvent } from '../domains/jellyfin/api';
 import {
   getSongEffects,
   getSongMedia,
@@ -31,6 +32,7 @@ const RESYNC_THRESHOLD = 0.04;
 const REALIGN_THRESHOLD = 0.1;
 const COMMAND_WINDOW = 1;
 const SEEK_WINDOW = 3.5;
+const STARTING_WINDOW_MS = 10_000;
 
 export const playerRefs: { video: HTMLVideoElement | null } = { video: null };
 
@@ -57,7 +59,7 @@ export interface FollowState {
   sessionId: string;
   deviceId: string;
   deviceName: string;
-  status: 'live' | 'idle' | 'lost';
+  status: 'starting' | 'live' | 'idle' | 'lost';
   title: string;
   itemId: string | null;
   versionMismatch: boolean;
@@ -77,6 +79,7 @@ let followQueue: Promise<void> = Promise.resolve();
 let followCommands: Promise<unknown> = Promise.resolve();
 let unlistenFollow: UnlistenFn | null = null;
 let reportedSourceId: string | null = null;
+let startedProjectId: string | null = null;
 let beforeFollow: {
   mode: PlayerMode;
   offsetMs: number;
@@ -91,6 +94,11 @@ const queueFollowCommand = (task: () => Promise<void>) => {
   const run = followCommands.then(task);
   followCommands = run.catch(() => undefined);
   return run;
+};
+
+export const jellyfinSourceOf = (project: Project | null) => {
+  const media = project && getSongMedia(project)?.media;
+  return media && isJellyfinMedia(media) ? media.source : null;
 };
 
 const settles = (report: FollowReport) =>
@@ -133,7 +141,7 @@ interface PlayerState {
   onVideoResumed: () => void;
   setVolume: (value: number) => void;
   toggleMute: () => void;
-  startFollow: (session: PlayingSession) => Promise<void>;
+  startFollow: (device: CastDevice) => Promise<void>;
   stopFollow: () => void;
   chooseFollowProject: (projectId: string) => Promise<void>;
 }
@@ -230,9 +238,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     const candidates = summaries
       .filter((p) => p.jellyfinItemId === report.itemId)
       .map(({ id, name, updatedAt }) => ({ id, name, updatedAt }));
-    const remembered = candidates.find(
-      (c) => c.id === followChoices[report.itemId],
-    );
+    const remembered =
+      candidates.find((c) => c.id === startedProjectId) ??
+      candidates.find((c) => c.id === followChoices[report.itemId]);
     patchFollow({
       itemId: report.itemId,
       title: report.title,
@@ -274,6 +282,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
   const handleFollowEvent = async (event: FollowEvent, receivedAt: number) => {
     const { follow } = get();
     if (!follow || event.sessionId !== follow.sessionId) return;
+    if (event.kind === 'idle' && follow.status === 'starting') return;
     if (event.kind !== 'report') {
       pending = null;
       get().pause();
@@ -520,21 +529,30 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       if (playerRefs.video) playerRefs.video.muted = muted;
     },
 
-    startFollow: async (playing) => {
+    startFollow: async (device) => {
+      const { project } = get();
+      const source = device.nowPlaying ? null : jellyfinSourceOf(project);
+      if (!device.nowPlaying && !source)
+        throw new Error(
+          'Open a project with a Jellyfin video to play it on a device',
+        );
       if (get().follow) endFollow();
       else {
         const { mode, offsetMs, project } = get();
         beforeFollow = { mode, offsetMs, project };
       }
       const run = ++followRun;
-      const { sessionId, deviceId, deviceName, title } = playing;
+      const { sessionId, deviceId, deviceName, nowPlaying } = device;
+      startedProjectId = source ? (project?.id ?? null) : null;
+      if (source) get().pause();
+      const startS = get().currentTime;
       set({
         follow: {
           sessionId,
           deviceId,
           deviceName,
-          status: 'live',
-          title,
+          status: source ? 'starting' : 'live',
+          title: nowPlaying?.title ?? project?.name ?? '',
           itemId: null,
           versionMismatch: false,
           candidates: [],
@@ -556,6 +574,17 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         unlistenFollow = unlisten;
         set({ offsetMs: followOffsets[deviceId] ?? 0 });
         await queueFollowCommand(() => followStart(sessionId));
+        if (!source || run !== followRun) return;
+        await playOnSession(
+          sessionId,
+          source.itemId,
+          source.mediaSourceId,
+          startS,
+        );
+        setTimeout(() => {
+          if (run === followRun && get().follow?.status === 'starting')
+            patchFollow({ status: 'idle' });
+        }, STARTING_WINDOW_MS);
       } catch (e) {
         if (run === followRun) get().stopFollow();
         throw e;
@@ -577,6 +606,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       void updateSettings({
         followChoices: { ...followChoices, [itemId]: projectId },
       });
+      startedProjectId = null;
       patchFollow({ chosen: true });
       await loadFollowProject(projectId, () => isCurrent(run, itemId));
     },
