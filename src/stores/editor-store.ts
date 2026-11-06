@@ -6,22 +6,21 @@ import { invoke } from '@tauri-apps/api/core';
 
 import { editorRefs } from './editor-refs';
 import type { EffectInstance } from '../domains/effects';
-import {
-  closeJellyfinStream,
-  jellyfinWaveform,
-  openJellyfinStream,
-} from '../domains/jellyfin';
+import { jellyfinWaveform } from '../domains/jellyfin';
 import {
   getSongEffects,
   getSongMedia,
   isJellyfinMedia,
   projectFilePath,
-  projectFileUrl,
   saveProject,
   withSongEffects,
   withSongMediaDuration,
 } from '../domains/project';
 import type { MediaType, Project } from '../domains/project';
+import {
+  openSongSource,
+  releaseSongSource,
+} from '../domains/project/song-source';
 import { applyTake } from '../domains/remote';
 import type { Take } from '../domains/remote';
 import { extractWaveform } from '../lib/audio';
@@ -147,33 +146,6 @@ export function useHistoryBatch(session: number | null) {
   useEffect(() => {
     if (session !== null) return beginHistoryBatch();
   }, [session]);
-}
-
-let openGeneration = 0;
-let leftGeneration = -1;
-
-async function songSource(
-  project: Project,
-): Promise<{ videoSrc: string; mediaError: string | null }> {
-  const song = getSongMedia(project);
-  if (!song) return { videoSrc: '', mediaError: null };
-  if (!isJellyfinMedia(song.media)) {
-    return {
-      videoSrc: await projectFileUrl(project.id, song.media.file),
-      mediaError: null,
-    };
-  }
-  const generation = openGeneration;
-  try {
-    const { itemId, mediaSourceId } = song.media.source;
-    const videoSrc = await openJellyfinStream(itemId, mediaSourceId);
-    // A newer open already replaced this session on the server; only an editor exit leaves it orphaned.
-    if (generation !== openGeneration && openGeneration === leftGeneration)
-      void closeJellyfinStream();
-    return { videoSrc, mediaError: null };
-  } catch (err) {
-    return { videoSrc: '', mediaError: String(err) };
-  }
 }
 
 function scheduleAutoSave(save: () => Promise<void>) {
@@ -533,7 +505,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   initFromProject: async (project) => {
-    const generation = ++openGeneration;
     const song = getSongMedia(project);
     const effects = getSongEffects(project);
 
@@ -555,8 +526,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       waveformLoading: false,
     });
 
-    const source = await songSource(project);
-    if (generation === openGeneration) set(source);
+    const source = await openSongSource(project);
+    if (source) set(source);
   },
 
   saveEffects: async () => {
@@ -573,8 +544,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   resetEditor: () => {
     if (autoSaveTimer) clearTimeout(autoSaveTimer);
-    leftGeneration = ++openGeneration;
-    void closeJellyfinStream();
+    releaseSongSource();
     set({
       project: null,
       isDirty: false,
@@ -635,11 +605,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   retryMedia: async () => {
     const { project } = get();
     if (!project) return;
-    const generation = openGeneration;
     get().pause();
     set({ mediaError: null, videoSrc: '' });
-    const source = await songSource(project);
-    if (generation === openGeneration) set(source);
+    const source = await openSongSource(project);
+    if (source) set(source);
   },
 
   setMediaError: (message) => {
@@ -656,7 +625,7 @@ async function persist(next: Project) {
   }
 }
 
-function syncEffectsToRust(effects: EffectInstance[]) {
+export function syncEffectsToRust(effects: EffectInstance[]) {
   const payload = effects.map((e) => ({
     from: e.from,
     to: e.to,
