@@ -99,7 +99,11 @@ fn run_loop(engine: Arc<Mutex<SyncEngine>>, shutdown: Arc<AtomicBool>, app: AppH
     let interval = {
       let state = lock_engine(&engine);
 
-      let hz = if state.playback.playing { state.hz } else { IDLE_HZ };
+      let hz = if state.playback.playing {
+        state.hz
+      } else {
+        IDLE_HZ
+      };
 
       Duration::from_micros(1_000_000 / u64::from(hz))
     };
@@ -125,7 +129,12 @@ fn run_loop(engine: Arc<Mutex<SyncEngine>>, shutdown: Arc<AtomicBool>, app: AppH
 
     if preview_changed {
       if let Some(rgb) = preview_color {
-        if let Err(e) = app.emit("color-update", ColorUpdate { color: rgb_to_hex(rgb) }) {
+        if let Err(e) = app.emit(
+          "color-update",
+          ColorUpdate {
+            color: rgb_to_hex(rgb),
+          },
+        ) {
           eprintln!("[sync] failed to emit color-update: {e}");
         }
       }
@@ -165,7 +174,12 @@ pub fn sync_seek(time: f64, state: tauri::State<'_, SyncState>, app: AppHandle) 
   drop(engine);
 
   if let Some(rgb) = color {
-    if let Err(e) = app.emit("color-update", ColorUpdate { color: rgb_to_hex(rgb) }) {
+    if let Err(e) = app.emit(
+      "color-update",
+      ColorUpdate {
+        color: rgb_to_hex(rgb),
+      },
+    ) {
       eprintln!("[sync] failed to emit color-update: {e}");
     }
   }

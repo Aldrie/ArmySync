@@ -4,9 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use btleplug::api::{
-  Central, CentralEvent, Manager as _, Peripheral as _, ScanFilter, WriteType,
-};
+use btleplug::api::{Central, CentralEvent, Manager as _, Peripheral as _, ScanFilter, WriteType};
 use btleplug::platform::{Adapter, Manager, Peripheral};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager as TauriManager};
@@ -180,7 +178,11 @@ pub async fn ble_connect(
 ) -> Result<(), String> {
   let (adapter, connected) = {
     let ble = state.lock().await;
-    let adapter = ble.adapter.as_ref().ok_or("No adapter — scan first")?.clone();
+    let adapter = ble
+      .adapter
+      .as_ref()
+      .ok_or("No adapter — scan first")?
+      .clone();
     (adapter, ble.connected.clone())
   };
 
@@ -289,9 +291,7 @@ async fn ble_writer_loop(
     }
 
     // Brief std::sync::Mutex lock — acceptable since the critical section is trivial
-    let Some((playing, time, effects)) = app
-      .try_state::<SyncState>()
-      .map(|s| s.read_playback())
+    let Some((playing, time, effects)) = app.try_state::<SyncState>().map(|s| s.read_playback())
     else {
       continue;
     };

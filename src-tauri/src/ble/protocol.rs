@@ -41,29 +41,26 @@ pub fn detect_type(name: &str) -> Option<DeviceType> {
   }
 }
 
-pub const SERVICE_OLDER: Uuid =
-  Uuid::from_u128(0x00010203_0405_0607_0809_0a0b0c0d1911);
+pub const SERVICE_OLDER: Uuid = Uuid::from_u128(0x00010203_0405_0607_0809_0a0b0c0d1911);
 
 #[allow(dead_code)]
-pub const SERVICE_V4_INFO: Uuid =
-  Uuid::from_u128(0x0000180a_0000_1000_8000_00805f9b34fb);
+pub const SERVICE_V4_INFO: Uuid = Uuid::from_u128(0x0000180a_0000_1000_8000_00805f9b34fb);
 
-pub const SERVICE_V4_COLOR: Uuid =
-  Uuid::from_u128(0x0001fe01_0000_1000_8000_00805f9800c4);
+pub const SERVICE_V4_COLOR: Uuid = Uuid::from_u128(0x0001fe01_0000_1000_8000_00805f9800c4);
 
-pub const CHAR_V4_WRITE: Uuid =
-  Uuid::from_u128(0x0001ff01_0000_1000_8000_00805f9800c4);
+pub const CHAR_V4_WRITE: Uuid = Uuid::from_u128(0x0001ff01_0000_1000_8000_00805f9800c4);
 
 /// Older devices use writeWithoutResponse
-pub const CHAR_OLDER_WRITE: Uuid =
-  Uuid::from_u128(0x00010203_0405_0607_0809_0a0b0c0d2b19);
+pub const CHAR_OLDER_WRITE: Uuid = Uuid::from_u128(0x00010203_0405_0607_0809_0a0b0c0d2b19);
 
 pub fn build_v4_packet(rgb: [u8; 3], transition: u8) -> Vec<u8> {
   vec![rgb[0], rgb[1], rgb[2], transition]
 }
 
 pub fn build_older_packet(rgb: [u8; 3]) -> Vec<u8> {
-  let mut packet = vec![0x01, 0x01, 0x0B, 0x00, 0x00, rgb[0], rgb[1], rgb[2], 0x00, 0x00, 0x00];
+  let mut packet = vec![
+    0x01, 0x01, 0x0B, 0x00, 0x00, rgb[0], rgb[1], rgb[2], 0x00, 0x00, 0x00,
+  ];
   let sum: u16 = packet[2..10].iter().map(|&b| u16::from(b)).sum();
   packet[10] = (sum & 0xFF) as u8;
   packet
