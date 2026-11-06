@@ -269,7 +269,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     });
   };
 
-  const handleFollowEvent = async (event: FollowEvent) => {
+  const handleFollowEvent = async (event: FollowEvent, receivedAt: number) => {
     const { follow } = get();
     if (!follow || event.sessionId !== follow.sessionId) return;
     if (event.kind !== 'report') {
@@ -281,14 +281,18 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
     reportedSourceId = event.mediaSourceId;
     if (event.itemId !== follow.itemId && !(await switchItem(event, followRun)))
       return;
-    applyReport(event);
+    applyReport(
+      event.paused
+        ? event
+        : { ...event, positionS: event.positionS + now() - receivedAt },
+    );
   };
 
   const enqueueFollow = (event: FollowEvent) => {
+    const receivedAt = now();
     followQueue = followQueue
-      .then(() => handleFollowEvent(event))
+      .then(() => handleFollowEvent(event, receivedAt))
       .catch(logFollowError);
-    return followQueue;
   };
 
   const endFollow = () => {
@@ -532,7 +536,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
       try {
         const [unlisten, { followOffsets }] = await Promise.all([
           listen<FollowEvent>('jellyfin-follow', (e) => {
-            void enqueueFollow(e.payload);
+            enqueueFollow(e.payload);
           }),
           loadSettings(),
         ]);
@@ -547,16 +551,6 @@ export const usePlayerStore = create<PlayerState>((set, get) => {
         if (run === followRun) get().stopFollow();
         throw e;
       }
-      if (run !== followRun) return;
-      await enqueueFollow({
-        kind: 'report',
-        sessionId,
-        itemId: playing.itemId,
-        mediaSourceId: playing.mediaSourceId,
-        title,
-        positionS: playing.positionS,
-        paused: playing.paused,
-      });
     },
 
     stopFollow: () => {

@@ -389,15 +389,17 @@ const report = (
 
 const lastEffects = () => argsOf('sync_set_effects').slice(-1)[0];
 
-const follow = async (session = tv(), patch: Partial<Settings> = {}) => {
-  await openIn('video', song(30), patch);
-  await store().startFollow(session);
-  vi.clearAllMocks();
-};
-
 const emit = async (event: FollowEvent) => {
   emitFollow(event);
   await flush();
+};
+
+const follow = async (session = tv(), patch: Partial<Settings> = {}) => {
+  await openIn('video', song(30), patch);
+  await store().startFollow(session);
+  const { itemId, mediaSourceId, title, positionS, paused } = session;
+  await emit(report({ itemId, mediaSourceId, title, positionS, paused }));
+  vi.clearAllMocks();
 };
 
 it('follows a playing TV in Lights only without saving the mode', async () => {
@@ -407,6 +409,7 @@ it('follows a playing TV in Lights only without saving the mode', async () => {
   expect(store().mode).toBe('lights');
   expect(updateSettings).not.toHaveBeenCalledWith({ playerMode: 'lights' });
   expect(followStart).toHaveBeenCalledWith('s1');
+  await emit(report());
   expect(lastEffects()).toEqual(effectsOf('p1'));
   expect(argsOf('sync_play')).toEqual([{ time: expect.closeTo(99.8, 5) }]);
   expect(store()).toMatchObject({
@@ -414,6 +417,37 @@ it('follows a playing TV in Lights only without saving the mode', async () => {
     project: { id: 'p1' },
     follow: { status: 'live', title: 'Dynamite', itemId: 'i1' },
   });
+});
+
+it('waits for the first report from Rust instead of the picked session', async () => {
+  shows(['p1', 'i1', 1]);
+  await openIn('video');
+  await store().startFollow(tv());
+  expect(argsOf('sync_play')).toEqual([]);
+  expect(store()).toMatchObject({
+    isPlaying: false,
+    project: { id: 'p1' },
+    follow: { title: 'Dynamite', deviceName: 'Living room TV', itemId: null },
+  });
+});
+
+it('moves a playing report on by the time it waited to apply', async () => {
+  shows(['p1', 'i1', 1]);
+  await follow();
+  shows(['p1', 'i1', 1], ['p2', 'i2', 5]);
+  let loaded: () => void = () => undefined;
+  vi.mocked(loadProject).mockImplementationOnce(
+    () =>
+      new Promise<Project>((resolve) => {
+        loaded = () => resolve(tvSong('p2', 'i2', 5));
+      }),
+  );
+  emitFollow(report({ itemId: 'i2', positionS: 40 }));
+  await flush();
+  advance(2);
+  loaded();
+  await flush();
+  expect(argsOf('sync_play')).toEqual([{ time: expect.closeTo(42, 5) }]);
 });
 
 it('realigns the lights only when the TV is off by more than 0.1 s', async () => {
