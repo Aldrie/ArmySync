@@ -402,3 +402,29 @@ it('unmounts the stopped stream before retrying it', async () => {
   await retrying;
   expect(useEditorStore.getState().videoSrc).toBe('same');
 });
+
+it('pauses the lights when the stream fails mid-song', async () => {
+  streamAt('u');
+  await useEditorStore.getState().initFromProject(jellyfinSong());
+  useEditorStore.setState({ isPlaying: true });
+  useEditorStore.getState().setMediaError('The video stream stopped.');
+  expect(useEditorStore.getState().isPlaying).toBe(false);
+  expect(invoke).toHaveBeenCalledWith('sync_pause');
+});
+
+it('pauses the lights before retrying a stream', async () => {
+  streamAt('u');
+  await useEditorStore.getState().initFromProject(jellyfinSong());
+  useEditorStore.setState({ isPlaying: true });
+  vi.mocked(invoke).mockClear();
+  await useEditorStore.getState().retryMedia();
+  expect(invoke).toHaveBeenCalledWith('sync_pause');
+});
+
+it('keeps the seeded duration while the stream reports none', async () => {
+  streamAt('u');
+  editorRefs.video = { duration: NaN, volume: 1 } as HTMLVideoElement;
+  await useEditorStore.getState().initFromProject(jellyfinSong());
+  await useEditorStore.getState().handleVideoLoad();
+  expect(useEditorStore.getState().videoDuration).toBe(6528);
+});

@@ -601,7 +601,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (!el) return;
 
     el.volume = get().volume;
-    set({ videoDuration: el.duration });
+    if (Number.isFinite(el.duration)) set({ videoDuration: el.duration });
 
     const { project } = get();
     const song = project && getSongMedia(project);
@@ -636,12 +636,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const { project } = get();
     if (!project) return;
     const generation = openGeneration;
-    set({ isPlaying: false, mediaError: null, videoSrc: '' });
+    get().pause();
+    set({ mediaError: null, videoSrc: '' });
     const source = await songSource(project);
     if (generation === openGeneration) set(source);
   },
 
-  setMediaError: (message) => set({ mediaError: message }),
+  setMediaError: (message) => {
+    if (message !== null) get().pause();
+    set({ mediaError: message });
+  },
 }));
 
 async function persist(next: Project) {
