@@ -5,6 +5,7 @@ import {
   createSongProject,
   getSongEffects,
   getSongMedia,
+  isJellyfinMedia,
   mediaTypeFromPath,
   parseProject,
   withSongEffects,
@@ -35,6 +36,31 @@ const flash: EffectInstance = {
   to: 1,
   params: { colors: ['#fff', '#000'], bpm: 180 },
 };
+
+describe('isJellyfinMedia', () => {
+  it('tells Jellyfin media apart', () => {
+    expect(
+      isJellyfinMedia({
+        type: 'video',
+        duration: 1,
+        source: {
+          type: 'jellyfin',
+          itemId: 'i',
+          mediaSourceId: 'm',
+          serverId: 's',
+        },
+      }),
+    ).toBe(true);
+    expect(
+      isJellyfinMedia({
+        file: 'media/a.mp4',
+        type: 'video',
+        duration: 1,
+        source: { type: 'file', originalName: 'a.mp4' },
+      }),
+    ).toBe(false);
+  });
+});
 
 describe('mediaTypeFromPath', () => {
   it('detects media type from the extension, case-insensitively', () => {

@@ -23,6 +23,7 @@ const summary = (id: string): ProjectSummary => ({
   kind: 'song',
   name: id,
   updatedAt: 0,
+  jellyfinItemId: null,
 });
 
 describe('playlists', () => {

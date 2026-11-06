@@ -9,6 +9,7 @@ import type { EffectInstance } from '../domains/effects';
 import {
   getSongEffects,
   getSongMedia,
+  isJellyfinMedia,
   projectFilePath,
   projectFileUrl,
   saveProject,
@@ -497,9 +498,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   initFromProject: async (project) => {
     const song = getSongMedia(project);
-    const videoSrc = song
-      ? await projectFileUrl(project.id, song.media.file)
-      : '';
+    const videoSrc =
+      song && !isJellyfinMedia(song.media)
+        ? await projectFileUrl(project.id, song.media.file)
+        : '';
     const effects = getSongEffects(project);
 
     set({
@@ -570,6 +572,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       );
     }
 
+    if (isJellyfinMedia(song.media)) return;
     set({ waveformLoading: true });
     try {
       const path = await projectFilePath(project.id, song.media.file);

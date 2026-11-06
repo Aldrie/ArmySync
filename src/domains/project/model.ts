@@ -1,10 +1,20 @@
 import { createId } from '@paralleldrive/cuid2';
 
 import type { EffectInstance } from '../effects';
-import type { Clip, MediaEntry, MediaType, Project, Track } from './types';
+import type {
+  Clip,
+  JellyfinMediaEntry,
+  MediaEntry,
+  MediaType,
+  Project,
+  Track,
+} from './types';
 
 export const VIDEO_EXTENSIONS: string[] = ['mp4', 'mov', 'm4v'];
 export const AUDIO_EXTENSIONS: string[] = ['m4a', 'mp3', 'aac', 'wav'];
+
+export const isJellyfinMedia = (m: MediaEntry): m is JellyfinMediaEntry =>
+  m.source.type === 'jellyfin';
 
 export const mediaTypeFromPath = (path: string): MediaType | null => {
   const name = path.split(/[\\/]/).pop() ?? '';

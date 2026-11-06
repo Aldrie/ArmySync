@@ -6,12 +6,27 @@ export type MediaSource =
   | { type: 'file'; originalName: string }
   | { type: 'youtube'; url: string };
 
-export interface MediaEntry {
+export interface JellyfinSource {
+  type: 'jellyfin';
+  itemId: string;
+  mediaSourceId: string;
+  serverId: string;
+}
+
+export interface LocalMediaEntry {
   file: string;
   type: MediaType;
   duration: number;
   source: MediaSource;
 }
+
+export interface JellyfinMediaEntry {
+  type: MediaType;
+  duration: number;
+  source: JellyfinSource;
+}
+
+export type MediaEntry = LocalMediaEntry | JellyfinMediaEntry;
 
 export type ClipMode = 'media+lights' | 'lights' | 'media';
 
@@ -50,4 +65,5 @@ export interface ProjectSummary {
   kind: ProjectKind;
   name: string;
   updatedAt: number;
+  jellyfinItemId: string | null;
 }

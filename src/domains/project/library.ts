@@ -4,11 +4,17 @@ import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { appDataDir, join } from '@tauri-apps/api/path';
 
 import { createSongProject, mediaTypeFromPath, parseProject } from './model';
-import type { MediaEntry, Project, ProjectSummary } from './types';
+import type {
+  JellyfinMediaEntry,
+  MediaEntry,
+  Project,
+  ProjectSummary,
+} from './types';
 
 export type NewSongSource =
   | { type: 'file'; path: string }
-  | { type: 'youtube'; url: string };
+  | { type: 'youtube'; url: string }
+  | { type: 'jellyfin'; media: JellyfinMediaEntry };
 
 export const listProjects = async (): Promise<ProjectSummary[]> => {
   const projects = await invoke<ProjectSummary[]>('list_projects');
@@ -58,6 +64,7 @@ const importSongMedia = async (
   mediaId: string,
   source: NewSongSource,
 ): Promise<MediaEntry> => {
+  if (source.type === 'jellyfin') return source.media;
   if (source.type === 'youtube') {
     const file = await invoke<string>('download_youtube_media', {
       url: source.url,

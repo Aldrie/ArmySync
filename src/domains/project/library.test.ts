@@ -8,7 +8,7 @@ import {
   listProjects,
   saveProject,
 } from './library';
-import { createSongProject } from './model';
+import { createSongProject, getSongMedia } from './model';
 import type { Project } from './types';
 
 vi.mock('@tauri-apps/api/core', () => ({
@@ -115,6 +115,33 @@ describe('createSong', () => {
         source: { type: 'file', originalName: 'My Song.m4a' },
       },
     ]);
+  });
+});
+
+describe('createSong with Jellyfin', () => {
+  it('creates a Jellyfin song without importing anything', async () => {
+    const media = {
+      type: 'video',
+      duration: 6528,
+      source: {
+        type: 'jellyfin',
+        itemId: 'it',
+        mediaSourceId: 'ms',
+        serverId: 'srv',
+      },
+    } as const;
+    const project = await createSong({
+      name: 'Ato 1',
+      source: { type: 'jellyfin', media },
+    });
+    const commands = invokeMock.mock.calls.map(([cmd]) => cmd);
+    expect(commands).not.toContain('import_media');
+    expect(commands).not.toContain('download_youtube_media');
+    expect(getSongMedia(project)?.media).toEqual(media);
+    expect(project.tracks[0]).toMatchObject({
+      kind: 'clips',
+      clips: [{ out: 6528 }],
+    });
   });
 });
 
