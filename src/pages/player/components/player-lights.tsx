@@ -9,8 +9,11 @@ import { LightstickPreview } from '../../../domains/lightstick';
 import { useBleStore } from '../../../stores/ble-store';
 import { usePlayerStore } from '../../../stores/player-store';
 
-const openSticksPopover = () =>
-  document.getElementById(STICKS_POPOVER_ID)?.showPopover();
+const openSticksPopover = () => {
+  const popover = document.getElementById(STICKS_POPOVER_ID);
+  popover?.showPopover();
+  popover?.querySelector<HTMLElement>('button, input')?.focus();
+};
 
 export default function PlayerLights() {
   const title = usePlayerStore((s) => s.project?.name);
@@ -33,7 +36,7 @@ export default function PlayerLights() {
   const skipClass = 'size-11 rounded-full [&_svg]:size-6.5';
 
   return (
-    <main className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-6.5 px-6 pb-6">
+    <main className="relative flex min-h-0 flex-1 flex-col items-center gap-6.5 overflow-y-auto px-6 pb-6">
       {stickNames && (
         <div
           aria-hidden="true"
@@ -43,7 +46,7 @@ export default function PlayerLights() {
       <LightstickPreview
         height={360}
         onConnect={openSticksPopover}
-        className="relative"
+        className="relative mt-auto"
       />
       <div className="relative flex max-w-160 flex-col items-center gap-1.5 text-center">
         <h2 className="font-display text-[26px] font-bold tracking-tight text-balance text-on-surface">
@@ -53,7 +56,7 @@ export default function PlayerLights() {
           <span className="text-[13px] text-outline">{stickNames}</span>
         )}
       </div>
-      <div className="relative flex w-140 max-w-full flex-col items-center gap-3.5">
+      <div className="relative mb-auto flex w-140 max-w-full flex-col items-center gap-3.5">
         <PlayerProgress size="lg" />
         <div className="flex items-center gap-8">
           <IconButton

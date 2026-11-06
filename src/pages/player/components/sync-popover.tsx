@@ -7,6 +7,8 @@ import Slider from '../../../components/slider';
 import type { SliderRef } from '../../../components/slider';
 import { usePlayerStore } from '../../../stores/player-store';
 
+const ARROW_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']);
+
 const formatOffset = (ms: number) =>
   `${ms > 0 ? '+' : ms < 0 ? '−' : ''}${Math.abs(ms)} ms`;
 
@@ -27,7 +29,11 @@ export default function SyncPopover() {
   return (
     <PlayerPopover
       id="player-sync"
-      label="Sync offset"
+      label={
+        offsetMs === 0
+          ? 'Sync offset'
+          : `Sync offset, ${formatOffset(offsetMs)}`
+      }
       heading="Sync"
       lit={offsetMs !== 0}
       trigger={
@@ -54,7 +60,12 @@ export default function SyncPopover() {
           <span className="text-xs text-on-surface-variant">{hint}</span>
         </div>
         <div className="flex flex-col gap-1.5">
-          <div className="relative flex h-3.5 items-center">
+          <div
+            className="relative flex h-3.5 items-center"
+            onKeyDown={(e) => {
+              if (ARROW_KEYS.has(e.code)) e.stopPropagation();
+            }}
+          >
             <span
               aria-hidden="true"
               className="absolute left-1/2 h-2.5 w-px bg-outline"

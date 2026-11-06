@@ -68,6 +68,10 @@ export default function PlayerPopover({
         aria-label={heading}
         onBeforeToggle={place}
         onToggle={handleToggle}
+        onKeyDown={(e) => {
+          if (e.code === 'Space' && e.target instanceof HTMLButtonElement)
+            e.stopPropagation();
+        }}
         className={cn(
           'inset-auto m-0 max-h-[calc(100vh-4.5rem)] w-75 rounded-lg border border-border-strong bg-surface-container text-on-surface shadow-popover',
           className,
