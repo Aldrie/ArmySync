@@ -11,7 +11,7 @@ use super::{lock, JellyfinState};
 use crate::library::validate_id;
 
 const POLL_EVERY: Duration = Duration::from_millis(250);
-const POLL_TIMEOUT: Duration = Duration::from_secs(2);
+const POLL_TIMEOUT: Duration = Duration::from_secs(1);
 const LOST_AFTER: Duration = Duration::from_secs(3);
 const MAX_AGE_S: f64 = 1.0;
 const WHOLE_SECOND: i64 = TICKS_PER_SECOND as i64;
