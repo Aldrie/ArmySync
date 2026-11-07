@@ -2,6 +2,7 @@ import { Pencil } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { cn } from '../../lib/cn';
+import { ProfileSwitcher } from '../screens/profiles-dialog';
 import { type Mode, useRemoteStore } from '../store';
 
 const TABS: { mode: Mode; label: string }[] = [
@@ -38,6 +39,7 @@ export default function ModeHeader({ children }: { children?: ReactNode }) {
       >
         <Pencil className="size-4" />
       </button>
+      <ProfileSwitcher />
       <div className="ml-auto flex items-center gap-2">{children}</div>
     </header>
   );

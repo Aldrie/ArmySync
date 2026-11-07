@@ -1,5 +1,5 @@
 import { createId } from '@paralleldrive/cuid2';
-import { Check, Pencil, Trash2, X } from 'lucide-react';
+import { Check, ChevronDown, Pencil, Trash2, X } from 'lucide-react';
 import { useRef, useState, type ReactNode } from 'react';
 
 import {
@@ -33,6 +33,30 @@ export function ProfileChips({
         />
       ))}
     </span>
+  );
+}
+
+export function ProfileSwitcher() {
+  const profile = useRemoteStore((s) =>
+    s.profiles.find((p) => p.id === s.activeProfileId),
+  );
+  const [open, setOpen] = useState(false);
+  if (!profile) return null;
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label={`Profile: ${profile.name}. Change profile`}
+        onClick={() => setOpen(true)}
+        className="flex h-8 max-w-44 items-center gap-2 rounded-lg border border-white/12 bg-[#1c1b1b] pr-2 pl-1.5 text-[#e5e2e1]"
+      >
+        <ProfileChips profile={profile} count={4} className="h-4 w-1.5" />
+        <span className="truncate text-xs font-medium">{profile.name}</span>
+        <ChevronDown className="size-3.5 shrink-0 text-[#978e99]" />
+      </button>
+      {open && <ProfilesDialog onClose={() => setOpen(false)} />}
+    </>
   );
 }
 

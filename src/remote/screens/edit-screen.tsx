@@ -1,14 +1,7 @@
 import { DragDropProvider } from '@dnd-kit/react';
 import { isSortable, useSortable } from '@dnd-kit/react/sortable';
 import { createId } from '@paralleldrive/cuid2';
-import {
-  ChevronDown,
-  EyeOff,
-  GripVertical,
-  Heart,
-  Pencil,
-  Plus,
-} from 'lucide-react';
+import { EyeOff, GripVertical, Heart, Pencil, Plus } from 'lucide-react';
 import { useId, useState } from 'react';
 
 import Switch from '../../components/switch';
@@ -21,7 +14,7 @@ import {
 import { isBorahaePad, padBackground, padLook } from '../look';
 import { useRemoteStore } from '../store';
 import PadEditorModal from './pad-editor-modal';
-import ProfilesDialog, { ProfileChips } from './profiles-dialog';
+import { ProfileSwitcher } from './profiles-dialog';
 
 const TILE_CONTROL =
   'absolute flex size-9 touch-none items-center justify-center rounded-[9px] bg-black/55 text-white';
@@ -91,7 +84,6 @@ export default function EditScreen() {
   );
   const { saveProfiles, setMode } = useRemoteStore.getState();
   const [editing, setEditing] = useState<Pad | null>(null);
-  const [profilesOpen, setProfilesOpen] = useState(false);
   const blackoutLabel = useId();
 
   const pads = profile?.pads ?? [];
@@ -125,18 +117,7 @@ export default function EditScreen() {
             />
           </div>
         )}
-        {profile && (
-          <button
-            type="button"
-            aria-label={`Profile: ${profile.name}. Change profile`}
-            onClick={() => setProfilesOpen(true)}
-            className="flex h-8 items-center gap-2 rounded-lg border border-white/12 bg-[#1c1b1b] pr-2 pl-1.5 text-[#e5e2e1]"
-          >
-            <ProfileChips profile={profile} count={4} className="h-4 w-1.5" />
-            <span className="text-xs font-medium">{profile.name}</span>
-            <ChevronDown className="size-3.5 text-[#978e99]" />
-          </button>
-        )}
+        <ProfileSwitcher />
         <button
           type="button"
           onClick={() => setMode('live')}
@@ -201,9 +182,6 @@ export default function EditScreen() {
             setEditing(null);
           }}
         />
-      )}
-      {profilesOpen && (
-        <ProfilesDialog onClose={() => setProfilesOpen(false)} />
       )}
     </div>
   );
