@@ -1,5 +1,11 @@
 import { ChevronLeft, Minus, Plus } from 'lucide-react';
-import { type PointerEvent, useEffect, useState } from 'react';
+import {
+  type PointerEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 
 import Button from '../../components/button';
 import {
@@ -31,7 +37,60 @@ const REFERENCES: { value: Reference; label: string; hint: string }[] = [
   },
 ];
 
-const MANUAL_STEP_MS = 10;
+const HOLD_DELAY_MS = 400;
+const REPEAT_MS = 70;
+
+const stepFor = (heldMs: number) =>
+  heldMs > 2500 ? 10 : heldMs > 1200 ? 5 : 1;
+
+const nudge = (ms: number) => {
+  const { latencyMs, saveLatency } = useRemoteStore.getState();
+  saveLatency(latencyMs + ms);
+};
+
+function NudgeButton({
+  direction,
+  label,
+  children,
+}: {
+  direction: 1 | -1;
+  label: string;
+  children: ReactNode;
+}) {
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const stop = () => clearTimeout(timer.current);
+
+  useEffect(() => stop, []);
+
+  const start = () => {
+    stop();
+    const startedAt = performance.now();
+    nudge(direction);
+    const repeat = () => {
+      nudge(direction * stepFor(performance.now() - startedAt));
+      timer.current = setTimeout(repeat, REPEAT_MS);
+    };
+    timer.current = setTimeout(repeat, HOLD_DELAY_MS);
+  };
+
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onPointerDown={start}
+      onPointerUp={stop}
+      onPointerLeave={stop}
+      onPointerCancel={stop}
+      onContextMenu={(e) => e.preventDefault()}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') nudge(direction);
+      }}
+      className="flex size-7 touch-none items-center justify-center rounded-md text-on-surface-variant select-none"
+    >
+      {children}
+    </button>
+  );
+}
 
 const signed = (ms: number) => `${ms >= 0 ? '+' : '−'}${Math.abs(ms)} ms`;
 
@@ -145,25 +204,15 @@ export default function CalibrateScreen() {
           aria-label="Delay in use"
           className="pointer-events-auto flex items-center gap-1 rounded-[9px] border border-border bg-surface-low p-[3px]"
         >
-          <button
-            type="button"
-            aria-label={`${MANUAL_STEP_MS} ms less`}
-            onClick={() => saveLatency(latencyMs - MANUAL_STEP_MS)}
-            className="flex size-7 items-center justify-center rounded-md text-on-surface-variant"
-          >
+          <NudgeButton direction={-1} label="1 ms less, hold to speed up">
             <Minus className="size-4" />
-          </button>
+          </NudgeButton>
           <span className="w-16 text-center text-xs font-semibold tabular-nums">
             {signed(latencyMs)}
           </span>
-          <button
-            type="button"
-            aria-label={`${MANUAL_STEP_MS} ms more`}
-            onClick={() => saveLatency(latencyMs + MANUAL_STEP_MS)}
-            className="flex size-7 items-center justify-center rounded-md text-on-surface-variant"
-          >
+          <NudgeButton direction={1} label="1 ms more, hold to speed up">
             <Plus className="size-4" />
-          </button>
+          </NudgeButton>
         </div>
         <div
           role="group"
