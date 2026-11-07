@@ -1,4 +1,4 @@
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Minus, Plus } from 'lucide-react';
 import { type PointerEvent, useEffect, useState } from 'react';
 
 import Button from '../../components/button';
@@ -31,11 +31,14 @@ const REFERENCES: { value: Reference; label: string; hint: string }[] = [
   },
 ];
 
+const MANUAL_STEP_MS = 10;
+
 const signed = (ms: number) => `${ms >= 0 ? '+' : '−'}${Math.abs(ms)} ms`;
 
 export default function CalibrateScreen() {
   const clicks = useRemoteStore((s) => s.calibrationClicks);
   const beat = useRemoteStore((s) => s.calibrationBeat);
+  const latencyMs = useRemoteStore((s) => s.latencyMs);
   const { calibrate, saveLatency, setMode } = useRemoteStore.getState();
 
   const [reference, setReference] = useState<Reference>('sound');
@@ -137,6 +140,31 @@ export default function CalibrateScreen() {
         </button>
         <span className="text-sm font-semibold">Calibrate delay</span>
         <div className="flex-1" />
+        <div
+          role="group"
+          aria-label="Delay in use"
+          className="pointer-events-auto flex items-center gap-1 rounded-[9px] border border-border bg-surface-low p-[3px]"
+        >
+          <button
+            type="button"
+            aria-label={`${MANUAL_STEP_MS} ms less`}
+            onClick={() => saveLatency(latencyMs - MANUAL_STEP_MS)}
+            className="flex size-7 items-center justify-center rounded-md text-on-surface-variant"
+          >
+            <Minus className="size-4" />
+          </button>
+          <span className="w-16 text-center text-xs font-semibold tabular-nums">
+            {signed(latencyMs)}
+          </span>
+          <button
+            type="button"
+            aria-label={`${MANUAL_STEP_MS} ms more`}
+            onClick={() => saveLatency(latencyMs + MANUAL_STEP_MS)}
+            className="flex size-7 items-center justify-center rounded-md text-on-surface-variant"
+          >
+            <Plus className="size-4" />
+          </button>
+        </div>
         <div
           role="group"
           aria-label="Reference"
