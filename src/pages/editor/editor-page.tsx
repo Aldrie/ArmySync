@@ -54,7 +54,6 @@ export default function EditorPage() {
 
   const videoSrc = useEditorStore((s) => s.videoSrc);
   const videoDuration = useEditorStore((s) => s.videoDuration);
-  const effects = useEditorStore((s) => s.effects);
   const waveform = useEditorStore((s) => s.waveform);
   const waveformLoading = useEditorStore((s) => s.waveformLoading);
 
@@ -269,7 +268,6 @@ export default function EditorPage() {
           maxHeight={420}
         >
           <TimelinePanel
-            effects={effects}
             videoDuration={videoDuration}
             waveform={waveform}
             waveformLoading={waveformLoading}

@@ -4,7 +4,11 @@ import { invoke } from '@tauri-apps/api/core';
 
 import { useAppStore } from './app-store';
 import { editorRefs } from './editor-refs';
-import { beginHistoryBatch, useEditorStore } from './editor-store';
+import {
+  beginHistoryBatch,
+  syncEffectsToRust,
+  useEditorStore,
+} from './editor-store';
 import {
   createSongProject,
   getSongEffects,
@@ -434,4 +438,52 @@ it('keeps the seeded duration while the stream reports none', async () => {
   await useEditorStore.getState().initFromProject(jellyfinSong());
   await useEditorStore.getState().handleVideoLoad();
   expect(useEditorStore.getState().videoDuration).toBe(6528);
+});
+
+it('syncs a burst of effect changes to Rust once now and once with the latest', async () => {
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  vi.useFakeTimers();
+  try {
+    const synced = () =>
+      vi
+        .mocked(invoke)
+        .mock.calls.filter(([cmd]) => cmd === 'sync_set_effects')
+        .map(([, args]) => (args as { effects: { from: number }[] }).effects);
+    vi.mocked(invoke).mockClear();
+
+    const at = (from: number) => [
+      { id: 'e1', type: 'color', from, to: from + 1, params: {} },
+    ];
+    useEditorStore.setState({ effects: at(1) });
+    useEditorStore.setState({ effects: at(2) });
+    useEditorStore.setState({ effects: at(3) });
+    expect(synced().map((e) => e[0]?.from)).toEqual([1]);
+
+    vi.advanceTimersByTime(100);
+    expect(synced().map((e) => e[0]?.from)).toEqual([1, 3]);
+    vi.advanceTimersByTime(500);
+    expect(synced()).toHaveLength(2);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('drops a pending editor sync when something else syncs effects directly', async () => {
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  vi.useFakeTimers();
+  try {
+    vi.mocked(invoke).mockClear();
+    const effect = { id: 'e1', type: 'color', from: 0, to: 1, params: {} };
+    useEditorStore.setState({ effects: [effect] });
+    useEditorStore.setState({ effects: [] });
+    syncEffectsToRust([{ ...effect, id: 'player' }]);
+    vi.advanceTimersByTime(500);
+    const syncs = vi
+      .mocked(invoke)
+      .mock.calls.filter(([cmd]) => cmd === 'sync_set_effects');
+    const last = syncs[syncs.length - 1]?.[1] as { effects: unknown[] };
+    expect(last.effects).toHaveLength(1);
+  } finally {
+    vi.useRealTimers();
+  }
 });

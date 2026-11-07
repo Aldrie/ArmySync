@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { memo, useCallback, useRef, useState } from 'react';
 
 import { getEffectDefinition } from '../../../domains/effects';
 import type { EffectInstance } from '../../../domains/effects';
@@ -18,19 +18,19 @@ interface TimelineEffectBlockProps {
 
 type DragMode = 'move' | 'resize-start' | 'resize-end';
 
-export default function TimelineEffectBlock({
+function TimelineEffectBlock({
   effect,
   videoDuration,
   containerRef,
 }: TimelineEffectBlockProps) {
-  const selectedEffectIds = useEditorStore((s) => s.selectedEffectIds);
+  const isSelected = useEditorStore((s) =>
+    s.selectedEffectIds.includes(effect.id),
+  );
   const selectEffect = useEditorStore((s) => s.selectEffect);
   const moveEffect = useEditorStore((s) => s.moveEffect);
   const moveEffects = useEditorStore((s) => s.moveEffects);
   const resizeEffect = useEditorStore((s) => s.resizeEffect);
-  const effects = useEditorStore((s) => s.effects);
 
-  const isSelected = selectedEffectIds.includes(effect.id);
   const [isDragging, setIsDragging] = useState(false);
 
   const dragRef = useRef<{
@@ -115,7 +115,8 @@ export default function TimelineEffectBlock({
 
       const container = containerRef.current;
       const containerWidth = container?.scrollWidth ?? 1;
-      const needle = [useEditorStore.getState().currentTime];
+      const { effects, currentTime: needleTime } = useEditorStore.getState();
+      const needle = [needleTime];
       const snap = (time: number, excludeIds?: Set<string>) =>
         findSnapTarget(
           time,
@@ -205,7 +206,6 @@ export default function TimelineEffectBlock({
     [
       getTimeFromClientX,
       containerRef,
-      effects,
       effect.id,
       videoDuration,
       moveEffect,
@@ -245,11 +245,9 @@ export default function TimelineEffectBlock({
 
             if (moves.length > 0) moveEffects(moves);
           } else {
-            const resolved = resolveOverlap(
-              effect,
-              currentEffects,
-              videoDuration,
-            );
+            const latest = currentEffects.find((e) => e.id === effect.id);
+            const resolved =
+              latest && resolveOverlap(latest, currentEffects, videoDuration);
             if (resolved) moveEffect(effect.id, resolved.from, resolved.to);
           }
         }
@@ -258,7 +256,7 @@ export default function TimelineEffectBlock({
       setIsDragging(false);
       dragRef.current = null;
     },
-    [effect, videoDuration, moveEffect, moveEffects, selectEffect],
+    [effect.id, videoDuration, moveEffect, moveEffects, selectEffect],
   );
 
   const definition = getEffectDefinition(effect.type);
@@ -309,3 +307,5 @@ export default function TimelineEffectBlock({
     </div>
   );
 }
+
+export default memo(TimelineEffectBlock);

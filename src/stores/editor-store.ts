@@ -626,7 +626,11 @@ async function persist(next: Project) {
   }
 }
 
-export function syncEffectsToRust(effects: EffectInstance[]) {
+const SYNC_THROTTLE_MS = 100;
+let syncTimer: ReturnType<typeof setTimeout> | undefined;
+let syncPending = false;
+
+function sendEffects(effects: EffectInstance[]) {
   const payload = effects.map((e) => ({
     from: e.from,
     to: e.to,
@@ -636,8 +640,29 @@ export function syncEffectsToRust(effects: EffectInstance[]) {
   void invoke('sync_set_effects', { effects: payload });
 }
 
+export function syncEffectsToRust(effects: EffectInstance[]) {
+  clearTimeout(syncTimer);
+  syncTimer = undefined;
+  syncPending = false;
+  sendEffects(effects);
+}
+
+// Dragging changes effects on every pointer move; send at most one copy per window, always the latest.
 useEditorStore.subscribe((state, prev) => {
-  if (state.effects !== prev.effects) {
-    syncEffectsToRust(state.effects);
+  if (state.effects === prev.effects) return;
+  if (syncTimer) {
+    syncPending = true;
+    return;
   }
+  sendEffects(state.effects);
+  const flush = () => {
+    if (!syncPending) {
+      syncTimer = undefined;
+      return;
+    }
+    syncPending = false;
+    sendEffects(useEditorStore.getState().effects);
+    syncTimer = setTimeout(flush, SYNC_THROTTLE_MS);
+  };
+  syncTimer = setTimeout(flush, SYNC_THROTTLE_MS);
 });

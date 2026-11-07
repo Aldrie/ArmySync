@@ -6,7 +6,6 @@ import TimelineEffectBlock from './timeline-effect-block';
 import WaveformSkeleton from './waveform-skeleton';
 import WaveformTrack from './waveform-track';
 import Slider, { type SliderRef } from '../../../components/slider';
-import type { EffectInstance } from '../../../domains/effects';
 import { effectIdsInRange } from '../../../domains/effects/services/timeline';
 import { cn } from '../../../lib/cn';
 import * as format from '../../../lib/format';
@@ -25,7 +24,6 @@ interface GestureEvent extends UIEvent {
 }
 
 interface TimelinePanelProps {
-  effects: EffectInstance[];
   videoDuration: number;
   waveform: Float32Array | null;
   waveformLoading: boolean;
@@ -33,13 +31,13 @@ interface TimelinePanelProps {
 }
 
 export default function TimelinePanel({
-  effects,
   videoDuration,
   waveform,
   waveformLoading,
   onSeek,
 }: TimelinePanelProps) {
   const [spotsCount, setSpotsCount] = useState(5);
+  const effects = useEditorStore((s) => s.effects);
 
   const timelineRef = useRef<HTMLDivElement>(null);
   const timelineContainerRef = useRef<HTMLDivElement>(null);
@@ -176,16 +174,35 @@ export default function TimelinePanel({
     [setZoomLevel, spotsCount, videoDuration],
   );
 
+  const zoomTargetRef = useRef<number | null>(null);
+  const zoomFrameRef = useRef(0);
+  const scheduleZoom = useCallback(
+    (value: number) => {
+      zoomTargetRef.current = value;
+      if (zoomFrameRef.current) return;
+      zoomFrameRef.current = requestAnimationFrame(() => {
+        zoomFrameRef.current = 0;
+        const target = zoomTargetRef.current;
+        zoomTargetRef.current = null;
+        if (target !== null) handleZoomInputChange(target);
+      });
+    },
+    [handleZoomInputChange],
+  );
+
+  useEffect(() => () => cancelAnimationFrame(zoomFrameRef.current), []);
+
   useEffect(() => {
     const container = timelineContainerRef.current;
     if (!container) return;
 
     const zoomBy = (delta: number) => {
-      const current = useEditorStore.getState().zoomLevel;
+      const current =
+        zoomTargetRef.current ?? useEditorStore.getState().zoomLevel;
       const next = Math.max(0, Math.min(100, current + delta));
       if (next === current) return;
       zoomSliderRef.current?.setValue(next);
-      handleZoomInputChange(next);
+      scheduleZoom(next);
     };
 
     const onWheel = (e: WheelEvent) => {
@@ -212,10 +229,11 @@ export default function TimelinePanel({
       container.removeEventListener('gesturestart', onGestureStart);
       container.removeEventListener('gesturechange', onGestureChange);
     };
-  }, [handleZoomInputChange]);
+  }, [scheduleZoom]);
 
   const handleTimelineWheel = useCallback((event: React.WheelEvent) => {
     if (!timelineContainerRef.current || event.ctrlKey) return;
+    if (Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
     timelineContainerRef.current.scrollTo({
       top: 0,
       left: timelineContainerRef.current.scrollLeft + event.deltaY,
@@ -329,7 +347,7 @@ export default function TimelinePanel({
             defaultValue={0}
             aria-label="Timeline zoom"
             className="w-28"
-            onChange={handleZoomInputChange}
+            onChange={scheduleZoom}
           />
           <ZoomIn className="size-3.5" aria-hidden />
         </div>
@@ -402,7 +420,10 @@ export default function TimelinePanel({
               {waveformLoading ? (
                 <WaveformSkeleton />
               ) : (
-                <WaveformTrack waveform={waveform} />
+                <WaveformTrack
+                  waveform={waveform}
+                  scrollRef={timelineContainerRef}
+                />
               )}
             </div>
           </div>
