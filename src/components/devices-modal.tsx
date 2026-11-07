@@ -47,6 +47,7 @@ export function DeviceRow({
   onDisconnect,
 }: DeviceRowProps) {
   const identify = useBleStore((s) => s.identify);
+  const connecting = useBleStore((s) => s.connecting.includes(device.id));
 
   return (
     <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-surface-high/60">
@@ -90,9 +91,14 @@ export function DeviceRow({
           </Button>
         </>
       ) : (
-        <Button intent="tonal" size="sm" onClick={onConnect}>
-          <Wifi />
-          Connect
+        <Button
+          intent="tonal"
+          size="sm"
+          disabled={connecting}
+          onClick={onConnect}
+        >
+          {connecting ? <Loader2 className="animate-spin" /> : <Wifi />}
+          {connecting ? 'Connecting' : 'Connect'}
         </Button>
       )}
     </div>

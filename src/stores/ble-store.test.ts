@@ -197,3 +197,42 @@ it('hides unknown devices unless asked and never lists connected ones', async ()
   expect(nearbyDevices(all, connected, false)).toEqual([stick]);
   expect(nearbyDevices(all, connected, true)).toEqual([stick, other]);
 });
+
+it('releases the stick under test when another connects or the list closes', async () => {
+  invokeMock.mockResolvedValue(null);
+  const { useBleStore, emit } = await loadStore();
+  emit('ble-connected', dev1);
+  await vi.waitFor(() =>
+    expect(useBleStore.getState().colorTest?.deviceId).toBe('dev1'),
+  );
+  emit('ble-connected', { ...dev1, id: 'dev2' });
+  await vi.waitFor(() =>
+    expect(useBleStore.getState().colorTest?.deviceId).toBe('dev2'),
+  );
+  expect(invokeMock).toHaveBeenCalledWith('ble_hold', {
+    deviceId: 'dev1',
+    color: null,
+  });
+
+  useBleStore.getState().closeNotices();
+  expect(useBleStore.getState().colorTest).toBeNull();
+  expect(invokeMock).toHaveBeenLastCalledWith('ble_hold', {
+    deviceId: 'dev2',
+    color: null,
+  });
+});
+
+it('ignores a second connect for a device that is already connecting', async () => {
+  let finish: (value: unknown) => void = () => {};
+  invokeMock.mockImplementation(
+    () => new Promise((resolve) => (finish = resolve)),
+  );
+  const { useBleStore } = await loadStore();
+  const first = useBleStore.getState().connect('dev1');
+  void useBleStore.getState().connect('dev1');
+  expect(useBleStore.getState().connecting).toEqual(['dev1']);
+  expect(invokeMock).toHaveBeenCalledTimes(1);
+  finish(null);
+  await first;
+  expect(useBleStore.getState().connecting).toEqual([]);
+});

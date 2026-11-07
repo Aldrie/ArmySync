@@ -22,13 +22,16 @@ export default function SticksPopover() {
   // A popover removed from the DOM while open closes without a toggle event.
   useEffect(
     () => () => {
-      if (openRef.current) void useBleStore.getState().stopScan();
+      if (!openRef.current) return;
+      useBleStore.getState().closeNotices();
+      void useBleStore.getState().stopScan();
     },
     [],
   );
 
   const handleOpenChange = (open: boolean) => {
     openRef.current = open;
+    if (!open) useBleStore.getState().closeNotices();
     void (open ? scan() : stopScan());
   };
 

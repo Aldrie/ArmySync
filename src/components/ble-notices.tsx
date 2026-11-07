@@ -2,6 +2,7 @@ import { RotateCw, X } from 'lucide-react';
 
 import Button from './button';
 import IconButton from './icon-button';
+import { cn } from '../lib/cn';
 import { TEST_COLOR, useBleStore } from '../stores/ble-store';
 
 const testColorCss = `rgb(${TEST_COLOR.join(' ')})`;
@@ -75,7 +76,8 @@ function ColorTestCard() {
 
 function DroppedRows() {
   const dropped = useBleStore((s) => s.dropped);
-  const { connect, forgetDropped } = useBleStore.getState();
+  const connecting = useBleStore((s) => s.connecting);
+  const { reconnect, forgetDropped } = useBleStore.getState();
 
   return dropped.map((d) => (
     <div
@@ -86,9 +88,14 @@ function DroppedRows() {
         <span className="font-medium text-on-surface">{d.name}</span>{' '}
         disconnected
       </span>
-      <Button intent="tonal" size="sm" onClick={() => void connect(d.id)}>
-        <RotateCw />
-        Reconnect
+      <Button
+        intent="tonal"
+        size="sm"
+        disabled={connecting.includes(d.id)}
+        onClick={() => void reconnect(d.id)}
+      >
+        <RotateCw className={cn(connecting.includes(d.id) && 'animate-spin')} />
+        {connecting.includes(d.id) ? 'Reconnecting' : 'Reconnect'}
       </Button>
       <IconButton label="Dismiss" onClick={() => forgetDropped(d.id)}>
         <X />
