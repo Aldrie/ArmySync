@@ -71,6 +71,8 @@ export interface RemoteState {
   undoTake: () => void;
   saveProfiles: (profiles: Profile[]) => void;
   setActiveProfile: (id: string) => void;
+  renameProfile: (id: string, name: string) => void;
+  deleteProfile: (id: string) => void;
   setMode: (m: Mode) => void;
   setSettings: (patch: Partial<RemoteSettings>) => void;
   calibrate: (mode: 'sound' | 'image') => void;
@@ -341,6 +343,28 @@ export function createRemoteStore(open: Open) {
             send({ type: 'profiles-save', profiles });
           },
           setActiveProfile: (activeProfileId) => set({ activeProfileId }),
+          renameProfile: (id, name) => {
+            const trimmed = name.trim();
+            const current = get().profiles.find((p) => p.id === id);
+            if (!trimmed || !current || current.name === trimmed) return;
+            get().saveProfiles(
+              get().profiles.map((p) =>
+                p.id === id ? { ...p, name: trimmed } : p,
+              ),
+            );
+          },
+          deleteProfile: (id) => {
+            const { profiles, activeProfileId, project } = get();
+            let next = profiles.filter((p) => p.id !== id);
+            if (id === activeProfileId && project) {
+              const fallback =
+                next.find((p) => p.projectId === project.id) ??
+                defaultProfile(project.id, createId(), createId);
+              if (!next.includes(fallback)) next = [...next, fallback];
+              set({ activeProfileId: fallback.id });
+            }
+            get().saveProfiles(next);
+          },
           setMode: (mode) => set({ mode }),
           setSettings: (patch) =>
             set({ settings: { ...get().settings, ...patch } }),

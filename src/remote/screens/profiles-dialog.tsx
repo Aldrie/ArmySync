@@ -1,10 +1,11 @@
 import { createId } from '@paralleldrive/cuid2';
-import { Check, X } from 'lucide-react';
-import { useState } from 'react';
+import { Check, Pencil, Trash2, X } from 'lucide-react';
+import { useRef, useState, type ReactNode } from 'react';
 
 import {
   defaultProfile,
   displayColor,
+  isUntouchedDefault,
   type Pad,
   type Profile,
 } from '../../domains/remote';
@@ -35,13 +36,134 @@ export function ProfileChips({
   );
 }
 
+const DELETE_WIDTH = 88;
+
+function SwipeRow({
+  disabled,
+  open,
+  onOpenChange,
+  onDelete,
+  label,
+  children,
+}: {
+  disabled: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onDelete: () => void;
+  label: string;
+  children: ReactNode;
+}) {
+  const start = useRef<{ x: number; y: number } | null>(null);
+  const moved = useRef(false);
+  const offset = useRef(0);
+  const [drag, setDrag] = useState<number | null>(null);
+  const x = drag ?? (open ? -DELETE_WIDTH : 0);
+
+  return (
+    <div className="relative overflow-hidden rounded-xl">
+      <button
+        type="button"
+        aria-label={`Delete ${label}`}
+        tabIndex={open ? 0 : -1}
+        onClick={onDelete}
+        className="absolute inset-y-0 right-0 flex items-center justify-center gap-1.5 bg-[#93000a] text-[13px] font-semibold text-[#ffdad6]"
+        style={{ width: DELETE_WIDTH }}
+      >
+        <Trash2 className="size-4" />
+        Delete
+      </button>
+      <div
+        className="relative bg-[#1c1b1b]"
+        style={{
+          transform: `translateX(${x}px)`,
+          transition: drag === null ? 'transform 160ms ease-out' : 'none',
+        }}
+        onPointerDown={(e) => {
+          if (disabled) return;
+          start.current = { x: e.clientX, y: e.clientY };
+          moved.current = false;
+        }}
+        onPointerMove={(e) => {
+          if (!start.current) return;
+          const dx = e.clientX - start.current.x;
+          const dy = e.clientY - start.current.y;
+          if (!moved.current && Math.abs(dx) < 8) return;
+          if (!moved.current && Math.abs(dy) > Math.abs(dx)) {
+            start.current = null;
+            return;
+          }
+          if (!moved.current) e.currentTarget.setPointerCapture(e.pointerId);
+          moved.current = true;
+          const base = open ? -DELETE_WIDTH : 0;
+          offset.current = Math.min(0, Math.max(-DELETE_WIDTH, base + dx));
+          setDrag(offset.current);
+        }}
+        onPointerUp={() => {
+          if (start.current && moved.current)
+            onOpenChange(offset.current < -DELETE_WIDTH / 2);
+          start.current = null;
+          setDrag(null);
+        }}
+        onPointerCancel={() => {
+          start.current = null;
+          setDrag(null);
+        }}
+        onClickCapture={(e) => {
+          if (!moved.current) return;
+          moved.current = false;
+          e.stopPropagation();
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function NameField({
+  name,
+  onSave,
+  onDone,
+}: {
+  name: string;
+  onSave: (name: string) => void;
+  onDone: () => void;
+}) {
+  const [value, setValue] = useState(name);
+  const done = useRef(false);
+  const finish = (save: boolean) => {
+    if (done.current) return;
+    done.current = true;
+    if (save) onSave(value);
+    onDone();
+  };
+  return (
+    <input
+      autoFocus
+      aria-label="Profile name"
+      value={value}
+      maxLength={40}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={() => finish(true)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') finish(true);
+        if (e.key === 'Escape') finish(false);
+      }}
+      className="h-9 min-w-0 flex-1 rounded-lg border border-[#e1b6ff]/35 bg-[#131313] px-2.5 text-[13px] font-semibold text-[#e5e2e1] outline-none"
+    />
+  );
+}
+
 export default function ProfilesDialog({ onClose }: { onClose: () => void }) {
   const project = useRemoteStore((s) => s.project);
   const projectNames = useRemoteStore((s) => s.projectNames);
   const profiles = useRemoteStore((s) => s.profiles);
   const activeProfileId = useRemoteStore((s) => s.activeProfileId);
-  const { saveProfiles, setActiveProfile } = useRemoteStore.getState();
+  const { saveProfiles, setActiveProfile, renameProfile, deleteProfile } =
+    useRemoteStore.getState();
   const [tab, setTab] = useState<'song' | 'all'>('song');
+  const [swipedId, setSwipedId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   if (!project) return null;
 
@@ -51,7 +173,7 @@ export default function ProfilesDialog({ onClose }: { onClose: () => void }) {
   ]);
   if (tab === 'all')
     for (const p of profiles) {
-      if (p.projectId === project.id) continue;
+      if (p.projectId === project.id || isUntouchedDefault(p)) continue;
       const title = projectNames[p.projectId] ?? 'Other';
       groups.set(title, [...(groups.get(title) ?? []), p]);
     }
@@ -130,14 +252,11 @@ export default function ProfilesDialog({ onClose }: { onClose: () => void }) {
               {rows.map((p) => {
                 const on = p.id === activeProfileId;
                 const other = p.projectId !== project.id;
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() => pick(p)}
+                const editing = editingId === p.id;
+                const row = (
+                  <div
                     className={cn(
-                      'flex min-h-[52px] w-full items-center gap-3 rounded-xl border border-transparent px-3 py-1.5 text-left',
+                      'flex min-h-[52px] w-full items-center gap-3 rounded-xl border border-transparent px-3 py-1.5',
                       on && 'border-[#e1b6ff]/35 bg-[#e1b6ff]/8',
                     )}
                   >
@@ -146,22 +265,68 @@ export default function ProfilesDialog({ onClose }: { onClose: () => void }) {
                       count={5}
                       className="h-[22px] w-2.5"
                     />
-                    <span className="flex min-w-0 flex-1 flex-col gap-px">
-                      <span className="text-[13px] font-semibold">
-                        {p.name}
-                      </span>
-                      <span className="text-[11px] text-[#978e99]">
-                        {p.pads.length} pads
-                        {other && ' · using it makes a copy in this project'}
-                      </span>
-                    </span>
-                    {on && (
+                    {editing ? (
+                      <NameField
+                        name={p.name}
+                        onSave={(name) => renameProfile(p.id, name)}
+                        onDone={() => setEditingId(null)}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => {
+                          if (swipedId) return setSwipedId(null);
+                          pick(p);
+                        }}
+                        className="flex min-w-0 flex-1 flex-col gap-px text-left"
+                      >
+                        <span className="truncate text-[13px] font-semibold">
+                          {p.name}
+                        </span>
+                        <span className="text-[11px] text-[#978e99]">
+                          {p.pads.length} pads
+                          {other && ' · using it makes a copy in this project'}
+                        </span>
+                      </button>
+                    )}
+                    {!other && !editing && (
+                      <button
+                        type="button"
+                        aria-label={`Rename ${p.name}`}
+                        onClick={() => {
+                          setSwipedId(null);
+                          setEditingId(p.id);
+                        }}
+                        className="flex size-9 shrink-0 items-center justify-center rounded-[9px] text-[#cec3d0]"
+                      >
+                        <Pencil className="size-4" />
+                      </button>
+                    )}
+                    {on && !editing && (
                       <Check
-                        className="size-[18px] text-[#e1b6ff]"
+                        className="size-[18px] shrink-0 text-[#e1b6ff]"
                         strokeWidth={2.4}
                       />
                     )}
-                  </button>
+                  </div>
+                );
+                return other ? (
+                  <div key={p.id}>{row}</div>
+                ) : (
+                  <SwipeRow
+                    key={p.id}
+                    disabled={editing}
+                    label={p.name}
+                    open={swipedId === p.id}
+                    onOpenChange={(open) => setSwipedId(open ? p.id : null)}
+                    onDelete={() => {
+                      setSwipedId(null);
+                      deleteProfile(p.id);
+                    }}
+                  >
+                    {row}
+                  </SwipeRow>
                 );
               })}
             </div>

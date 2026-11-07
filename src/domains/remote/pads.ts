@@ -75,6 +75,18 @@ export function defaultProfile(
   };
 }
 
+const padsKey = (pads: Pad[]) =>
+  JSON.stringify(pads.map(({ kind, colors, bpm }) => [kind, colors, bpm]));
+
+export function isUntouchedDefault(profile: Profile): boolean {
+  const fresh = defaultProfile(profile.projectId, profile.id, () => '');
+  return (
+    profile.name === fresh.name &&
+    idleBlackoutOf(profile) === idleBlackoutOf(fresh) &&
+    padsKey(profile.pads) === padsKey(fresh.pads)
+  );
+}
+
 function effectOf(pad: Pad): Pick<EffectInstance, 'type' | 'params'> {
   switch (pad.kind) {
     case 'color':

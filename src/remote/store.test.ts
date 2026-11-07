@@ -409,3 +409,31 @@ it('plays at once or after the 3 s countdown', () => {
   expect(sent).toContainEqual({ type: 'play', countdown: true });
   expect(store.getState().countdownUntil).not.toBeNull();
 });
+
+it('renames a profile and ignores a blank name', () => {
+  store.getState().renameProfile('p1', '  Hooligan  ');
+  expect(store.getState().profiles[0].name).toBe('Hooligan');
+  store.getState().renameProfile('p1', '   ');
+  expect(store.getState().profiles[0].name).toBe('Hooligan');
+  expect(sent).toContainEqual({
+    type: 'profiles-save',
+    profiles: [{ ...profile, name: 'Hooligan' }],
+  });
+});
+
+it('deletes a profile and falls back to another one, or a fresh default', () => {
+  const blue: Profile = { ...profile, id: 'p2', name: 'Blue' };
+  store.getState().saveProfiles([profile, blue]);
+  store.getState().setActiveProfile('p2');
+
+  store.getState().deleteProfile('p2');
+  expect(store.getState().profiles.map((p) => p.id)).toEqual(['p1']);
+  expect(store.getState().activeProfileId).toBe('p1');
+
+  store.getState().deleteProfile('p1');
+  const [fresh] = store.getState().profiles;
+  expect(store.getState().profiles).toHaveLength(1);
+  expect(fresh.id).not.toBe('p1');
+  expect(fresh.projectId).toBe('proj');
+  expect(store.getState().activeProfileId).toBe(fresh.id);
+});

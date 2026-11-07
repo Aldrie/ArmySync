@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BORAHAE,
   defaultProfile,
+  isUntouchedDefault,
   displayColor,
   idleBlackoutOf,
   isBorahae,
@@ -114,4 +115,13 @@ describe('defaultProfile', () => {
     });
     expect(new Set(profile.pads.map((p) => p.id)).size).toBe(8);
   });
+});
+
+it('tells an untouched default profile from an edited one', () => {
+  const fresh = defaultProfile('proj', 'p1', counter());
+  expect(isUntouchedDefault(fresh)).toBe(true);
+  expect(isUntouchedDefault({ ...fresh, name: 'Mine' })).toBe(false);
+  expect(isUntouchedDefault({ ...fresh, pads: fresh.pads.slice(1) })).toBe(
+    false,
+  );
 });
