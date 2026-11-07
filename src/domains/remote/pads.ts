@@ -27,18 +27,6 @@ export function idleBlackoutOf(profile: Profile): boolean {
   return profile.idleBlackout ?? true;
 }
 
-export const PAD_SWATCHES: string[] = [
-  '#3f00ff',
-  '#ff4d5e',
-  '#ff8a3d',
-  '#ffc44d',
-  '#3ddc84',
-  '#4dd8ff',
-  '#4d7bff',
-  '#ff6bd6',
-  '#ffffff',
-];
-
 export function isBorahae(hex: string): boolean {
   return hex.toLowerCase() === BORAHAE.command;
 }
@@ -64,11 +52,11 @@ export function defaultProfile(
     pads: [
       color(BORAHAE.command),
       color('#ffffff'),
-      color('#ff4d5e'),
-      color('#4d7bff'),
-      color('#3ddc84'),
-      { id: padId(), kind: 'strobe', colors: ['#b45cff', '#ffffff'], bpm: 180 },
-      { id: padId(), kind: 'fade', colors: ['#4d7bff', '#b45cff'] },
+      color('#ff0000'),
+      color('#0000ff'),
+      color('#00ff00'),
+      { id: padId(), kind: 'strobe', colors: ['#3f00ff', '#ffffff'], bpm: 180 },
+      { id: padId(), kind: 'fade', colors: ['#0000ff', '#3f00ff'] },
       { id: padId(), kind: 'blackout', colors: [] },
     ],
     idleBlackout: true,

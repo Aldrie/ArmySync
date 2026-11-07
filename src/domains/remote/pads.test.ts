@@ -110,7 +110,7 @@ describe('defaultProfile', () => {
       'blackout',
     ]);
     expect(profile.pads[5]).toMatchObject({
-      colors: ['#b45cff', '#ffffff'],
+      colors: ['#3f00ff', '#ffffff'],
       bpm: 180,
     });
     expect(new Set(profile.pads.map((p) => p.id)).size).toBe(8);

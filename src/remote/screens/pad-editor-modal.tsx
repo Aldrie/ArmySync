@@ -2,10 +2,10 @@ import { EyeOff, Heart, Pipette, X } from 'lucide-react';
 import { useState } from 'react';
 import { HexColorInput, HexColorPicker } from 'react-colorful';
 
+import { STICK_SWATCHES } from '../../domains/lightstick/swatches';
 import {
   displayColor,
   isBorahae,
-  PAD_SWATCHES,
   type Pad,
   type PadKind,
 } from '../../domains/remote';
@@ -75,7 +75,7 @@ export default function PadEditorModal({
 }: PadEditorModalProps) {
   const [kind, setKind] = useState(pad.kind);
   const [colors, setColors] = useState([
-    pad.colors[0] ?? PAD_SWATCHES[0],
+    pad.colors[0] ?? STICK_SWATCHES[0],
     pad.colors[1] ?? '#ffffff',
   ]);
   const [bpm, setBpm] = useState(pad.bpm ?? 180);
@@ -92,7 +92,7 @@ export default function PadEditorModal({
   const current = colors[slot];
   const setColor = (hex: string) =>
     setColors(colors.map((c, i) => (i === slot ? hex.toLowerCase() : c)));
-  const isCustom = !PAD_SWATCHES.includes(current.toLowerCase());
+  const isCustom = !STICK_SWATCHES.includes(current.toLowerCase());
 
   return (
     <div className="absolute inset-0 z-30 bg-black/60">
@@ -221,7 +221,7 @@ export default function PadEditorModal({
                 </div>
               ) : (
                 <div className="grid grid-cols-10 gap-2">
-                  {PAD_SWATCHES.map((hex) => (
+                  {STICK_SWATCHES.map((hex) => (
                     <button
                       key={hex}
                       type="button"

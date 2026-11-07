@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { HexColorInput, HexColorPicker } from 'react-colorful';
 import { createPortal } from 'react-dom';
 
+import { STICK_SWATCHES } from '../domains/lightstick/swatches';
+import { cn } from '../lib/cn';
+
 interface ColorPickerPopoverProps {
   color: string;
   anchor: HTMLElement | null;
@@ -51,6 +54,23 @@ export default function ColorPickerPopover({
       className="fixed z-100 rounded-xl border border-border-strong bg-surface-container p-3 shadow-popover"
       style={{ top: position.top, left: position.left }}
     >
+      <div className="mb-3 grid grid-cols-9 gap-1.5">
+        {STICK_SWATCHES.map((hex) => (
+          <button
+            key={hex}
+            type="button"
+            aria-label={hex}
+            aria-pressed={color.toLowerCase() === hex}
+            onClick={() => onChange(hex)}
+            className={cn(
+              'size-5 cursor-pointer rounded-md border border-white/10',
+              color.toLowerCase() === hex &&
+                'ring-2 ring-primary ring-offset-1 ring-offset-surface-container',
+            )}
+            style={{ background: hex }}
+          />
+        ))}
+      </div>
       <HexColorPicker color={color} onChange={onChange} />
       <HexColorInput
         color={color}
