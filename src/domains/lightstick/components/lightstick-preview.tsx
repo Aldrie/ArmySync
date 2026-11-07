@@ -23,7 +23,7 @@ export default function LightstickPreview({
     return (
       <div className={cn('flex flex-col items-center gap-3', className)}>
         <div className="relative">
-          <Lightstick model="se" height={height} />
+          <Lightstick model="v4" height={height} />
           <NotConnectedBadge height={height} />
         </div>
         {onConnect && (
