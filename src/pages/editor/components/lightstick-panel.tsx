@@ -25,6 +25,7 @@ export default function LightstickPanel() {
   const syncEnabled = useBleStore((s) => s.syncEnabled);
   const setSyncEnabled = useBleStore((s) => s.setSyncEnabled);
   const connectedDevices = useBleStore((s) => s.connectedDevices);
+  const dropped = useBleStore((s) => s.dropped);
   const setDeviceDelay = useBleStore((s) => s.setDeviceDelay);
   const setShowDevicesModal = useBleStore((s) => s.setShowDevicesModal);
 
@@ -134,9 +135,11 @@ export default function LightstickPanel() {
                   : 'No Device'}
               </span>
               <span className="text-[11px] text-on-surface-variant truncate">
-                {hasDevices
-                  ? connectedDevices.map((d) => d.name).join(', ')
-                  : 'Tap to connect'}
+                {dropped.length > 0
+                  ? `${dropped.map((d) => d.name).join(', ')} disconnected · tap to reconnect`
+                  : hasDevices
+                    ? connectedDevices.map((d) => d.name).join(', ')
+                    : 'Tap to connect'}
               </span>
             </div>
             <ChevronRight className="size-4 shrink-0 text-outline transition-transform group-hover:translate-x-0.5" />

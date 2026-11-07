@@ -8,14 +8,17 @@ import {
   SignalMedium,
   Unplug,
   Wifi,
+  Zap,
 } from 'lucide-react';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
+import { BleNotices, UnlistedButton } from './ble-notices';
 import Button from './button';
+import IconButton from './icon-button';
 import Modal from './modal';
 import { cn } from '../lib/cn';
-import type { BleDevice, ConnectedDevice } from '../stores/ble-store';
-import { useBleStore } from '../stores/ble-store';
+import type { BleDevice } from '../stores/ble-store';
+import { nearbyDevices, useBleStore } from '../stores/ble-store';
 
 function rssiIcon(rssi: number) {
   if (rssi >= -50) return <SignalHigh className="size-3.5 text-primary" />;
@@ -28,10 +31,6 @@ function rssiLabel(rssi: number) {
   if (rssi >= -50) return 'Strong';
   if (rssi >= -70) return 'Medium';
   return 'Weak';
-}
-
-function isConnected(deviceId: string, connected: ConnectedDevice[]) {
-  return connected.some((d) => d.id === deviceId);
 }
 
 interface DeviceRowProps {
@@ -47,6 +46,8 @@ export function DeviceRow({
   onConnect,
   onDisconnect,
 }: DeviceRowProps) {
+  const identify = useBleStore((s) => s.identify);
+
   return (
     <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-surface-high/60">
       <div
@@ -62,10 +63,10 @@ export function DeviceRow({
 
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium text-on-surface">
-          {device.name}
+          {device.name || 'Unnamed device'}
         </div>
         <div className="flex items-center gap-2 text-xs text-on-surface-variant">
-          <span>{device.deviceType}</span>
+          <span>{device.deviceType ?? 'Unknown'}</span>
           {device.rssi !== 0 && (
             <span className="flex items-center gap-1">
               {rssiIcon(device.rssi)}
@@ -76,10 +77,18 @@ export function DeviceRow({
       </div>
 
       {connected ? (
-        <Button intent="danger" size="sm" onClick={onDisconnect}>
-          <Unplug />
-          Disconnect
-        </Button>
+        <>
+          <IconButton
+            label="Identify: blink this lightstick"
+            onClick={() => void identify(device.id)}
+          >
+            <Zap />
+          </IconButton>
+          <Button intent="danger" size="sm" onClick={onDisconnect}>
+            <Unplug />
+            Disconnect
+          </Button>
+        </>
       ) : (
         <Button intent="tonal" size="sm" onClick={onConnect}>
           <Wifi />
@@ -100,6 +109,8 @@ export default function DevicesModal() {
   const stopScan = useBleStore((s) => s.stopScan);
   const connect = useBleStore((s) => s.connect);
   const disconnect = useBleStore((s) => s.disconnect);
+  const [showUnlisted, setShowUnlisted] = useState(false);
+  const nearby = nearbyDevices(devices, connectedDevices, showUnlisted);
 
   const handleClose = useCallback(() => setOpen(false), [setOpen]);
 
@@ -166,6 +177,7 @@ export default function DevicesModal() {
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-2">
+          <BleNotices />
           {connectedDevices.length > 0 && (
             <div className="mb-2">
               <div className="px-3 pt-2 pb-1 text-xs font-semibold text-on-surface-variant">
@@ -192,27 +204,24 @@ export default function DevicesModal() {
             </div>
           )}
 
-          {devices.filter((d) => !isConnected(d.id, connectedDevices)).length >
-            0 && (
+          {nearby.length > 0 && (
             <div>
               <div className="px-3 pt-2 pb-1 text-xs font-semibold text-on-surface-variant">
                 Available
               </div>
-              {devices
-                .filter((d) => !isConnected(d.id, connectedDevices))
-                .map((d) => (
-                  <DeviceRow
-                    key={d.id}
-                    device={d}
-                    connected={false}
-                    onConnect={handleConnect(d.id)}
-                    onDisconnect={() => {}}
-                  />
-                ))}
+              {nearby.map((d) => (
+                <DeviceRow
+                  key={d.id}
+                  device={d}
+                  connected={false}
+                  onConnect={handleConnect(d.id)}
+                  onDisconnect={() => {}}
+                />
+              ))}
             </div>
           )}
 
-          {devices.length === 0 && !scanning && (
+          {nearby.length === 0 && !scanning && (
             <div className="flex flex-col items-center justify-center gap-1 py-10 text-center">
               <div className="mb-3 flex size-10 items-center justify-center rounded-xl bg-surface-high text-on-surface-variant">
                 <Bluetooth className="size-5" />
@@ -226,7 +235,7 @@ export default function DevicesModal() {
             </div>
           )}
 
-          {devices.length === 0 && scanning && (
+          {nearby.length === 0 && scanning && (
             <div
               role="status"
               className="flex flex-col items-center justify-center gap-3 py-10 text-on-surface-variant"
@@ -234,6 +243,13 @@ export default function DevicesModal() {
               <Loader2 className="size-5 animate-spin text-primary" />
               <span className="text-xs">Scanning for devices...</span>
             </div>
+          )}
+
+          {devices.length > 0 && (
+            <UnlistedButton
+              showUnlisted={showUnlisted}
+              onToggle={() => setShowUnlisted((v) => !v)}
+            />
           )}
         </div>
       </div>

@@ -116,3 +116,84 @@ it('persists delays for two devices and re-applies the latest on reconnect', asy
     vi.useRealTimers();
   }
 });
+
+const purple = [0x8b, 0x20, 0xbd];
+
+it('shows the test color on connect and goes back to the show once confirmed', async () => {
+  invokeMock.mockResolvedValue(null);
+  const { useBleStore, emit } = await loadStore();
+  emit('ble-connected', dev1);
+  await vi.waitFor(() =>
+    expect(invokeMock).toHaveBeenCalledWith('ble_hold', {
+      deviceId: 'dev1',
+      color: purple,
+    }),
+  );
+  expect(useBleStore.getState().colorTest).toEqual({
+    deviceId: 'dev1',
+    failed: false,
+  });
+
+  useBleStore.getState().answerColorTest(false);
+  expect(useBleStore.getState().colorTest?.failed).toBe(true);
+  expect(invokeMock).not.toHaveBeenCalledWith('ble_hold', {
+    deviceId: 'dev1',
+    color: null,
+  });
+
+  useBleStore.getState().retryColorTest();
+  expect(useBleStore.getState().colorTest?.failed).toBe(false);
+  useBleStore.getState().answerColorTest(true);
+  expect(useBleStore.getState().colorTest).toBeNull();
+  expect(invokeMock).toHaveBeenLastCalledWith('ble_hold', {
+    deviceId: 'dev1',
+    color: null,
+  });
+});
+
+it('keeps a dropped device to reconnect and clears it once it is back', async () => {
+  invokeMock.mockResolvedValue(null);
+  const { useBleStore, emit } = await loadStore();
+  emit('ble-connected', dev1);
+  await vi.waitFor(() =>
+    expect(useBleStore.getState().connectedDevices).toHaveLength(1),
+  );
+
+  const info = { id: 'dev1', name: 'Lightstick', deviceType: 'v4' };
+  emit('ble-dropped', info);
+  expect(useBleStore.getState().connectedDevices).toEqual([]);
+  expect(useBleStore.getState().colorTest).toBeNull();
+  expect(useBleStore.getState().dropped).toEqual([info]);
+
+  emit('ble-dropped', info);
+  expect(useBleStore.getState().dropped).toHaveLength(1);
+
+  emit('ble-connected', dev1);
+  await vi.waitFor(() =>
+    expect(useBleStore.getState().connectedDevices).toHaveLength(1),
+  );
+  expect(useBleStore.getState().dropped).toEqual([]);
+});
+
+it('shows why a connect failed and clears it on the next try', async () => {
+  invokeMock.mockRejectedValueOnce("That device isn't a BTS lightstick");
+  const { useBleStore } = await loadStore();
+  await useBleStore.getState().connect('dev9');
+  expect(useBleStore.getState().connectError).toBe(
+    "That device isn't a BTS lightstick",
+  );
+  invokeMock.mockResolvedValue(null);
+  await useBleStore.getState().connect('dev1');
+  expect(useBleStore.getState().connectError).toBeNull();
+});
+
+it('hides unknown devices unless asked and never lists connected ones', async () => {
+  const { nearbyDevices } = await import('./ble-store');
+  const stick = { id: 'a', name: 'BTS_V4 LS', rssi: -40, deviceType: 'v4' };
+  const other = { id: 'b', name: '', rssi: -60, deviceType: null };
+  const linked = { id: 'c', name: 'SE', rssi: -50, deviceType: 'se' };
+  const connected = [{ ...linked, delayMs: 0 }];
+  const all = [stick, other, linked];
+  expect(nearbyDevices(all, connected, false)).toEqual([stick]);
+  expect(nearbyDevices(all, connected, true)).toEqual([stick, other]);
+});

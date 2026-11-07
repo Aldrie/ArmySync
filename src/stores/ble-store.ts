@@ -9,15 +9,27 @@ export interface BleDevice {
   id: string;
   name: string;
   rssi: number;
-  deviceType: string;
+  deviceType: string | null;
 }
 
-export interface ConnectedDevice {
+export interface DeviceInfo {
   id: string;
   name: string;
   deviceType: string;
+}
+
+export interface ConnectedDevice extends DeviceInfo {
   delayMs: number;
 }
+
+export interface ColorTest {
+  deviceId: string;
+  failed: boolean;
+}
+
+export const TEST_COLOR: [number, number, number] = [0x8b, 0x20, 0xbd];
+const IDENTIFY_BLINKS = 3;
+const IDENTIFY_STEP_MS = 280;
 
 interface BleState {
   syncEnabled: boolean;
@@ -25,6 +37,9 @@ interface BleState {
   scanning: boolean;
   devices: BleDevice[];
   showDevicesModal: boolean;
+  colorTest: ColorTest | null;
+  dropped: DeviceInfo[];
+  connectError: string | null;
 
   setSyncEnabled: (enabled: boolean) => void;
   setDeviceDelay: (deviceId: string, ms: number) => void;
@@ -33,6 +48,10 @@ interface BleState {
   stopScan: () => Promise<void>;
   connect: (deviceId: string) => Promise<void>;
   disconnect: (deviceId: string) => Promise<void>;
+  answerColorTest: (lit: boolean) => void;
+  retryColorTest: () => void;
+  identify: (deviceId: string) => Promise<void>;
+  forgetDropped: (deviceId: string) => void;
 }
 
 let pendingDelays: Record<string, number> = {};
@@ -52,12 +71,32 @@ const persistDelay = (deviceId: string, delayMs: number) => {
 
 const connectTokens = new Map<string, symbol>();
 
+const hold = (deviceId: string, color: [number, number, number] | null) =>
+  invoke('ble_hold', { deviceId, color }).catch((err: unknown) =>
+    console.error('[ble] hold failed:', err),
+  );
+
 const removeDevice = (deviceId: string) => {
   connectTokens.delete(deviceId);
   useBleStore.setState((state) => ({
     connectedDevices: state.connectedDevices.filter((d) => d.id !== deviceId),
+    colorTest: state.colorTest?.deviceId === deviceId ? null : state.colorTest,
   }));
 };
+
+export function nearbyDevices(
+  devices: BleDevice[],
+  connected: ConnectedDevice[],
+  showUnlisted: boolean,
+) {
+  return devices.filter(
+    (d) =>
+      !connected.some((c) => c.id === d.id) &&
+      (showUnlisted || d.deviceType !== null),
+  );
+}
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const useBleStore = create<BleState>((set, get) => ({
   syncEnabled: false,
@@ -65,6 +104,9 @@ export const useBleStore = create<BleState>((set, get) => ({
   scanning: false,
   devices: [],
   showDevicesModal: false,
+  colorTest: null,
+  dropped: [],
+  connectError: null,
 
   setSyncEnabled: (enabled) => {
     set({ syncEnabled: enabled });
@@ -110,10 +152,11 @@ export const useBleStore = create<BleState>((set, get) => ({
   },
 
   connect: async (deviceId) => {
+    set({ connectError: null });
     try {
       await invoke('ble_connect', { deviceId });
     } catch (err) {
-      console.error('[ble] connect failed:', err);
+      set({ connectError: String(err) });
     }
   },
 
@@ -124,6 +167,39 @@ export const useBleStore = create<BleState>((set, get) => ({
       console.error('[ble] disconnect failed:', err);
     }
     removeDevice(deviceId);
+  },
+
+  answerColorTest: (lit) => {
+    const test = get().colorTest;
+    if (!test) return;
+    if (lit) {
+      set({ colorTest: null });
+      void hold(test.deviceId, null);
+    } else {
+      set({ colorTest: { ...test, failed: true } });
+    }
+  },
+
+  retryColorTest: () => {
+    const test = get().colorTest;
+    if (!test) return;
+    set({ colorTest: { ...test, failed: false } });
+    void hold(test.deviceId, TEST_COLOR);
+  },
+
+  identify: async (deviceId) => {
+    for (let i = 0; i < IDENTIFY_BLINKS * 2; i++) {
+      await hold(deviceId, i % 2 === 0 ? [255, 255, 255] : [0, 0, 0]);
+      await wait(IDENTIFY_STEP_MS);
+    }
+    const test = get().colorTest;
+    await hold(deviceId, test?.deviceId === deviceId ? TEST_COLOR : null);
+  },
+
+  forgetDropped: (deviceId) => {
+    set((state) => ({
+      dropped: state.dropped.filter((d) => d.id !== deviceId),
+    }));
   },
 }));
 
@@ -142,8 +218,11 @@ const addConnectedDevice = async (payload: ConnectedDevice) => {
   const device = { ...payload, delayMs: bleDelays[payload.id] ?? 0 };
   useBleStore.setState((state) => ({
     connectedDevices: [...state.connectedDevices, device],
+    dropped: state.dropped.filter((d) => d.id !== device.id),
+    colorTest: { deviceId: device.id, failed: false },
     scanning: false,
   }));
+  void hold(device.id, TEST_COLOR);
   if (device.delayMs > 0) {
     try {
       await invoke('ble_set_device_delay', {
@@ -162,4 +241,12 @@ void listen<ConnectedDevice>('ble-connected', (event) => {
 
 void listen<{ id: string }>('ble-disconnected', (event) => {
   removeDevice(event.payload.id);
+});
+
+void listen<DeviceInfo>('ble-dropped', (event) => {
+  const device = event.payload;
+  removeDevice(device.id);
+  useBleStore.setState((state) => ({
+    dropped: [...state.dropped.filter((d) => d.id !== device.id), device],
+  }));
 });

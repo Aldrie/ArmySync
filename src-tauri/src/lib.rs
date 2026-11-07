@@ -42,6 +42,7 @@ pub fn run() {
       ble::ble_connect,
       ble::ble_disconnect,
       ble::ble_set_device_delay,
+      ble::ble_hold,
       remote::remote_start,
       remote::remote_stop,
       remote::remote_send,
