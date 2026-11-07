@@ -61,7 +61,7 @@ export default function EditorPage() {
   const seekStep = useEditorStore((s) => s.seekStep);
   const seekPercent = useEditorStore((s) => s.seekPercent);
   const adjustVolume = useEditorStore((s) => s.adjustVolume);
-  const tick = useEditorStore((s) => s.tick);
+  const onVideoTime = useEditorStore((s) => s.onVideoTime);
   const handleVideoLoad = useEditorStore((s) => s.handleVideoLoad);
   const addEffect = useEditorStore((s) => s.addEffect);
   const selectEffect = useEditorStore((s) => s.selectEffect);
@@ -244,7 +244,8 @@ export default function EditorPage() {
                 videoSrc={videoSrc}
                 onLoadedData={() => void handleVideoLoad()}
                 onTimeUpdate={() => {
-                  if (videoRef.current) tick(videoRef.current.currentTime);
+                  if (videoRef.current)
+                    onVideoTime(videoRef.current.currentTime);
                 }}
               />
             </div>

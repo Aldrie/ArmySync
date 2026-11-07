@@ -75,6 +75,7 @@ interface EditorState {
   seekPercent: (percent: number) => void;
   seek: (time: number) => void;
   tick: (time: number) => void;
+  onVideoTime: (time: number) => void;
 
   setVolume: (value: number) => void;
   adjustVolume: (delta: number) => void;
@@ -152,6 +153,13 @@ function scheduleAutoSave(save: () => Promise<void>) {
   if (autoSaveTimer) clearTimeout(autoSaveTimer);
   autoSaveTimer = setTimeout(() => void save(), AUTO_SAVE_DELAY);
 }
+
+// Rust runs the lights on its own clock from the last play/seek; the video's clock drifts from it over long plays.
+const RESYNC_THRESHOLD_S = 0.04;
+let lightsClock: { at: number; time: number } | null = null;
+const anchorLightsClock = (time: number) => {
+  lightsClock = { at: performance.now(), time };
+};
 
 export const useEditorStore = create<EditorState>((set, get) => ({
   project: null,
@@ -235,11 +243,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   play: () => {
     const el = editorRefs.video;
     set({ isPlaying: true });
-    void el?.play().then(() => invoke('sync_play', { time: el.currentTime }));
+    void el?.play().then(() => {
+      anchorLightsClock(el.currentTime);
+      return invoke('sync_play', { time: el.currentTime });
+    });
   },
 
   pause: () => {
     editorRefs.video?.pause();
+    lightsClock = null;
     set({ isPlaying: false });
     void invoke('sync_pause');
   },
@@ -256,6 +268,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const time = Math.max(0, Math.min(el.duration, el.currentTime + delta));
     el.currentTime = time;
     get().tick(time);
+    if (lightsClock) anchorLightsClock(time);
     void invoke('sync_seek', { time });
   },
 
@@ -276,11 +289,22 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const clamped = Math.max(0, Math.min(el.duration, time));
     el.currentTime = clamped;
     get().tick(clamped);
+    if (lightsClock) anchorLightsClock(clamped);
     void invoke('sync_seek', { time: clamped });
   },
 
   tick: (time) => {
     set({ currentTime: time });
+  },
+
+  onVideoTime: (time) => {
+    get().tick(time);
+    if (!lightsClock || !get().isPlaying) return;
+    const expected =
+      lightsClock.time + (performance.now() - lightsClock.at) / 1000;
+    if (Math.abs(expected - time) <= RESYNC_THRESHOLD_S) return;
+    anchorLightsClock(time);
+    void invoke('sync_seek', { time });
   },
 
   setVolume: (value) => {

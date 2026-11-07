@@ -487,3 +487,35 @@ it('drops a pending editor sync when something else syncs effects directly', asy
     vi.useRealTimers();
   }
 });
+
+it('realigns the lights when the video drifts from their clock', async () => {
+  let now = 0;
+  const clock = vi.spyOn(performance, 'now').mockImplementation(() => now);
+  try {
+    editorRefs.video = {
+      duration: 1500,
+      volume: 1,
+      currentTime: 10,
+      play: () => Promise.resolve(),
+      pause: () => {},
+    } as unknown as HTMLVideoElement;
+    useEditorStore.getState().play();
+    await vi.waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('sync_play', { time: 10 }),
+    );
+    const seeks = () =>
+      vi.mocked(invoke).mock.calls.filter(([cmd]) => cmd === 'sync_seek');
+
+    now = 60_000;
+    useEditorStore.getState().onVideoTime(70.03);
+    expect(seeks()).toHaveLength(0);
+
+    now = 120_000;
+    useEditorStore.getState().onVideoTime(129.9);
+    expect(seeks()).toEqual([['sync_seek', { time: 129.9 }]]);
+    expect(useEditorStore.getState().currentTime).toBe(129.9);
+  } finally {
+    useEditorStore.getState().pause();
+    clock.mockRestore();
+  }
+});
