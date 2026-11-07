@@ -5,7 +5,7 @@
 <h1 align="center">ArmySync</h1>
 
 <p align="center">
-  Desktop app to sync BTS Army Bomb lightstick effects with video playback.
+  Desktop app to program BTS Army Bomb light shows and play them in sync with your videos.
 </p>
 
 ---
@@ -16,55 +16,60 @@
 
 ## Features
 
-- **Timeline Editor** — Drag-and-drop effect editor with real-time preview, undo/redo, copy/paste, and multi-select
-- **4 Effect Types** — Static Color, Color Fade, Strobe/Flash (BPM-based with tap sync), and Blackout
-- **Video Sync** — Load local videos or download from YouTube, with waveform visualization
-- **Lightstick Preview** — Simulated Army Bomb with glow that reflects effects in real-time at 60Hz
-- **BLE Lightstick Control** — Connect real Army Bombs (V4, V3, SE, Multi) via Bluetooth with per-device latency compensation
-- **Project Management** — Folder-based projects with manifest, recent projects list, and auto-save
+- **Library** — Songs from a local video or audio file, a YouTube link, or your Jellyfin server (streamed, never downloaded), grouped into playlists
+- **Timeline Editor** — Drag-and-drop effects over the video and its waveform, with undo/redo, copy/paste and multi-select
+- **4 Effect Types** — Static Color, Color Fade, Strobe/Flash (BPM-based with tap sync) and Blackout
+- **Player** — Watch a show full screen, or switch to Lights only for a music-player view; fine-tune the sync offset on the fly
+- **Follow your TV** — Play a show on a Jellyfin device (Android TV, web) and the lights follow it: play, pause, seek and video changes. Start it from the Mac or from the TV
+- **Phone Remote** — Record effects live from your phone by holding color pads, scrub the timeline, start with a 3 s sync countdown and calibrate latency
+- **Bluetooth Lightsticks** — Connect real Army Bombs (V4, V3, SE, Multi) with per-device latency compensation; the preview shows the sticks you have connected
+
+<p align="center">
+  <img src="docs/player.png" alt="ArmySync Player" width="100%" />
+</p>
 
 ## How to Use
 
-1. **Create a project** — Click "New Project" on the home screen, pick a folder, choose a video source (local file or YouTube URL)
-2. **Add effects** — Drag effects from the left palette onto the timeline
-3. **Edit effects** — Click an effect on the timeline to open its properties panel, adjust colors, duration, BPM, etc.
-4. **Preview** — Hit play to watch the video with the lightstick preview updating in real-time
-5. **Connect a lightstick** — Enable Bluetooth sync in the right panel, tap the device button, scan and connect your Army Bomb
-6. **Calibrate delay** — Use the per-device delay slider (0-200ms) to compensate Bluetooth latency
-7. **Save** — Effects auto-save, or press `Cmd+S` to save manually
+1. **Add a song** — In the library, click "New Project" and pick a file, a YouTube URL or a Jellyfin video
+2. **Program the lights** — Drag effects onto the timeline, or record them live from the phone remote
+3. **Connect your Army Bombs** — Open Devices, scan and connect; adjust each device's delay if it lags
+4. **Play** — Hit Play in the library to open the Player, or use Cast in the Player to follow a Jellyfin device
 
 ## Keyboard Shortcuts
+
+**Editor**
 
 | Key | Action |
 |-----|--------|
 | `Space` | Play / Pause |
-| `←` / `→` | Seek backward / forward |
-| `Shift + ←` / `→` | Seek by larger step |
-| `↑` / `↓` | Volume up / down |
-| `Cmd+Z` | Undo |
-| `Cmd+Shift+Z` | Redo |
-| `Cmd+C` / `Cmd+V` | Copy / Paste effect |
-| `Cmd+D` | Duplicate effect |
-| `Delete` / `Backspace` | Delete selected effect |
+| `←` / `→` (`Shift` for larger step) | Seek |
+| `↑` / `↓` | Volume |
+| `Cmd+Z` / `Cmd+Shift+Z` | Undo / Redo |
+| `Cmd+C` / `Cmd+V` / `Cmd+D` | Copy / Paste / Duplicate |
+| `Delete` / `Backspace` | Delete selection |
 | `Cmd+S` | Save |
+
+**Player**
+
+| Key | Action |
+|-----|--------|
+| `Space` | Play / Pause |
+| `←` / `→` | Seek 10 s |
+| `,` / `.` (`Shift` for 50 ms) | Lights 10 ms earlier / later |
+| `F` | Full screen |
 
 ## Tech Stack
 
 - [Tauri 2](https://tauri.app) — Desktop runtime (Rust backend)
-- [React 19](https://react.dev) — UI framework
-- [Tailwind CSS v4](https://tailwindcss.com) — Styling
-- [Vite](https://vitejs.dev) — Bundler
-- [TypeScript](https://www.typescriptlang.org) — Type safety
-- [Zustand](https://zustand.docs.pmnd.rs) — State management
+- [React 19](https://react.dev), [Zustand](https://zustand.docs.pmnd.rs), [Tailwind CSS v4](https://tailwindcss.com), [Vite](https://vitejs.dev), [TypeScript](https://www.typescriptlang.org)
 - [btleplug](https://github.com/deviceplug/btleplug) — Cross-platform BLE (Rust)
 - [Symphonia](https://github.com/pdeljanov/symphonia) — Audio waveform extraction (Rust)
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org) (v18+)
-- [pnpm](https://pnpm.io)
+- [Node.js](https://nodejs.org) (v18+) and [pnpm](https://pnpm.io)
 - [Rust](https://www.rust-lang.org/tools/install)
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) (for YouTube video downloads)
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) (only for YouTube songs)
 
 ## Getting Started
 
@@ -77,17 +82,15 @@ pnpm tauri dev
 
 | Command | Description |
 |---------|-------------|
-| `pnpm dev` | Start Vite dev server |
-| `pnpm tauri dev` | Start Tauri app in dev mode |
+| `pnpm tauri dev` | Start the app in dev mode |
 | `pnpm build` | Build for production |
-| `pnpm lint` | Run ESLint |
-| `pnpm lint:fix` | Run ESLint with auto-fix + Prettier |
-| `pnpm type-check` | TypeScript type checking |
-| `pnpm check` | Run all checks |
+| `pnpm test` | Run the tests |
+| `pnpm check` | Type-check, lint and Rust format check |
+| `pnpm rust:lint` | Clippy |
+| `pnpm lint:fix` | ESLint auto-fix |
 
 ## Roadmap
 
-- [ ] Player-only screen (view mode without the editor)
 - [ ] Release builds via GitHub Releases
 - [ ] More effect types
 - [ ] Multiple project windows simultaneously
